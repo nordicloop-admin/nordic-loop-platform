@@ -20,7 +20,11 @@ class Company(models.Model):
     business_address = models.TextField()
     phone_number = models.CharField(max_length=20)
     website = models.URLField(blank=True, null=True)
-    email = models.EmailField(unique=True)  # Company email for communications
+    email = models.EmailField(
+        unique=True,
+        default='noreply@example.com',  # Add a default value
+        help_text='Company email for communications'
+    )
     registration_date = models.DateField(auto_now_add=True)
     
     # Approval status
