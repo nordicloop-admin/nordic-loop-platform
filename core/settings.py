@@ -3,10 +3,9 @@ from pathlib import Path
 import environ
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Initialize environment variables
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / '.env')
 
@@ -20,7 +19,7 @@ DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS',
-    default=['http://localhost:8000', 'http://127.0.0.1:8000'])
+    default=['http://127.0.0.1:8000'])
 
 # Application definition
 INSTALLED_APPS = [
