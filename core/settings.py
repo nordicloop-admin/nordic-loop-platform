@@ -32,8 +32,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_extensions',
+    'base.apps.BaseConfig',
     'users',
     'accounts',
+    'auctions',
+    'categories',
+    'subscriptions',
 ]
 AUTH_USER_MODEL = 'users.CustomUser'
 

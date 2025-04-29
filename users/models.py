@@ -13,7 +13,7 @@ class CustomUserManager(UserManager):
         user = self.model(
             email=email,
             name=name,
-            username=email,  # Using email as username
+            username=email,
             **extra_fields
         )
         user.set_password(password)
@@ -37,117 +37,6 @@ class CustomUserManager(UserManager):
             **extra_fields
         )
 
-    def create_company_user(self, email, name, company_data, password=None, **extra_fields):
-        """Create a user associated with a company registration"""
-        # Set is_active to False by default for company users (pending approval)
-        extra_fields.setdefault('is_active', False)
-
-        # Create the user
-        user = self.create_user(
-            email=email,
-            name=name,
-            password=password,
-            **extra_fields
-        )
-
-        # Import here to avoid circular imports
-        from accounts.models import Company
-
-        # Create the company
-        company = Company(
-            vat_number=company_data.get('vat_number'),
-            official_name=company_data.get('official_name'),
-            business_address=company_data.get('business_address'),
-            phone_number=company_data.get('phone_number'),
-            email=company_data.get('email', email),
-            website=company_data.get('website', None)
-        )
-        company.save()
-
-        return user
-
-    def approve_company(self, company_id, admin_user=None):
-        """Approve a company and create a user account with the registration credentials"""
-        from accounts.models import Company, Account
-        from django.utils import timezone
-
-        try:
-            company = Company.objects.get(id=company_id)
-
-            if company.status == 'approved':
-                return company
-
-            if company.status == 'rejected':
-                raise ValueError('Cannot approve a rejected company')
-
-            # Update company status
-            company.status = 'approved'
-            company.approval_date = timezone.now()
-
-            # Find or create user with the company's email
-            user = self.get_queryset().filter(email=company.email).first()
-
-            if not user and company.email and company.password:
-                # Create a new user with the registration credentials
-                # Since the password is already hashed, we need to create the user manually
-
-                user = self.model(
-                    email=company.email,
-                    name=company.official_name,
-                    username=company.email,
-                    is_active=True
-                )
-
-                # Set the password directly from the hashed password
-                user.password = company.password
-                user.save()
-
-                # Create an account for the user
-                account = Account(user=user)
-                account.save()
-
-                # Clear the password from the company record for security
-                company.password = None
-            elif user:
-                # Activate existing user
-                user.is_active = True
-                user.save()
-
-                # Create an account if it doesn't exist
-                if not hasattr(user, 'account'):
-                    account = Account(user=user)
-                    account.save()
-
-            company.save()
-            return company
-
-        except Company.DoesNotExist:
-            raise ValueError(f'Company with ID {company_id} does not exist')
-
-    def reject_company(self, company_id):
-        """Reject a company"""
-        from accounts.models import Company
-
-        try:
-            company = Company.objects.get(id=company_id)
-
-            if company.status == 'rejected':
-                return company
-
-            # Update company status
-            company.status = 'rejected'
-            company.save()
-
-            # Find and deactivate associated user
-            user = self.get_queryset().filter(email=company.email).first()
-            if user:
-                user.is_active = False
-                user.save()
-
-            return company
-
-        except Company.DoesNotExist:
-            raise ValueError(f'Company with ID {company_id} does not exist')
 
 class CustomUser(AbstractUser):
     objects = CustomUserManager()
