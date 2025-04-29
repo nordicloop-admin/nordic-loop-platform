@@ -122,11 +122,11 @@ class CompanyRepositoryTests(TestCase):
             email="company1@test.com"
         )
         
-        # Try to create second company with same VAT number
+       
         user2 = self.create_test_user(email="user6@example.com")
         with self.assertRaises(IntegrityError):
             self.repository.create_company(
-                vat_number="12345678",  # Same VAT number
+                vat_number="12345678",  
                 official_name="Test Company 2",
                 business_address="456 Test Ave",
                 phone_number="+0987654321",
