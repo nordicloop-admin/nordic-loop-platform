@@ -33,13 +33,11 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_extensions',
     'base.apps.BaseConfig',
+    'company',
     'users',
-    'accounts',
-    'auctions',
-    'categories',
-    'subscriptions',
+   
 ]
-AUTH_USER_MODEL = 'users.CustomUser'
+AUTH_USER_MODEL = 'users.User'
 
 
 MIDDLEWARE = [

@@ -31,20 +31,3 @@ class BaseModel(models.Model):
         return self.name
 
 
-class Address(BaseModel):
-    """
-    Model for storing address information.
-    """
-    country = models.CharField(max_length=100)
-    province = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)
-    city = models.CharField(max_length=100)
-    street_number = models.CharField(max_length=100)
-    code = models.CharField(max_length=20)
-    additional_info = models.TextField(blank=True, null=True)
-    
-    class Meta:
-        verbose_name_plural = "Addresses"
-    
-    def __str__(self):
-        return f"{self.street_number}, {self.city}, {self.country}"
