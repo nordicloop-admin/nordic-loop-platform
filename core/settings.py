@@ -1,6 +1,7 @@
 
 from pathlib import Path
 import environ
+import dj_database_url
 from pathlib import Path
 
 
@@ -73,12 +74,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# https://docs.djangoproject.com/en/stable/ref/settings/#databases
+# https://github.com/jazzband/dj-database-url
+DATABASE_URL = env('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=env.int('CONN_MAX_AGE', default=600), # Optional: set connection max age
+            conn_health_checks=env.bool('CONN_HEALTH_CHECKS', default=True) # Optional: enable connection health checks
+        )
     }
-}
+else:
+    # Fallback to SQLite for local development if DATABASE_URL is not set
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Authentication
 AUTH_PASSWORD_VALIDATORS = [
