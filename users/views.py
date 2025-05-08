@@ -42,7 +42,7 @@ class ContactSignupView(APIView):
 
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+# @method_decorator(csrf_exempt, name='dispatch')
 class ContactLoginView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
