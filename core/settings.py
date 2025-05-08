@@ -150,6 +150,7 @@ CORS_ALLOWED_ORIGINS = (
     "http://localhost:3000",
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
+    "https://nordicloop.se",
 
 )
 CORS_ALLOW_CREDENTIALS = True
