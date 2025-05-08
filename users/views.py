@@ -5,6 +5,7 @@ from rest_framework import status
 from company.models import Company
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate, login
+from rest_framework_simplejwt.tokens import RefreshToken
   # Import the custom user model
 
 class ContactSignupView(APIView):
@@ -61,10 +62,14 @@ class ContactLoginView(APIView):
         if not user.check_password(password):
             return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
 
+        refresh = RefreshToken.for_user(user)
+
         return Response({
             "message": "Login successful.",
-            "username": company.contact_name,  
+            "username": company.contact_name,
             "email": user.email,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
         }, status=status.HTTP_200_OK)
 
 class ListUsersView(APIView):
