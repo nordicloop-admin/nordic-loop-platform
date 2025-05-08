@@ -1,28 +1,24 @@
-
 from pathlib import Path
-import environ
+import os
+from datetime import timedelta
+from dotenv import load_dotenv
 import dj_database_url
 from pathlib import Path
+
+load_dotenv()
+
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-env = environ.Env()
-environ.Env.read_env(BASE_DIR / '.env')
+ENVIRONMENT = os.getenv("ENVIRONMENT")
 
-# Environment configuration
-ENV = env.str('DJANGO_ENV', 'development').lower()
-PRODUCTION = ENV == 'production'
-DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
+SECRET_KEY =  os.getenv("DJANGO_SECRET_KEY")
 
+DEBUG = True
 
-# Security settings
-SECRET_KEY = env('DJANGO_SECRET_KEY')
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS',
-    default=['http://127.0.0.1:8000'])
+ALLOWED_HOSTS = ['127.0.0.1', 'testingnordicloop.vercel.app', 'nordicloop.onrender.com']
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -38,7 +34,6 @@ INSTALLED_APPS = [
     'users',
    
 ]
-AUTH_USER_MODEL = 'users.User'
 
 
 MIDDLEWARE = [
@@ -54,6 +49,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'core.urls'
+AUTH_USER_MODEL = 'users.User'
 
 TEMPLATES = [
     {
@@ -73,21 +69,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/stable/ref/settings/#databases
-# https://github.com/jazzband/dj-database-url
-DATABASE_URL = env('DATABASE_URL', default=None)
 
-if DATABASE_URL:
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if ENVIRONMENT  == "production":
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=env.int('CONN_MAX_AGE', default=600), # Optional: set connection max age
-            conn_health_checks=env.bool('CONN_HEALTH_CHECKS', default=True) # Optional: enable connection health checks
+            conn_max_age=os.getenv("CONN_MAX_AGE"), 
+            conn_health_checks=os.getenv("CONN_HEALTH_CHECKS")
         )
     }
+
 else:
-    # Fallback to SQLite for local development if DATABASE_URL is not set
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -112,19 +107,26 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
 }
-
 # Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+# https://docs.djangoproject.com/en/5.1/topics/i18n/
+
+LANGUAGE_CODE = "en-us"
+
+TIME_ZONE = "UTC"
+
 USE_I18N = True
+
 USE_TZ = True
+
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
@@ -138,21 +140,17 @@ STORAGES = {
     },
 }
 
-# Security headers
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = (
     "http://localhost:3000",
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
+    "http://127.0.0.1:8000",
 
 )
-CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOW_METHODS = (
     "DELETE",
     "GET",
@@ -170,15 +168,13 @@ CORS_ALLOW_HEADERS = (
     "x-requested-with",
 )
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "https://testingnordicloop.vercel.app",
+    "https://nordicloop.onrender.com",
+]
 
-# Default primary key field type
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
-# WSGI_APPLICATION = "core.wsgi.application"
 ASGI_APPLICATION = "core.asgi.application"
-if PRODUCTION:
-    BASE_LINK = ""
-else:
-    BASE_LINK = "http://127.0.0.1:8000/"
