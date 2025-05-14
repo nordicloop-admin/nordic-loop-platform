@@ -9,13 +9,13 @@ class CompanyAdmin(admin.ModelAdmin):
     
 
     fieldsets = (
-        ('Company Information', {
-            'fields': ('official_name', 'vat_number', 'company_sector', 'website', 'status')
-        }),
-        ('Contact Information', {
-            'fields': ('contact_name', 'contact_position', 'contact_email')
-        }),
-        ('Registration Credentials', {
-            'fields': ('email', 'password')
-        }),
-    )
+    ('Company Information', {
+        'fields': ('official_name', 'vat_number', 'sector', 'website', 'status')
+    }),
+    ('Contact Information', {
+        'fields': ('contact_name', 'contact_position', 'contact_email')
+    }),
+    ('Registration Credentials', {
+        'fields': ('email',)
+    }),
+)
