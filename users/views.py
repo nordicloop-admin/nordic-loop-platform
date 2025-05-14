@@ -6,7 +6,8 @@ from company.models import Company
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-  # Import the custom user model
+from .serializers import UserSerializer
+
 
 class ContactSignupView(APIView):
     permission_classes = [AllowAny]
@@ -26,17 +27,21 @@ class ContactSignupView(APIView):
         if User.objects.filter(email=contact_email).exists():  
             return Response({"error": "User already registered with this email."}, status=status.HTTP_400_BAD_REQUEST)
 
+       
         user = User.objects.create_user(  
-            username=company.contact_name,
+            username=company.contact_name or contact_email,
             email=contact_email,
             name=company.contact_name or '',
-            password=password 
+            password=password,
+            company=company 
         )
 
         return Response({
             "message": "User created successfully.",
             "username": user.username,
+            "company": str(user.company)  
         }, status=status.HTTP_201_CREATED)
+
 
 
 class ContactLoginView(APIView):
@@ -49,15 +54,18 @@ class ContactLoginView(APIView):
         if not contact_email or not password:
             return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            company = Company.objects.get(contact_email=contact_email)
-        except Company.DoesNotExist:
-            return Response({"error": "No company found with this contact email."}, status=status.HTTP_404_NOT_FOUND)
+        user = None
+        company = Company.objects.filter(contact_email=contact_email).first()
 
-        user = User.objects.filter(email=contact_email).first()
+        if company:
+            # Try logging in the user using the contact_email
+            user = User.objects.filter(email=contact_email, company=company).first()
+        else:
+            # Check if user is admin by role
+            user = User.objects.filter(email=contact_email, role="Admin").first()
 
         if not user:
-            return Response({"error": "No user found with this email."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Unauthorized login. Not a company contact or admin."}, status=status.HTTP_403_FORBIDDEN)
 
         if not user.check_password(password):
             return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
@@ -66,21 +74,15 @@ class ContactLoginView(APIView):
 
         return Response({
             "message": "Login successful.",
-            "username": company.contact_name,
+            "username": user.username,
             "email": user.email,
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }, status=status.HTTP_200_OK)
 
+
 class ListUsersView(APIView):
     def get(self, request):
         users = User.objects.all()
-    
-        user_data = []
-        for user in users:
-            user_data.append({
-                "username": user.username,
-                "email": user.email,
-                "date_joined": user.date_joined,
-            })
-        return Response({"users": user_data}, status=status.HTTP_200_OK)
+        serializer = UserSerializer(users, many=True)
+        return Response({"users": serializer.data})
