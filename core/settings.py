@@ -3,7 +3,8 @@ from pathlib import Path
 import environ
 import dj_database_url
 from pathlib import Path
-
+import os
+from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -19,8 +20,7 @@ DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
 # Security settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS',
-    default=['http://127.0.0.1:8000'])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://127.0.0.1:8000'])
 
 # Application definition
 INSTALLED_APPS = [
@@ -36,6 +36,10 @@ INSTALLED_APPS = [
     'base.apps.BaseConfig',
     'company',
     'users',
+    'category',
+    'ads',
+    'bids',
+
    
 ]
 AUTH_USER_MODEL = 'users.User'
@@ -76,18 +80,18 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/stable/ref/settings/#databases
 # https://github.com/jazzband/dj-database-url
-DATABASE_URL = env('DATABASE_URL', default=None)
 
-if DATABASE_URL:
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DEBUG:
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=env.int('CONN_MAX_AGE', default=600), # Optional: set connection max age
-            conn_health_checks=env.bool('CONN_HEALTH_CHECKS', default=True) # Optional: enable connection health checks
+            conn_max_age=os.getenv("CONN_MAX_AGE"),
+            conn_health_checks=os.getenv("CONN_HEALTH_CHECKS"),
         )
     }
 else:
-    # Fallback to SQLite for local development if DATABASE_URL is not set
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -175,11 +179,16 @@ CORS_ALLOW_HEADERS = (
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=90),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=90),
+}
+
 
 
 # WSGI_APPLICATION = "core.wsgi.application"
 ASGI_APPLICATION = "core.asgi.application"
 if PRODUCTION:
-    BASE_LINK = ""
+    BASE_LINK = "https://nordic-loop-platform.onrender.com/"
 else:
     BASE_LINK = "http://127.0.0.1:8000/"
