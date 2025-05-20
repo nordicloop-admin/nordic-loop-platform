@@ -5,6 +5,9 @@ from rest_framework.permissions import AllowAny
 from company.serializer import CompanySerializer
 from company.repository.company_repository import CompanyRepository
 from company.services.company_service import CompanyService
+from rest_framework.permissions import IsAdminUser
+
+from users.models import User 
 
 repository = CompanyRepository()
 service = CompanyService(repository)
@@ -78,4 +81,30 @@ class CompanyView(APIView):
             return Response(serializer.data)
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class ApproveCompanyView(APIView):
+    permission_classes = [IsAdminUser]  
+
+    def post(self, request, company_id):
+        try:
+            company = service.get_company_by_id(company_id)
+            if not company:
+                return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if company.status == "approved":
+                return Response({"message": "Company is already approved."}, status=status.HTTP_200_OK)
+
+
+            company.status = "approved"
+            company.save()
+
+            users = User.objects.filter(company=company)
+            users.update(can_place_ads=True, can_place_bids=True)
+
+            return Response({"message": "Company approved and user permissions updated."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Failed to approve the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
