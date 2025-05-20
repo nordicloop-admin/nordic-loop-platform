@@ -12,31 +12,30 @@ class  CompanyService:
 
 
     def create_company(self, company_data: Dict[str, Any]) -> Company:
-            try:
-                # Validate required fields
-                required_fields = ['vat_number', 'official_name', 'email',
-                                'contact_name', 'contact_email']
+        try:
+            # Validate required fields
+            required_fields = ['vat_number', 'official_name', 'email',
+                            'primary_first_name','primary_last_name', 'primary_email']
 
-                for field in required_fields:
-                    if field not in company_data or not company_data[field]:
-                        raise ValueError(f"{field.replace('_', ' ').title()} is required")
+            for field in required_fields:
+                if field not in company_data or not company_data[field]:
+                    raise ValueError(f"{field.replace('_', ' ').title()} is required")
 
-                
-                if self.repository.get_company_by_vat(company_data['vat_number']).data:
-                    raise ValueError(f"Company with VAT number {company_data['vat_number']} already exists")
+            if self.repository.get_company_by_vat(company_data['vat_number']).data:
+                raise ValueError(f"Company with VAT number {company_data['vat_number']} already exists")
 
-                if self.repository.get_company_by_email(company_data['email']).data:
-                    raise ValueError(f"Company with email {company_data['email']} already exists")
+            if self.repository.get_company_by_email(company_data['email']).data:
+                raise ValueError(f"Company with email {company_data['email']} already exists")
 
-                # Set default status
-                company_data.setdefault('status', 'pending')
+            # Set default status
+            company_data.setdefault('status', 'pending')
 
-                # Create the company
-                company = self.repository.create_company(company_data).data
-                return company
-            except Exception as e:
-                logging_service.log_error(e)
-                raise e
+            # Create the company
+            company = self.repository.create_company(company_data).data
+            return company
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
             
 
     
