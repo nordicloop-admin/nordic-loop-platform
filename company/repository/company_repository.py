@@ -97,7 +97,7 @@ class CompanyRepository:
                 Q(official_name__icontains=query) |
                 Q(vat_number__icontains=query) |
                 Q(email__icontains=query) |
-                Q(contact_email__icontains=query)
+                Q(primary_email__icontains=query)
             )
             return RepositoryResponse(
                 success=True,
