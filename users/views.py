@@ -13,33 +13,34 @@ class ContactSignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        contact_email = request.data.get("email")
+        email = request.data.get("email")
         password = request.data.get("password")
 
-        if not contact_email or not password:
+        if not email or not password:
             return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            company = Company.objects.get(contact_email=contact_email)
+            company = Company.objects.get(primary_email=email)
         except Company.DoesNotExist:
-            return Response({"error": "No company found with this contact email."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "No company found with this email."}, status=status.HTTP_404_NOT_FOUND)
 
-        if User.objects.filter(email=contact_email).exists():  
+        if User.objects.filter(email=email).exists():
             return Response({"error": "User already registered with this email."}, status=status.HTTP_400_BAD_REQUEST)
 
-       
-        user = User.objects.create_user(  
-            username=company.contact_name or contact_email,
-            email=contact_email,
-            name=company.contact_name or '',
+        full_name = f"{company.primary_first_name or ''} {company.primary_last_name or ''}".strip()
+
+        user = User.objects.create_user(
+            username=full_name,
+            email=email,
+            name=full_name,
             password=password,
-            company=company 
+            company=company
         )
 
         return Response({
             "message": "User created successfully.",
             "username": user.username,
-            "company": str(user.company)  
+            "company": str(user.company)
         }, status=status.HTTP_201_CREATED)
 
 
@@ -48,21 +49,19 @@ class ContactLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        contact_email = request.data.get("email")
+        email = request.data.get("email")
         password = request.data.get("password")
 
-        if not contact_email or not password:
+        if not email or not password:
             return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         user = None
-        company = Company.objects.filter(contact_email=contact_email).first()
+        company = Company.objects.filter(primary_email=email).first()
 
         if company:
-            # Try logging in the user using the contact_email
-            user = User.objects.filter(email=contact_email, company=company).first()
+            user = User.objects.filter(email=email, company=company).first()
         else:
-            # Check if user is admin by role
-            user = User.objects.filter(email=contact_email, role="Admin").first()
+            user = User.objects.filter(email=email, role="Admin").first()
 
         if not user:
             return Response({"error": "Unauthorized login. Not a company contact or admin."}, status=status.HTTP_403_FORBIDDEN)
