@@ -101,7 +101,7 @@ class ApproveCompanyView(APIView):
             company.save()
 
             users = User.objects.filter(company=company)
-            users.update(can_place_ads=True, can_place_bid=True)
+            users.update(can_place_ads=True, can_place_bids=True)
 
             return Response({"message": "Company approved and user permissions updated."}, status=status.HTTP_200_OK)
         except Exception as e:

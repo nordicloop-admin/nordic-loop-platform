@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from .models import Ad
 
 class AdSerializer(serializers.ModelSerializer):
@@ -15,11 +14,12 @@ class AdSerializer(serializers.ModelSerializer):
             'subcategory',
             'description',
             'base_price',
+            'price_per_partition',
             'volume',
             'unit',
+            'selling_type',
             'country_of_origin',
             'end_date',
             'end_time',
             'item_image',
         ]
-
