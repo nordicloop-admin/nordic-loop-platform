@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import  IsAuthenticated
 from ads.repository import AdRepository
 from ads.services import AdService
 from ads.serializer import AdSerializer
@@ -10,11 +10,11 @@ ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
 
 class AdView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
-            ad = ad_service.create_ad(request.data)
+            ad = ad_service.create_ad(request.data, request.FILES, request.user)
             serializer = AdSerializer(ad)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValueError as ve:
