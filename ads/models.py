@@ -14,7 +14,7 @@ class Ad(models.Model):
     SELLING_TYPE_CHOICES = [
         ('partition', 'Selling in Partition'),
         ('whole', 'Selling as Whole'),
-        ('both', 'selling as whole and partion'),
+        ('both whole and partion', 'selling as whole and partion'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ads", blank=True, null=True)
@@ -27,7 +27,7 @@ class Ad(models.Model):
     volume = models.DecimalField(max_digits=10, decimal_places=2)
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default='kg')
     selling_type = models.CharField(
-        max_length=20,
+        max_length=255,
         choices=SELLING_TYPE_CHOICES,
         default='whole',
         null=True

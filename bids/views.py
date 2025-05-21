@@ -33,9 +33,6 @@ class BidView(APIView):
                 volume=float(volume) if volume else None
             )
 
-            if isinstance(bid, dict) and "error" in bid:
-                return Response({"error": bid["error"]}, status=status.HTTP_400_BAD_REQUEST)
-
             serializer = BidSerializer(bid)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -43,6 +40,7 @@ class BidView(APIView):
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
@@ -69,14 +67,22 @@ class BidView(APIView):
             if not amount:
                 return Response({"error": "Bid amount is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            bid = bid_service.update_bid(bid_id=bid_id, amount=amount, user=request.user)
-            serializer = BidSerializer(bid)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            result = bid_service.update_bid(bid_id=bid_id, amount=float(amount), user=request.user)
 
-        except ValueError as ve:
-            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+            if "error" in result:
+                return Response({"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = BidSerializer(result["bid"])
+            return Response({
+                "message": result["message"],
+                "bid": serializer.data
+            }, status=status.HTTP_200_OK)
+
         except Exception:
-            return Response({"error": "Update failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
     def delete(self, request, bid_id):
         try:
