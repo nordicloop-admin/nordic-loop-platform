@@ -131,39 +131,48 @@ class CategoryRepository:
 
 class SubCategoryRepository:
 
-    def create_subcategory(self, data) -> RepositoryResponse:
+    def create_subcategory(self, data_list) -> RepositoryResponse:
         try:
-            category_name = data.pop("category_name", None)
+            created_subcategories = []
 
-            if not category_name:
-                return RepositoryResponse(
-                    success=False,
-                    message="Category name is required",
-                    data=None,
-                )
+            for data in data_list:
+                if not isinstance(data, dict):
+                    return RepositoryResponse(
+                success=False,
+                message="Please complete the list ",
+                data=None,
+            )
 
-            category = Category.objects.get(name=category_name)
-            subcategory = SubCategory.objects.create(category=category, **data)
-            print("Final subcategory data:", data)
+                category_name = data.pop("category_name", None)
+
+                if not category_name:
+                    return RepositoryResponse(
+                        success=False,
+                        message="No such Catgeory found",
+                        data=None,
+                    )
+
+                try:
+                    category = Category.objects.get(name=category_name)
+                    subcategory = SubCategory.objects.create(category=category, **data)
+                    created_subcategories.append(subcategory)
+                except Category.DoesNotExist:
+                    continue
 
             return RepositoryResponse(
                 success=True,
-                message="SubCategory created successfully",
-                data=subcategory,
+                message=f"{len(created_subcategories)} SubCategories created successfully",
+                data=created_subcategories,
             )
-        except Category.DoesNotExist:
-            return RepositoryResponse(
-                success=False,
-                message="Category not found",
-                data=None,
-            )
+
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(
                 success=False,
-                message="Failed to create subcategory",
+                message="Failed to create subcategories",
                 data=None,
             )
+
 
 
     

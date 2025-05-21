@@ -17,6 +17,7 @@ class BidRepository:
 
             ad_id = data.get("ad_id")
             amount = data.get("amount")
+            volume = data.get("volume") 
 
             if not ad_id or not amount:
                 return RepositoryResponse(False, "Ad ID and bid amount are required", None)
@@ -25,32 +26,108 @@ class BidRepository:
             if not ad:
                 return RepositoryResponse(False, "Ad not found", None)
 
-            # Combine end_date and end_time into a timezone-aware datetime
             end_datetime = datetime.combine(ad.end_date, ad.end_time)
             end_datetime = timezone.make_aware(end_datetime, timezone.get_current_timezone())
-
             if end_datetime < timezone.now():
                 return RepositoryResponse(False, "Bidding has ended for this ad", None)
 
+            try:
+                amount = float(amount)
+            except (TypeError, ValueError):
+                return RepositoryResponse(False, "Invalid bid amount", None)
+
+            if ad.selling_type == "whole":
+                if volume is not None:
+                    return RepositoryResponse(False, "Volume should not be specified for whole selling type", None)
+
+                if amount < float(ad.base_price):
+                    return RepositoryResponse(
+                        False,
+                        f"Your bid must be at least the base price of {ad.base_price}",
+                        None
+                    )
+                bid_volume = None 
+
+            elif ad.selling_type == "partition":
+                if volume is None:
+                    return RepositoryResponse(False, "Volume is required for partition bidding", None)
+
+                try:
+                    volume = float(volume)
+                except (TypeError, ValueError):
+                    return RepositoryResponse(False, "Volume must be a number", None)
+
+                if volume <= 0 or volume > float(ad.volume):
+                    return RepositoryResponse(
+                        False,
+                        f"Volume must be greater than 0 and less than or equal to available volume ({ad.volume})",
+                        None
+                    )
+
+                expected_amount = float(ad.price_per_partition) * volume
+                if amount < expected_amount:
+                    return RepositoryResponse(
+                        False,
+                        f"Your bid must be at least {expected_amount} (price per partition × volume)",
+                        None
+                    )
+                bid_volume = volume
+
+            elif ad.selling_type == "both":
+                if volume is None:
+                    if amount < float(ad.base_price):
+                        return RepositoryResponse(
+                            False,
+                            f"Your bid must be at least the base price of {ad.base_price}",
+                            None
+                        )
+                    bid_volume = None
+                else:
+                    try:
+                        volume = float(volume)
+                    except (TypeError, ValueError):
+                        return RepositoryResponse(False, "Volume must be a number", None)
+
+                    if volume <= 0 or volume > float(ad.volume):
+                        return RepositoryResponse(
+                            False,
+                            f"Volume must be greater than 0 and less than or equal to available volume ({ad.volume})",
+                            None
+                        )
+
+                    expected_amount = float(ad.price_per_partition) * volume
+                    if amount < expected_amount:
+                        return RepositoryResponse(
+                            False,
+                            f"Your bid must be at least {expected_amount} (price per partition × volume)",
+                            None
+                        )
+                    bid_volume = volume
+            else:
+                return RepositoryResponse(
+                    False,
+                    f"Bidding for selling type '{ad.selling_type}' is not supported",
+                    None
+                )
+
             highest_bid = ad.bids.order_by("-amount").first()
-            if highest_bid and float(amount) <= float(highest_bid.amount):
+            if highest_bid and amount <= float(highest_bid.amount):
                 return RepositoryResponse(
                     False,
                     f"Your bid must be higher than the current highest bid of {highest_bid.amount}",
                     None
                 )
-
-            bid = Bid.objects.create(user=user, ad=ad, amount=amount)
-
-            return RepositoryResponse(
-                success=True,
-                message="Bid placed successfully",
-                data=bid
+            bid = Bid.objects.create(
+                user=user,
+                ad=ad,
+                amount=amount,
+                volume=bid_volume
             )
 
+            return RepositoryResponse(True, "Bid placed successfully", bid)
+
         except Exception as e:
-            logging_service.log_error(e)
-            return RepositoryResponse(False, "Failed to place bid", None)
+            return RepositoryResponse(False, str(e), None)
         
     
 
