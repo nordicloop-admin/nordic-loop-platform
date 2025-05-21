@@ -57,7 +57,7 @@ class SubCategoryService:
     def __init__(self, subcategory_repository: SubCategoryRepository):
         self.repository = subcategory_repository
 
-    def create_subcategory(self, data: Dict[str, Any]) -> SubCategory:
+    def create_subcategory(self, data: List[Dict[str, Any]]) -> List[SubCategory]:
         response = self.repository.create_subcategory(data)
         
         if not response.success or not response.data:

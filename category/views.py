@@ -77,10 +77,14 @@ class SubCategoryView(APIView):
 
     def post(self, request):
         try:
-            data = request.data.copy()
-            subcategory = sub_service.create_subcategory(data)
-            serializer = SubCategorySerializer(subcategory)
+            data = request.data
+            if not isinstance(data, list):
+                return Response({"error": "Expected a list of subcategories"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            subcategories = sub_service.create_subcategory(data)
+            serializer = SubCategorySerializer(subcategories, many=True)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
