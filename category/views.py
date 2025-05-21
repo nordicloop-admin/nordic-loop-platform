@@ -16,10 +16,8 @@ class CategoryView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Create a category
         try:
             category = category_service.create_category(request.data)
-            # For POST, returning basic category info is usually fine
             serializer = CategorySerializer(category)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValueError as ve:
@@ -28,7 +26,7 @@ class CategoryView(APIView):
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get(self, request, category_id=None):
-        # Retrieve one or list all
+   
         try:
             if category_id:
                 category = category_service.get_category_by_id(category_id)
