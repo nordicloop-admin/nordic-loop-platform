@@ -6,6 +6,7 @@ class Bid(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="users")
     ad = models.ForeignKey(Ad, on_delete=models.CASCADE, related_name="bids")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    volume = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True) 
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

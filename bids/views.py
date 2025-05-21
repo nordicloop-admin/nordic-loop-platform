@@ -18,11 +18,20 @@ class BidView(APIView):
         try:
             ad_id = request.data.get("ad_id")
             amount = request.data.get("amount")
+            volume = request.data.get("volume") 
 
             if not ad_id or not amount:
-                return Response({"error": "ad_id and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "ad_id and amount are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            bid = bid_service.create_bid(ad_id=ad_id, amount=amount, user=request.user)
+            bid = bid_service.create_bid(
+                ad_id=ad_id,
+                amount=float(amount),
+                user=request.user,
+                volume=float(volume) if volume else None
+            )
 
             if isinstance(bid, dict) and "error" in bid:
                 return Response({"error": bid["error"]}, status=status.HTTP_400_BAD_REQUEST)
@@ -34,6 +43,7 @@ class BidView(APIView):
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
     def get(self, request, bid_id=None):
