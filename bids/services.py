@@ -4,6 +4,7 @@ from base.utils.responses import RepositoryResponse
 from .repository import BidRepository
 from .models import Bid
 from users.models import User
+from .serializer import BidSerializer
 
 logging_service = LoggingService()
 
@@ -12,7 +13,7 @@ class BidService:
     def __init__(self, bid_repository: BidRepository):
         self.repository = bid_repository
 
-    def create_bid(self, ad_id: int, amount: float, user: Optional[User] = None, volume: Optional[float] = None) -> dict:
+    def create_bid(self, ad_id: int, amount: float, user: Optional[User] = None, volume: Optional[float] = None) -> Bid:
         try:
             data = {
                 "ad_id": ad_id,
@@ -24,23 +25,31 @@ class BidService:
             response = self.repository.place_bid(data, user)
 
             if not response.success:
+                raise ValueError(response.message)
+
+            return response.data  
+
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def update_bid(self, bid_id: int, amount: float, user: Optional[User] = None) -> dict:
+        try:
+            if not user or not user.is_authenticated:
+                return {"error": "Authentication required"}
+
+            response = self.repository.update_bid(bid_id, amount, user)
+            if not response.success or not response.data:
                 return {"error": response.message}
 
-            return response.data
+            return {
+                "message": response.message,
+                "bid": response.data  
+            }
 
         except Exception as e:
             logging_service.log_error(e)
             return {"error": "Something went wrong"}
-
-    def update_bid(self, bid_id: int, amount: float, user: Optional[User] = None) -> Bid:
-        try:
-            response = self.repository.update_bid(bid_id, amount, user)
-            if not response.success or not response.data:
-                raise ValueError(response.message)
-            return response.data  # now a Bid instance
-        except Exception as e:
-            logging_service.log_error(e)
-            raise e
 
 
     def delete_bid(self, bid_id: int, user: Optional[User] = None) -> None:
