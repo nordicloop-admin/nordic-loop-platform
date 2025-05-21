@@ -9,7 +9,7 @@ logging_service = LoggingService()
 class CategoryRepository:
     def create_category(self, data) -> RepositoryResponse:
         try:
-            name = data.pop("category_name", None)
+            name = data.pop("name", None)
             if not name:
                 return RepositoryResponse(
                     success=False,
