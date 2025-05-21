@@ -1,30 +1,7 @@
 from rest_framework import serializers
 from .models import Category, SubCategory
 
-# class SubCategorySerializer(serializers.ModelSerializer):
-#     category_name = serializers.CharField(source='category.name', read_only=True)
 
-#     class Meta:
-#         model = SubCategory
-#         fields = ['id', 'name', 'category', 'category_name']
-#         extra_kwargs = {
-#             'name': {'required': True},
-#             'category': {'required': True},
-#         }
-
-#     def validate_name(self, value):
-#         if not value.strip():
-#             raise serializers.ValidationError("Name cannot be empty.")
-#         return value
-
-#     def create(self, validated_data):
-#         validated_data['name'] = validated_data['name'].strip().title()
-#         return super().create(validated_data)
-
-#     def update(self, instance, validated_data):
-#         if 'name' in validated_data:
-#             validated_data['name'] = validated_data['name'].strip().title()
-#         return super().update(instance, validated_data)
 
 class SubCategorySerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(write_only=True)
