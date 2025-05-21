@@ -89,3 +89,10 @@ class BidView(APIView):
 
         except Exception:
             return Response({"error": "Delete failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    def user_bids_view(request):
+        response = bid_repository.list_bids(user=request.user)
+        if response.success:
+            return Response(response.data, status=status.HTTP_200_OK)
+        return Response({"error": response.message}, status=status.HTTP_400_BAD_REQUEST)
