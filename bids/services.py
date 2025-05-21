@@ -12,13 +12,19 @@ class BidService:
     def __init__(self, bid_repository: BidRepository):
         self.repository = bid_repository
 
-    def create_bid(self, ad_id: int, amount: float, user: Optional[User] = None) -> dict:
+    def create_bid(self, ad_id: int, amount: float, user: Optional[User] = None, volume: Optional[float] = None) -> dict:
         try:
-            data = {"ad_id": ad_id, "amount": amount}
+            data = {
+                "ad_id": ad_id,
+                "amount": amount,
+            }
+            if volume is not None:
+                data["volume"] = volume
+
             response = self.repository.place_bid(data, user)
-            
+
             if not response.success:
-                return {"error": response.message}  
+                return {"error": response.message}
 
             return response.data
 

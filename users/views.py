@@ -61,7 +61,7 @@ class ContactLoginView(APIView):
         if company:
             user = User.objects.filter(email=email, company=company).first()
         else:
-            user = User.objects.filter(email=email, role="Admin").first()
+            user = User.objects.filter(email=email, role="staff").first()
 
         if not user:
             return Response({"error": "Unauthorized login. Not a company contact or admin."}, status=status.HTTP_403_FORBIDDEN)
