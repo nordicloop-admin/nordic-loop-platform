@@ -6,4 +6,5 @@ urlpatterns = [
     path("", AdView.as_view(), name="list-ads"),
     path("<int:ad_id>/", AdView.as_view(), name="update-ad"),
     path("<int:ad_id>/delete/", AdView.as_view(), name="delete-ad"),
+    path("user/", AdView.as_view(), name="user-ads"),
 ]

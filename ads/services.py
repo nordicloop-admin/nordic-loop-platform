@@ -68,3 +68,14 @@ class AdService:
         except Exception as e:
             logging_service.log_error(e)
             raise e
+    
+
+    def list_user_ads(self, user: User) -> List[Ad]:
+        try:
+            response = self.repository.list_ads_by_user(user)
+            if not response.success:
+                raise ValueError(response.message)
+            return response.data
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e

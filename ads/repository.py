@@ -114,3 +114,15 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve ads", None)
+    
+
+    def list_ads_by_user(self, user: User) -> RepositoryResponse:
+        try:
+            ads = Ad.objects.filter(user=user).order_by("-end_date", "-end_time")
+            return RepositoryResponse(True, "User ads retrieved", ads)
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to retrieve user ads", None)
+
+
+        
