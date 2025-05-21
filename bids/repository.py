@@ -241,6 +241,8 @@ class BidRepository:
                 {
                     "bid_id": bid.id,
                     "amount": str(bid.amount),
+                    "current_Highest_amount": str(bid.current_Highest_amount),
+                    "status": bid.status,
                     "timestamp": bid.timestamp,
                     "ad_id": bid.ad.id,
                     "user_id": bid.user.id,
