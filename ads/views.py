@@ -56,3 +56,12 @@ class AdView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception:
             return Response({"error": "Delete failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    
+    def user_ads_view(request):
+        try:
+            ads = ad_repository.list_ads(user=request.user)
+            serializer = AdSerializer(ads, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Could not retrieve user's ads."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
