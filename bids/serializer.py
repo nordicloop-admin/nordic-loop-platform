@@ -7,5 +7,5 @@ class BidSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bid
-        fields = ['id', 'user', 'ad', 'amount', 'timestamp']
+        fields = ['id', 'user', 'ad', 'amount','current_Highest_amount','status', 'timestamp']
         read_only_fields = ['id', 'timestamp']
