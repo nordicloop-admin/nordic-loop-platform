@@ -15,6 +15,7 @@ environ.Env.read_env(BASE_DIR / '.env')
 ENV = env.str('DJANGO_ENV', 'development').lower()
 PRODUCTION = ENV == 'production'
 DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
+print("DEBUG", DEBUG)
 
 
 # Security settings
@@ -84,13 +85,14 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DEBUG:
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=os.getenv("CONN_MAX_AGE"),
-            conn_health_checks=os.getenv("CONN_HEALTH_CHECKS"),
-        )
-    }
+    pass
+    # DATABASES = {
+    #     'default': dj_database_url.config(
+    #         default=DATABASE_URL,
+    #         conn_max_age=os.getenv("CONN_MAX_AGE"),
+    #         conn_health_checks=os.getenv("CONN_HEALTH_CHECKS"),
+    #     )
+    # }
 else:
     DATABASES = {
         'default': {
