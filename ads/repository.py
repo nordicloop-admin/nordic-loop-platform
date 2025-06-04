@@ -55,6 +55,34 @@ class AdRepository:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to create ad", None)
 
+    def create_ad_with_step1(self, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> RepositoryResponse:
+        """Create a new ad with step 1 (material type) data"""
+        try:
+            if not user or not user.is_authenticated:
+                return RepositoryResponse(False, "Authentication required", None)
+
+            # Create new ad with step 1 data
+            ad = Ad.objects.create(
+                user=user,
+                current_step=2,  # Move to step 2 after completing step 1
+                is_complete=False,
+                is_active=False
+            )
+
+            # Update with step 1 data using the step 1 serializer
+            serializer = AdStep1Serializer(ad, data=data, partial=True)
+            if serializer.is_valid():
+                updated_ad = serializer.save()
+                return RepositoryResponse(True, "Ad created with step 1 data", updated_ad)
+            else:
+                # Delete the ad if validation fails
+                ad.delete()
+                return RepositoryResponse(False, "Validation failed", serializer.errors)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to create ad with step 1 data", None)
+
     def get_ad_by_id(self, ad_id: int, user: Optional[User] = None) -> RepositoryResponse:
         """Get ad by ID with optional user ownership check"""
         try:
