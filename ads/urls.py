@@ -1,10 +1,26 @@
 from django.urls import path
-from ads.views import AdView
+from ads.views import (
+    AdStepView, AdDetailView, AdListView, 
+    UserAdsView, AdStepValidationView
+)
 
 urlpatterns = [
-    path("create/", AdView.as_view(), name="create-ad"),
-    path("", AdView.as_view(), name="list-ads"),
-    path("<int:ad_id>/", AdView.as_view(), name="update-ad"),
-    path("<int:ad_id>/delete/", AdView.as_view(), name="delete-ad"),
-    path("user/", AdView.as_view(), name="user-ads"),
+    # Step-by-step endpoints
+    # POST /step/1/ - Create new ad with step 1 data
+    # PUT /{ad_id}/step/{2-8}/ - Update steps 2-8
+    # GET /{ad_id}/step/{1-8}/ - Get step data
+    path("step/<int:step>/", AdStepView.as_view(), name="create-ad-step1"),
+    path("<int:ad_id>/step/<int:step>/", AdStepView.as_view(), name="ad-step"),
+    
+    # Step validation endpoint
+    path("validate/step/<int:step>/", AdStepValidationView.as_view(), name="validate-step"),
+    
+    # Ad management
+    path("<int:ad_id>/", AdDetailView.as_view(), name="ad-detail"),
+    
+    # List ads with filtering
+    path("", AdListView.as_view(), name="list-ads"),
+    
+    # User's ads
+    path("user/", UserAdsView.as_view(), name="user-ads"),
 ]
