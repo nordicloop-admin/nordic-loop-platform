@@ -24,6 +24,17 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
+    def create_ad_with_step1(self, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
+        """Create a new ad with step 1 (material type) data"""
+        try:
+            response = self.repository.create_ad_with_step1(data, files, user)
+            if not response.success or not response.data:
+                raise ValueError(response.message)
+            return response.data
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
     def get_ad_by_id(self, ad_id: int, user: Optional[User] = None) -> Optional[Ad]:
         """Get ad by ID with optional user ownership check"""
         try:

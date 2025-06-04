@@ -83,19 +83,23 @@ class AdAPITest(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_create_ad_endpoint(self):
-        """Test ad creation endpoint"""
-        response = self.client.post('/api/ads/create/')
+        """Test ad creation with step 1 data"""
+        step1_data = {
+            'category_id': self.category.id,
+            'subcategory_id': self.subcategory.id,
+            'specific_material': 'High-quality PP pellets',
+            'packaging': 'octabin',
+            'material_frequency': 'quarterly'
+        }
+        
+        response = self.client.post('/api/ads/step/1/', step1_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIn('ad', response.data)
-        self.assertEqual(response.data['ad']['current_step'], 1)
+        self.assertIn('data', response.data)
+        self.assertEqual(response.data['data']['current_step'], 2)
+        self.assertTrue(response.data['step_completion_status'][1])
 
     def test_step1_update(self):
-        """Test step 1 update"""
-        # Create ad first
-        response = self.client.post('/api/ads/create/')
-        ad_id = response.data['ad']['id']
-        
-        # Update step 1
+        """Test step 1 creation (this is now the creation step)"""
         step1_data = {
             'category_id': self.category.id,
             'subcategory_id': self.subcategory.id,
@@ -104,30 +108,29 @@ class AdAPITest(APITestCase):
             'specific_material': 'High-quality PP pellets'
         }
         
-        response = self.client.put(f'/api/ads/{ad_id}/step/1/', step1_data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = self.client.post('/api/ads/step/1/', step1_data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['step'], 1)
         self.assertTrue(response.data['step_completion_status'][1])
+        return response.data['data']['id']  # Return material ID for other tests
 
     def test_step3_update(self):
         """Test step 3 update (Material Origin)"""
-        # Create and setup ad
-        response = self.client.post('/api/ads/create/')
-        ad_id = response.data['ad']['id']
+        # Create ad with step 1 first
+        material_id = self.test_step1_update()
         
         step3_data = {
             'origin': 'post_industrial'
         }
         
-        response = self.client.put(f'/api/ads/{ad_id}/step/3/', step3_data)
+        response = self.client.put(f'/api/ads/{material_id}/step/3/', step3_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['data']['origin'], 'post_industrial')
 
     def test_step7_pricing_update(self):
         """Test step 7 update (Quantity & Pricing)"""
-        # Create ad
-        response = self.client.post('/api/ads/create/')
-        ad_id = response.data['ad']['id']
+        # Create ad with step 1 first
+        material_id = self.test_step1_update()
         
         step7_data = {
             'available_quantity': 100,
@@ -139,15 +142,14 @@ class AdAPITest(APITestCase):
             'reserve_price': 35.00
         }
         
-        response = self.client.put(f'/api/ads/{ad_id}/step/7/', step7_data)
+        response = self.client.put(f'/api/ads/{material_id}/step/7/', step7_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(float(response.data['data']['total_starting_value']), 2950.00)
 
     def test_step8_completion(self):
         """Test step 8 update (Title & Description) - completes the ad"""
-        # Create ad
-        response = self.client.post('/api/ads/create/')
-        ad_id = response.data['ad']['id']
+        # Create ad with step 1 first
+        material_id = self.test_step1_update()
         
         step8_data = {
             'title': 'High-Quality PP Industrial Pellets - Food Grade',
@@ -155,7 +157,7 @@ class AdAPITest(APITestCase):
             'keywords': 'PP, polypropylene, food grade, industrial, pellets'
         }
         
-        response = self.client.put(f'/api/ads/{ad_id}/step/8/', step8_data)
+        response = self.client.put(f'/api/ads/{material_id}/step/8/', step8_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['is_complete'])
         self.assertIn('completed successfully', response.data['message'])
@@ -186,20 +188,19 @@ class AdAPITest(APITestCase):
 
     def test_get_step_data(self):
         """Test retrieving step data"""
-        # Create and update ad
-        response = self.client.post('/api/ads/create/')
-        ad_id = response.data['ad']['id']
+        # Create ad with step 1 first
+        material_id = self.test_step1_update()
         
         # Get step 1 data
-        response = self.client.get(f'/api/ads/{ad_id}/step/1/')
+        response = self.client.get(f'/api/ads/{material_id}/step/1/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['step'], 1)
 
     def test_list_user_ads(self):
         """Test listing user's ads"""
-        # Create a few ads
-        self.client.post('/api/ads/create/')
-        self.client.post('/api/ads/create/')
+        # Create a few ads with step 1
+        self.test_step1_update()
+        self.test_step1_update()
         
         response = self.client.get('/api/ads/user/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -208,7 +209,12 @@ class AdAPITest(APITestCase):
     def test_unauthorized_access(self):
         """Test unauthorized access"""
         self.client.logout()
-        response = self.client.post('/api/ads/create/')
+        response = self.client.post('/api/ads/step/1/', {
+            'category_id': self.category.id,
+            'subcategory_id': self.subcategory.id,
+            'packaging': 'octabin',
+            'material_frequency': 'quarterly'
+        })
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

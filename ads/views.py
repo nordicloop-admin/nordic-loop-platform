@@ -15,26 +15,8 @@ ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
 
 
-class AdCreateView(APIView):
-    """Create a new ad (returns ad ID for step-by-step completion)"""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        try:
-            ad = ad_service.create_new_ad(request.user)
-            serializer = AdCreateSerializer(ad)
-            return Response({
-                "message": "Ad created successfully. Continue with step 1.",
-                "ad": serializer.data
-            }, status=status.HTTP_201_CREATED)
-        except ValueError as ve:
-            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"error": "Failed to create ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 class AdStepView(APIView):
-    """Handle individual step updates"""
+    """Handle step-by-step ad creation and updates"""
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self, step):
@@ -51,9 +33,38 @@ class AdStepView(APIView):
         }
         return serializers.get(step)
 
-    def get(self, request, ad_id, step):
+    def post(self, request, step):
+        """Create new ad with Step 1 data"""
+        try:
+            if step != 1:
+                return Response({"error": "New ads can only be created with Step 1 data"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+
+            # Create new ad with step 1 data
+            ad = ad_service.create_ad_with_step1(request.data, request.FILES, request.user)
+            
+            serializer = AdStep1Serializer(ad)
+            
+            return Response({
+                "message": "Material ad created successfully with Step 1 data. Continue with Step 2.",
+                "step": 1,
+                "data": serializer.data,
+                "step_completion_status": ad.get_step_completion_status(),
+                "next_incomplete_step": ad.get_next_incomplete_step(),
+                "is_complete": ad.is_complete
+            }, status=status.HTTP_201_CREATED)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Failed to create material ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request, ad_id=None, step=None):
         """Get current step data"""
         try:
+            if not ad_id:
+                return Response({"error": "Ad ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+                
             if step < 1 or step > 8:
                 return Response({"error": "Invalid step. Must be between 1 and 8."}, 
                               status=status.HTTP_400_BAD_REQUEST)
@@ -80,10 +91,10 @@ class AdStepView(APIView):
             return Response({"error": "Failed to retrieve step data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, ad_id, step):
-        """Update specific step"""
+        """Update specific step (for steps 2-8)"""
         try:
-            if step < 1 or step > 8:
-                return Response({"error": "Invalid step. Must be between 1 and 8."}, 
+            if step < 2 or step > 8:
+                return Response({"error": "Invalid step. Use POST for step 1, PUT for steps 2-8."}, 
                               status=status.HTTP_400_BAD_REQUEST)
 
             ad = ad_service.update_ad_step(ad_id, step, request.data, request.FILES, request.user)
@@ -101,7 +112,7 @@ class AdStepView(APIView):
             }
 
             if ad.is_complete:
-                response_data["message"] = "Ad completed successfully! Your material is now listed for auction."
+                response_data["message"] = "Material ad completed successfully! Your material is now listed for auction."
 
             return Response(response_data, status=status.HTTP_200_OK)
 
@@ -140,7 +151,7 @@ class AdDetailView(APIView):
 
 class AdListView(APIView):
     """List ads with optional filtering"""
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
