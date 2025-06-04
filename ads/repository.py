@@ -4,89 +4,73 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import datetime
 from .models import Ad
-from .serializer import AdSerializer
+from .serializer import AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,AdStep4Serializer,AdStep5Serializer, AdStep6Serializer
 from category.models import Category, SubCategory
 from users.models import User
+
 
 logging_service = LoggingService()
 
 class AdRepository:
-    def create_ad(self, data, files=None, user=None) -> RepositoryResponse:
+    def create_ad_step1(self, data, user=None) -> RepositoryResponse:
         try:
             if not user or not user.is_authenticated or not user.can_place_ads:
-                return RepositoryResponse(
-                    success=False,
-                    message="You are not allowed to place ads",
-                    data=None
-                )
+                return RepositoryResponse(False, "You are not allowed to place ads", None)
 
-            category_name = data.pop("category")
-            subcategory_name = data.pop("subcategory")
-            end_date = data.pop("end_date")
-            end_time = data.pop("end_time")
-            selling_type = data.get("selling_type")
+            category_id = data.get("category_id")
+            subcategory_id = data.get("subcategory_id")
 
-            if selling_type not in ["whole", "partition", "both"]:
-                return RepositoryResponse(success=False, message="Invalid selling type", data=None)
+            category = Category.objects.filter(id=category_id).first()
+            subcategory = SubCategory.objects.filter(id=subcategory_id, category=category).first()
 
-            if selling_type in ["whole", "both"] and not data.get("base_price"):
-                return RepositoryResponse(success=False, message="Base price is required", data=None)
-
-            if selling_type in ["partition", "both"]:
-                if not data.get("price_per_partition") or not data.get("volume"):
-                    return RepositoryResponse(success=False, message="Partition price and volume are required", data=None)
-
-            country_of_origin = data.get("country_of_origin")
-            if country_of_origin and country_of_origin.lower() != "sweden":
-                return RepositoryResponse(
-                    success=False,
-                    message="We are currently not operating in that location",
-                    data=None
-                )
-
-            category = Category.objects.filter(name__iexact=category_name).first()
             if not category:
-                return RepositoryResponse(success=False, message="Category not found", data=None)
-
-            subcategory = SubCategory.objects.filter(
-                name__iexact=subcategory_name, category=category
-            ).first()
+                return RepositoryResponse(False, "Category not found", None)
             if not subcategory:
-                return RepositoryResponse(
-                    success=False,
-                    message="Subcategory not found or doesn't belong to the category",
-                    data=None
-                )
-
-            item_image = files.get("item_image") if files else None
+                return RepositoryResponse(False, "Subcategory not found or doesn't belong to the category", None)
 
             ad = Ad.objects.create(
                 item_name=data.get("item_name"),
                 category=category,
                 subcategory=subcategory,
-                description=data.get("description"),
-                base_price=data.get("base_price"),
-                price_per_partition=data.get("price_per_partition"),
-                volume=data.get("volume"),
-                unit=data.get("unit"),
-                country_of_origin=data.get("country_of_origin"),
-                end_date=end_date,
-                end_time=end_time,
-                item_image=item_image,
-                user=user,
-                selling_type=selling_type
+                sector=data.get("sector"),
+                material_frequency=data.get("material_frequency"),
+                user=user
             )
 
-            return RepositoryResponse(
-                success=True,
-                message="Ad created successfully",
-                data=AdSerializer(ad).data
-            )
+            return RepositoryResponse(True, "Step 1 completed", AdStep1Serializer(ad).data)
 
         except Exception as e:
             logging_service.log_error(e)
-            return RepositoryResponse(False, "Failed to create an ad", None)
-        
+            return RepositoryResponse(False, "Failed at step 1", None)
+
+    def update_ad_step(self, ad_id, data, step=2) -> RepositoryResponse:
+        try:
+            ad = Ad.objects.filter(id=ad_id).first()
+            if not ad:
+                return RepositoryResponse(False, "Ad not found", None)
+
+            step_serializers = {
+                2: AdStep2Serializer,
+                3: AdStep3Serializer,
+                4: AdStep4Serializer,
+                5: AdStep5Serializer,
+                6: AdStep6Serializer
+            }
+
+            serializer_class = step_serializers.get(step)
+            if not serializer_class:
+                return RepositoryResponse(False, f"Step {step} is not supported", None)
+
+            serializer = serializer_class(ad, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return RepositoryResponse(True, f"Step {step} updated", serializer.data)
+            return RepositoryResponse(False, "Invalid data", serializer.errors)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, f"Failed at step {step}", None)
+
     def delete_ad(self, ad_id, user=None) -> RepositoryResponse:
         try:
             if not user or not user.is_authenticated:
@@ -109,12 +93,11 @@ class AdRepository:
     def list_ads(self) -> RepositoryResponse:
         try:
             ads = Ad.objects.all().order_by("-end_date", "-end_time")
-            serialized_ads = AdSerializer(ads, many=True).data
+            serialized_ads = AdStep1Serializer(ads, many=True).data
             return RepositoryResponse(True, "Ads retrieved successfully", serialized_ads)
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve ads", None)
-    
 
     def list_ads_by_user(self, user: User) -> RepositoryResponse:
         try:
@@ -123,6 +106,3 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve user ads", None)
-
-
-        
