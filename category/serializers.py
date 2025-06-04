@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, SubCategory
+from .models import Category, SubCategory, CategorySpecification
 
 
 
@@ -44,4 +44,24 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'subcategories']
+
+
+
+class CategorySpecificationSerializer(serializers.ModelSerializer):
+    category = serializers.CharField(source='Category.name', read_only=True)
+
+    class Meta:
+        model = CategorySpecification
+        fields = [
+            'id',
+            'category',
+            'color',
+            'material_grade',
+            'material_form'
+        ]
+
+
+
+
+
 

@@ -1,13 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import  IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from ads.repository import AdRepository
 from ads.services import AdService
-from ads.serializer import AdSerializer
+from ads.serializer import AdStep1Serializer
+from users.models import User
 
 ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
+
 
 class AdView(APIView):
     permission_classes = [IsAuthenticated]
@@ -15,7 +17,7 @@ class AdView(APIView):
     def post(self, request):
         try:
             ad = ad_service.create_ad(request.data, request.FILES, request.user)
-            serializer = AdSerializer(ad)
+            serializer =AdStep1Serializer(ad)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
@@ -28,19 +30,24 @@ class AdView(APIView):
                 ad = ad_service.get_ad_by_id(ad_id)
                 if not ad:
                     return Response({"error": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
-                serializer = AdSerializer(ad)
+                serializer = AdStep1Serializer(ad)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 ads = ad_service.list_ads()
-                serializer = AdSerializer(ads, many=True)
+                serializer = AdStep1Serializer(ads, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, ad_id):
         try:
-            updated = ad_service.update_ad(ad_id, request.data)
-            serializer = AdSerializer(updated)
+            step = request.query_params.get("step")
+            if step:
+                updated = ad_service.update_step(int(step), ad_id, request.data, request.user)
+            else:
+                updated = ad_service.update_ad(ad_id, request.data, request.FILES, request.user)
+
+            serializer = AdStep1Serializer(updated)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
@@ -52,16 +59,19 @@ class AdView(APIView):
             ad = ad_service.get_ad_by_id(ad_id)
             if not ad:
                 return Response({"error": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
-            ad_service.delete_ad(ad_id)
+            ad_service.delete_ad(ad_id, request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception:
             return Response({"error": "Delete failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    
-    def user_ads_view(request):
+
+
+class UserAdsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
         try:
-            ads = ad_repository.list_ads(user=request.user)
-            serializer = AdSerializer(ads, many=True)
+            ads = ad_service.list_user_ads(request.user)
+            serializer = AdStep1Serializer(ads, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": "Could not retrieve user's ads."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            return Response({"error": "Could not retrieve user's ads"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

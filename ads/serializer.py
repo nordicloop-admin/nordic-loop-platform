@@ -1,25 +1,49 @@
 from rest_framework import serializers
 from .models import Ad
+from category.serializers import CategorySpecificationSerializer
 
-class AdSerializer(serializers.ModelSerializer):
+class AdStep1Serializer(serializers.ModelSerializer):
     category = serializers.CharField(source='category.name', read_only=True)
     subcategory = serializers.CharField(source='subcategory.name', read_only=True)
 
     class Meta:
         model = Ad
-        fields = [
-            'id',
-            'item_name',
-            'category',
-            'subcategory',
-            'description',
-            'base_price',
-            'price_per_partition',
-            'volume',
-            'unit',
-            'selling_type',
-            'country_of_origin',
-            'end_date',
-            'end_time',
-            'item_image',
-        ]
+        fields = ['id', 'item_name', 'category', 'subcategory', 'material_frequency']
+
+
+
+class AdStep2Serializer(serializers.ModelSerializer):
+    specification = CategorySpecificationSerializer(read_only=True)
+
+    class Meta:
+        model = Ad
+        fields = ['id', 'specification']
+
+
+class AdStep3Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ad
+        fields = ['id', 'origin']
+
+
+class AdStep4Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ad
+        fields = ['id', 'contamination', 'additives', 'storage']
+
+
+class AdStep5Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ad
+        fields = ['id', 'processing_methods']
+    
+
+class AdStep6Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ad
+        fields = ['id', 'location', 'delivery']
+
+
+
+
+     

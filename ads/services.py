@@ -12,7 +12,7 @@ class AdService:
     def __init__(self, ad_repository: AdRepository):
         self.repository = ad_repository
 
-    def create_ad(self,data: Dict[str, Any],files: Optional[Dict[str, Any]] = None,user: Optional[User] = None) -> Ad:
+    def create_ad(self, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
         try:
             response = self.repository.create_ad(data, files, user)
             if not response.success or not response.data:
@@ -22,13 +22,7 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
-    def update_ad(
-        self,
-        ad_id: int,
-        data: Dict[str, Any],
-        files: Optional[Dict[str, Any]] = None,
-        user: Optional[User] = None
-    ) -> Ad:
+    def update_ad(self, ad_id: int, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
         try:
             response = self.repository.update_ad(ad_id, data, files, user)
             if not response.success or not response.data:
@@ -38,11 +32,7 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
-    def delete_ad(
-        self,
-        ad_id: int,
-        user: Optional[User] = None
-    ) -> None:
+    def delete_ad(self, ad_id: int, user: Optional[User] = None) -> None:
         try:
             response = self.repository.delete_ad(ad_id, user)
             if not response.success:
@@ -68,12 +58,21 @@ class AdService:
         except Exception as e:
             logging_service.log_error(e)
             raise e
-    
 
     def list_user_ads(self, user: User) -> List[Ad]:
         try:
             response = self.repository.list_ads_by_user(user)
             if not response.success:
+                raise ValueError(response.message)
+            return response.data
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def update_step(self, step: int, ad_id: int, data: Dict[str, Any], user: Optional[User] = None) -> Ad:
+        try:
+            response = self.repository.update_ad_step(ad_id, data, step=step)
+            if not response.success or not response.data:
                 raise ValueError(response.message)
             return response.data
         except Exception as e:
