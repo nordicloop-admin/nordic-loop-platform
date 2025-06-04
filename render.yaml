@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: nordic-loop-platform
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn core.wsgi:application"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: core.settings
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: WEB_CONCURRENCY
+        value: 4 

@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import environ
 import dj_database_url
@@ -85,14 +84,13 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DEBUG:
-    pass
-    # DATABASES = {
-    #     'default': dj_database_url.config(
-    #         default=DATABASE_URL,
-    #         conn_max_age=os.getenv("CONN_MAX_AGE"),
-    #         conn_health_checks=os.getenv("CONN_HEALTH_CHECKS"),
-    #     )
-    # }
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
 else:
     DATABASES = {
         'default': {
