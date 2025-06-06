@@ -162,6 +162,58 @@ class AdDetailView(APIView):
         except Exception as e:
             return Response({"error": "Failed to retrieve ad details"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def put(self, request, ad_id):
+        """Update complete ad (all fields)"""
+        try:
+            # Get the ad with ownership check
+            ad = Ad.objects.select_related('location', 'user', 'user__company').filter(
+                id=ad_id, user=request.user
+            ).first()
+            
+            if not ad:
+                return Response({"error": "Ad not found or you don't have permission to edit it"}, 
+                              status=status.HTTP_404_NOT_FOUND)
+            
+            # Use the service to update the ad
+            updated_ad = ad_service.update_complete_ad(ad_id, request.data, request.FILES, request.user)
+            
+            serializer = AdCompleteSerializer(updated_ad)
+            return Response({
+                "message": "Ad updated successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Failed to update ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def patch(self, request, ad_id):
+        """Partially update ad (only provided fields)"""
+        try:
+            # Get the ad with ownership check
+            ad = Ad.objects.select_related('location', 'user', 'user__company').filter(
+                id=ad_id, user=request.user
+            ).first()
+            
+            if not ad:
+                return Response({"error": "Ad not found or you don't have permission to edit it"}, 
+                              status=status.HTTP_404_NOT_FOUND)
+            
+            # Use the service to partially update the ad
+            updated_ad = ad_service.partial_update_ad(ad_id, request.data, request.FILES, request.user)
+            
+            serializer = AdCompleteSerializer(updated_ad)
+            return Response({
+                "message": "Ad partially updated successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Failed to partially update ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def delete(self, request, ad_id):
         """Delete an ad"""
         try:

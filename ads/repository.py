@@ -7,7 +7,7 @@ from .models import Ad, Location
 from .serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
-    AdStep8Serializer, AdCompleteSerializer, AdListSerializer
+    AdStep8Serializer, AdCompleteSerializer, AdListSerializer, AdUpdateSerializer
 )
 from category.models import Category, SubCategory, CategorySpecification
 from users.models import User
@@ -342,6 +342,58 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Search failed", None)
+
+    def update_complete_ad(self, ad_id: int, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> RepositoryResponse:
+        """Update complete ad with all provided fields"""
+        try:
+            if not user or not user.is_authenticated:
+                return RepositoryResponse(False, "Authentication required", None)
+
+            ad = Ad.objects.filter(id=ad_id, user=user).first()
+            if not ad:
+                return RepositoryResponse(False, "Ad not found or access denied", None)
+
+            # Handle file uploads
+            if files:
+                data.update(files)
+
+            # Use AdUpdateSerializer for validation and update
+            serializer = AdUpdateSerializer(ad, data=data, partial=False)  # Complete update
+            if serializer.is_valid():
+                updated_ad = serializer.save()
+                return RepositoryResponse(True, "Ad updated successfully", updated_ad)
+            else:
+                return RepositoryResponse(False, "Validation failed", serializer.errors)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to update ad", None)
+
+    def partial_update_ad(self, ad_id: int, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> RepositoryResponse:
+        """Partially update ad with only provided fields"""
+        try:
+            if not user or not user.is_authenticated:
+                return RepositoryResponse(False, "Authentication required", None)
+
+            ad = Ad.objects.filter(id=ad_id, user=user).first()
+            if not ad:
+                return RepositoryResponse(False, "Ad not found or access denied", None)
+
+            # Handle file uploads
+            if files:
+                data.update(files)
+
+            # Use AdUpdateSerializer for validation and partial update
+            serializer = AdUpdateSerializer(ad, data=data, partial=True)  # Partial update
+            if serializer.is_valid():
+                updated_ad = serializer.save()
+                return RepositoryResponse(True, "Ad partially updated successfully", updated_ad)
+            else:
+                return RepositoryResponse(False, "Validation failed", serializer.errors)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to partially update ad", None)
 
     # Legacy methods for backward compatibility
     def create_ad_step1(self, data, user=None) -> RepositoryResponse:
