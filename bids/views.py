@@ -1,11 +1,15 @@
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 
 from .repository import BidRepository
 from .services import BidService
 from .serializer import BidSerializer
+from .models import Bid
+from base.utils.pagination import StandardResultsSetPagination
 
 bid_repository = BidRepository()
 bid_service = BidService(bid_repository)
@@ -41,26 +45,6 @@ class BidView(APIView):
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-
-
-    def get(self, request, bid_id=None):
-        try:
-            if bid_id:
-                bid = bid_service.get_bid_by_id(bid_id)
-                if not bid:
-                    return Response({"error": "Bid not found"}, status=status.HTTP_404_NOT_FOUND)
-                serializer = BidSerializer(bid)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            else:
-                ad_id = request.query_params.get("ad_id")
-                bids = bid_service.list_bids(ad_id=ad_id, user=request.user)
-                return Response(bids, status=status.HTTP_200_OK)  # Already serialized
-
-        except Exception:
-            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
     def put(self, request, bid_id):
         try:
             amount = request.data.get("amount")
@@ -81,9 +65,6 @@ class BidView(APIView):
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-
-
     def delete(self, request, bid_id):
         try:
             bid = bid_service.get_bid_by_id(bid_id)
@@ -95,10 +76,44 @@ class BidView(APIView):
 
         except Exception:
             return Response({"error": "Delete failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 
-    def user_bids_view(request):
-        response = bid_repository.list_bids(user=request.user)
-        if response.success:
-            return Response(response.data, status=status.HTTP_200_OK)
-        return Response({"error": response.message}, status=status.HTTP_400_BAD_REQUEST)
+
+class BidDetailView(APIView):
+    """Get a specific bid"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, bid_id):
+        try:
+            bid = bid_service.get_bid_by_id(bid_id)
+            if not bid:
+                return Response({"error": "Bid not found"}, status=status.HTTP_404_NOT_FOUND)
+            serializer = BidSerializer(bid)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BidListView(ListAPIView):
+    """List bids for a specific ad with pagination"""
+    serializer_class = BidSerializer
+    pagination_class = StandardResultsSetPagination
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Get bids filtered by ad_id"""
+        ad_id = self.request.query_params.get("ad_id")
+        if not ad_id:
+            return Bid.objects.none()
+        
+        return Bid.objects.filter(ad_id=ad_id).select_related('user', 'ad').order_by('-timestamp')
+
+
+class UserBidsView(ListAPIView):
+    """List current user's bids with pagination"""
+    serializer_class = BidSerializer
+    pagination_class = StandardResultsSetPagination
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Get current user's bids"""
+        return Bid.objects.filter(user=self.request.user).select_related('ad', 'user').order_by('-timestamp')
