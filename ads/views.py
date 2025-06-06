@@ -1,15 +1,19 @@
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 from ads.repository import AdRepository
 from ads.services import AdService
+from ads.models import Ad
 from ads.serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
     AdStep8Serializer, AdCompleteSerializer, AdListSerializer
 )
 from users.models import User
+from base.utils.pagination import StandardResultsSetPagination
 
 ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
@@ -149,58 +153,63 @@ class AdDetailView(APIView):
             return Response({"error": "Failed to delete ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class AdListView(APIView):
-    """List ads with optional filtering"""
-    # permission_classes = [IsAuthenticated]
+class AdListView(ListAPIView):
+    """List ads with optional filtering and pagination"""
+    serializer_class = AdListSerializer
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        """Get filtered queryset based on query parameters"""
+        query = Q()
+        
+        # Get query parameters for filtering
+        category_id = self.request.query_params.get('category')
+        subcategory_id = self.request.query_params.get('subcategory')
+        origin = self.request.query_params.get('origin')
+        contamination = self.request.query_params.get('contamination')
+        location_country = self.request.query_params.get('country')
+        location_city = self.request.query_params.get('city')
+        only_complete = self.request.query_params.get('complete', 'true').lower() == 'true'
 
-    def get(self, request):
-        try:
-            # Get query parameters for filtering
-            category_id = request.query_params.get('category')
-            subcategory_id = request.query_params.get('subcategory')
-            origin = request.query_params.get('origin')
-            contamination = request.query_params.get('contamination')
-            location_country = request.query_params.get('country')
-            location_city = request.query_params.get('city')
-            only_complete = request.query_params.get('complete', 'true').lower() == 'true'
+        if only_complete:
+            query &= Q(is_complete=True, is_active=True)
+        
+        # Apply filters
+        if category_id:
+            query &= Q(category_id=category_id)
+        if subcategory_id:
+            query &= Q(subcategory_id=subcategory_id)
+        if origin:
+            query &= Q(origin=origin)
+        if contamination:
+            query &= Q(contamination=contamination)
+        if location_country:
+            query &= Q(location__country__icontains=location_country)
+        if location_city:
+            query &= Q(location__city__icontains=location_city)
 
-            ads = ad_service.list_ads(
-                category_id=category_id,
-                subcategory_id=subcategory_id,
-                origin=origin,
-                contamination=contamination,
-                location_country=location_country,
-                location_city=location_city,
-                only_complete=only_complete
-            )
-
-            serializer = AdListSerializer(ads, many=True)
-            return Response({
-                "count": len(ads),
-                "results": serializer.data
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({"error": "Failed to retrieve ads"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Ad.objects.filter(query).select_related(
+            'category', 'subcategory', 'location', 'user'
+        ).order_by('-created_at')
 
 
-class UserAdsView(APIView):
-    """List current user's ads"""
+class UserAdsView(ListAPIView):
+    """List current user's ads with pagination"""
+    serializer_class = AdListSerializer
+    pagination_class = StandardResultsSetPagination
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        try:
-            only_complete = request.query_params.get('complete', 'false').lower() == 'true'
-            ads = ad_service.list_user_ads(request.user, only_complete)
-            
-            serializer = AdListSerializer(ads, many=True)
-            return Response({
-                "count": len(ads),
-                "results": serializer.data
-            }, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        """Get user's ads based on query parameters"""
+        only_complete = self.request.query_params.get('complete', 'false').lower() == 'true'
+        
+        query = Q(user=self.request.user)
+        if only_complete:
+            query &= Q(is_complete=True)
 
-        except Exception as e:
-            return Response({"error": "Failed to retrieve user ads"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Ad.objects.filter(query).select_related(
+            'category', 'subcategory', 'location'
+        ).order_by('-updated_at')
 
 
 class AdStepValidationView(APIView):
