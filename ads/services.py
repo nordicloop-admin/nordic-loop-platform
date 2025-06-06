@@ -158,6 +158,28 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
+    def update_complete_ad(self, ad_id: int, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
+        """Update complete ad with all provided fields"""
+        try:
+            response = self.repository.update_complete_ad(ad_id, data, files, user)
+            if not response.success or not response.data:
+                raise ValueError(response.message)
+            return response.data
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def partial_update_ad(self, ad_id: int, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
+        """Partially update ad with only provided fields"""
+        try:
+            response = self.repository.partial_update_ad(ad_id, data, files, user)
+            if not response.success or not response.data:
+                raise ValueError(response.message)
+            return response.data
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
     # Legacy methods for backward compatibility (can be removed later)
     def create_ad(self, data: Dict[str, Any], files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
         """Legacy method - use create_new_ad instead"""

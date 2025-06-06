@@ -457,6 +457,114 @@ class AdCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class AdUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating complete ads with all fields"""
+    location_data = serializers.DictField(write_only=True, required=False)
+    
+    class Meta:
+        model = Ad
+        fields = [
+            'id', 'category', 'subcategory', 'specific_material', 'packaging', 
+            'material_frequency', 'specification', 'additional_specifications',
+            'origin', 'contamination', 'additives', 'storage_conditions',
+            'processing_methods', 'location_data', 'pickup_available', 'delivery_options',
+            'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
+            'starting_bid_price', 'currency', 'auction_duration', 'reserve_price',
+            'title', 'description', 'keywords', 'material_image'
+        ]
+        read_only_fields = ['id']
+
+    def validate(self, data):
+        """Validate cross-field constraints"""
+        # Validate minimum order quantity doesn't exceed available quantity
+        available_qty = data.get('available_quantity', self.instance.available_quantity if self.instance else None)
+        min_order_qty = data.get('minimum_order_quantity', self.instance.minimum_order_quantity if self.instance else None)
+        
+        if available_qty and min_order_qty and min_order_qty > available_qty:
+            raise serializers.ValidationError(
+                "Minimum order quantity cannot exceed available quantity."
+            )
+        
+        # Validate reserve price is not lower than starting bid price
+        starting_price = data.get('starting_bid_price', self.instance.starting_bid_price if self.instance else None)
+        reserve_price = data.get('reserve_price', self.instance.reserve_price if self.instance else None)
+        
+        if starting_price and reserve_price and reserve_price < starting_price:
+            raise serializers.ValidationError(
+                "Reserve price cannot be lower than starting bid price."
+            )
+        
+        return data
+
+    def update(self, instance, validated_data):
+        # Handle location data separately
+        location_data = validated_data.pop('location_data', None)
+        
+        # Update the ad instance
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Update completion status based on filled fields
+        instance.current_step = self._calculate_current_step(instance)
+        instance.is_complete = self._is_complete(instance)
+        
+        instance.save()
+        
+        # Handle location update
+        if location_data:
+            self._update_location(instance, location_data)
+        
+        return instance
+    
+    def _calculate_current_step(self, instance):
+        """Calculate current step based on completed data"""
+        if instance.title and instance.description:
+            return 8
+        elif instance.available_quantity and instance.starting_bid_price:
+            return 7
+        elif instance.location or instance.delivery_options:
+            return 6
+        elif instance.processing_methods:
+            return 5
+        elif instance.contamination and instance.additives and instance.storage_conditions:
+            return 4
+        elif instance.origin:
+            return 3
+        elif instance.specification or instance.additional_specifications:
+            return 2
+        else:
+            return 1
+    
+    def _is_complete(self, instance):
+        """Check if ad is complete"""
+        required_fields = [
+            instance.category, instance.subcategory, instance.specific_material,
+            instance.packaging, instance.material_frequency, instance.origin,
+            instance.contamination, instance.additives, instance.storage_conditions,
+            instance.processing_methods, instance.delivery_options,
+            instance.available_quantity, instance.starting_bid_price,
+            instance.title, instance.description
+        ]
+        return all(field for field in required_fields)
+    
+    def _update_location(self, instance, location_data):
+        """Update or create location"""
+        from .serializer import LocationSerializer
+        
+        try:
+            if instance.location:
+                location_serializer = LocationSerializer(instance.location, data=location_data, partial=True)
+                if location_serializer.is_valid():
+                    location_serializer.save()
+            else:
+                location_serializer = LocationSerializer(data=location_data)
+                if location_serializer.is_valid():
+                    instance.location = location_serializer.save()
+                    instance.save()
+        except Exception:
+            pass  # Don't fail the entire update if location update fails
+
+
 
 
      
