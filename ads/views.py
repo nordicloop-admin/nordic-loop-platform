@@ -135,20 +135,32 @@ class AdStepView(APIView):
 
 
 class AdDetailView(APIView):
-    """Get complete ad details"""
+    """Get complete ad details with all possible information"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, ad_id):
         try:
-            ad = ad_service.get_ad_by_id(ad_id)
+            # Optimized query to fetch all related data
+            ad = Ad.objects.select_related(
+                'category', 
+                'subcategory', 
+                'specification', 
+                'location', 
+                'user', 
+                'user__company'
+            ).filter(id=ad_id).first()
+            
             if not ad:
                 return Response({"error": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
 
             serializer = AdCompleteSerializer(ad)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({
+                "message": "Ad details retrieved successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": "Failed to retrieve ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Failed to retrieve ad details"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, ad_id):
         """Delete an ad"""
