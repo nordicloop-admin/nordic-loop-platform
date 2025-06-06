@@ -667,6 +667,310 @@ Step 1 (POST) → Step 2 (PUT) → Step 3 (PUT) → Step 4 (PUT) → Step 5 (PUT
 9. **Handle network errors** with retry functionality
 10. **Cache form data locally** to prevent data loss
 
+## Complete Ad Detail Endpoint
+
+### Enhanced Ad Detail View
+The ad detail endpoint now returns comprehensive information about an ad/auction, including all possible related data and the company name that posted it.
+
+**Endpoint:** `GET /api/ads/{ad_id}/`
+
+**Authentication:** Required (Bearer Token)
+
+**Response Structure:**
+```json
+{
+  "message": "Ad details retrieved successfully",
+  "data": {
+    // Basic Information
+    "id": 13,
+    "posted_by": "John Doe",
+    "company_name": "Test Nordic Company AB",
+    
+    // Step 1: Material Type
+    "category_name": "Plastics",
+    "subcategory_name": "PP",
+    "specific_material": "High-grade polypropylene pellets",
+    "packaging": "octabin",
+    "packaging_display": "Octabin",
+    "material_frequency": "monthly",
+    "material_frequency_display": "Monthly",
+    
+    // Step 2: Specifications
+    "specification": {
+      "id": 1,
+      "category": 1,
+      "name": "Food Grade Certification",
+      "description": "Materials certified for food contact applications"
+    },
+    "additional_specifications": "Melt Flow Index: 2.5, Density: 0.95 g/cm³",
+    
+    // Step 3: Material Origin
+    "origin": "post_industrial",
+    "origin_display": "Post-industrial",
+    
+    // Step 4: Contamination
+    "contamination": "clean",
+    "contamination_display": "Clean",
+    "additives": "uv_stabilizer",
+    "additives_display": "UV Stabilizer",
+    "storage_conditions": "climate_controlled",
+    "storage_conditions_display": "Climate Controlled",
+    
+    // Step 5: Processing Methods
+    "processing_methods": ["extrusion", "injection_moulding", "blow_moulding"],
+    "processing_methods_display": ["Extrusion", "Injection moulding", "Blow moulding"],
+    
+    // Step 6: Location & Logistics
+    "location": {
+      "id": 1,
+      "country": "Sweden",
+      "state_province": "Stockholm County",
+      "city": "Stockholm",
+      "address_line": "Kungsgatan 1",
+      "postal_code": "111 43",
+      "latitude": 59.3293,
+      "longitude": 18.0686
+    },
+    "location_summary": "Stockholm, Stockholm County, Sweden",
+    "pickup_available": true,
+    "delivery_options": ["local_delivery", "pickup_only", "national_shipping"],
+    "delivery_options_display": ["Local Delivery", "Pickup Only", "National Shipping"],
+    
+    // Step 7: Quantity & Pricing
+    "available_quantity": "100.00",
+    "unit_of_measurement": "tons",
+    "unit_of_measurement_display": "Tons",
+    "minimum_order_quantity": "5.00",
+    "starting_bid_price": "29.50",
+    "currency": "EUR",
+    "currency_display": "Euro",
+    "auction_duration": 7,
+    "auction_duration_display": "7 days",
+    "reserve_price": "35.00",
+    "total_starting_value": "2950.00",
+    
+    // Step 8: Title, Description & Image
+    "title": "High-Quality PP Industrial Pellets - Food Grade",
+    "description": "Premium polypropylene pellets suitable for food packaging applications...",
+    "keywords": "PP, pellets, food grade, industrial",
+    "material_image": "/media/material_images/pp_pellets.jpg",
+    
+    // System Fields
+    "is_active": true,
+    "current_step": 8,
+    "is_complete": true,
+    "created_at": "2025-06-06T10:30:00Z",
+    "updated_at": "2025-06-06T14:00:00Z",
+    "auction_start_date": "2025-06-07T09:00:00Z",
+    "auction_end_date": "2025-06-14T09:00:00Z",
+    
+    // Calculated Fields
+    "step_completion_status": {
+      "1": true,
+      "2": true,
+      "3": true,
+      "4": true,
+      "5": true,
+      "6": true,
+      "7": true,
+      "8": true
+    },
+    "auction_status": "Scheduled",  // Draft, Not Started, Scheduled, Active, Ended
+    "time_remaining": "6 days, 19 hours"  // null if auction ended or not started
+  }
+}
+```
+
+### Key Features of Enhanced Ad Detail
+
+#### 1. Company Information
+- **company_name**: Only the company name (not sensitive company data)
+- **posted_by**: Name of the user who posted the ad
+
+#### 2. Human-Readable Display Values
+All choice fields include both the raw value and display value:
+- `packaging` → `packaging_display`
+- `material_frequency` → `material_frequency_display`
+- `origin` → `origin_display`
+- `contamination` → `contamination_display`
+- `additives` → `additives_display`
+- `storage_conditions` → `storage_conditions_display`
+- `currency` → `currency_display`
+- `auction_duration` → `auction_duration_display`
+
+#### 3. Enhanced Array Fields
+Arrays include both raw values and human-readable versions:
+- `processing_methods` → `processing_methods_display`
+- `delivery_options` → `delivery_options_display`
+
+#### 4. Location Information
+- **Full location object**: Complete address details with coordinates
+- **location_summary**: Condensed location string for quick display
+
+#### 5. Auction Status & Timing
+- **auction_status**: Current status (Draft, Not Started, Scheduled, Active, Ended)
+- **time_remaining**: Human-readable time left in auction
+- **total_starting_value**: Calculated total value (quantity × starting_bid_price)
+
+#### 6. Step Completion Tracking
+- **step_completion_status**: Object showing completion status for each step
+- **current_step**: Current step number
+- **is_complete**: Whether all steps are completed
+
+### Frontend Implementation Example
+
+```javascript
+class AdDetailService {
+  async getAdDetail(adId) {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/ads/${adId}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Error fetching ad details:', error);
+      throw error;
+    }
+  }
+
+  // Format display data for UI
+  formatAdForDisplay(ad) {
+    return {
+      // Basic Info
+      title: ad.title,
+      description: ad.description,
+      company: ad.company_name,
+      postedBy: ad.posted_by,
+      
+      // Material Details
+      material: {
+        category: ad.category_name,
+        subcategory: ad.subcategory_name,
+        specific: ad.specific_material,
+        packaging: ad.packaging_display,
+        frequency: ad.material_frequency_display,
+        origin: ad.origin_display,
+        contamination: ad.contamination_display,
+        additives: ad.additives_display,
+        storage: ad.storage_conditions_display
+      },
+      
+      // Processing & Logistics
+      processing: ad.processing_methods_display,
+      delivery: ad.delivery_options_display,
+      location: ad.location_summary,
+      pickupAvailable: ad.pickup_available,
+      
+      // Pricing & Auction
+      quantity: `${ad.available_quantity} ${ad.unit_of_measurement_display}`,
+      minOrder: `${ad.minimum_order_quantity} ${ad.unit_of_measurement_display}`,
+      startingPrice: `${ad.starting_bid_price} ${ad.currency_display}`,
+      reservePrice: ad.reserve_price ? `${ad.reserve_price} ${ad.currency_display}` : null,
+      totalValue: `${ad.total_starting_value} ${ad.currency_display}`,
+      
+      // Status
+      status: ad.auction_status,
+      timeRemaining: ad.time_remaining,
+      isComplete: ad.is_complete,
+      
+      // Media
+      image: ad.material_image
+    };
+  }
+}
+
+// Usage example
+const adService = new AdDetailService();
+
+async function loadAdDetail(adId) {
+  try {
+    const ad = await adService.getAdDetail(adId);
+    const formattedAd = adService.formatAdForDisplay(ad);
+    
+    // Update UI with comprehensive ad data
+    updateAdDetailUI(formattedAd);
+  } catch (error) {
+    showError('Failed to load ad details');
+  }
+}
+
+function updateAdDetailUI(ad) {
+  // Update basic info
+  document.getElementById('ad-title').textContent = ad.title;
+  document.getElementById('ad-company').textContent = ad.company;
+  document.getElementById('ad-description').textContent = ad.description;
+  
+  // Update material details
+  document.getElementById('material-category').textContent = ad.material.category;
+  document.getElementById('material-origin').textContent = ad.material.origin;
+  document.getElementById('material-contamination').textContent = ad.material.contamination;
+  
+  // Update processing methods
+  const processingList = document.getElementById('processing-methods');
+  processingList.innerHTML = ad.processing.map(method => 
+    `<li class="processing-method">${method}</li>`
+  ).join('');
+  
+  // Update delivery options
+  const deliveryList = document.getElementById('delivery-options');
+  deliveryList.innerHTML = ad.delivery.map(option => 
+    `<li class="delivery-option">${option}</li>`
+  ).join('');
+  
+  // Update pricing
+  document.getElementById('starting-price').textContent = ad.startingPrice;
+  document.getElementById('total-value').textContent = ad.totalValue;
+  document.getElementById('quantity').textContent = ad.quantity;
+  
+  // Update auction status
+  document.getElementById('auction-status').textContent = ad.status;
+  if (ad.timeRemaining) {
+    document.getElementById('time-remaining').textContent = ad.timeRemaining;
+  }
+  
+  // Update image
+  if (ad.image) {
+    document.getElementById('material-image').src = ad.image;
+  }
+}
+```
+
+### Error Handling
+
+```javascript
+// Handle different error scenarios
+async function handleAdDetailErrors(adId) {
+  try {
+    const ad = await adService.getAdDetail(adId);
+    return ad;
+  } catch (error) {
+    if (error.status === 404) {
+      showError('Ad not found');
+    } else if (error.status === 401) {
+      redirectToLogin();
+    } else if (error.status === 403) {
+      showError('You do not have permission to view this ad');
+    } else {
+      showError('Failed to load ad details. Please try again.');
+    }
+    throw error;
+  }
+}
+```
+
+This enhanced ad detail endpoint provides complete transparency about the material auction while protecting sensitive company information by only exposing the company name.
+
 ---
 
 This comprehensive ad creation system provides a complete material listing experience with step-by-step validation, progress tracking, and robust error handling. The API is designed to guide users through the complete process while maintaining data integrity and user experience.

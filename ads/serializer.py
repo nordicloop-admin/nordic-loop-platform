@@ -270,31 +270,156 @@ class AdStep8Serializer(serializers.ModelSerializer):
 
 
 class AdCompleteSerializer(serializers.ModelSerializer):
-    """Complete Ad serializer for viewing full ad details"""
+    """Complete Ad serializer for viewing full ad details with all possible information"""
+    # Location details
     location = LocationSerializer(read_only=True)
+    
+    # Category information
     category_name = serializers.CharField(source='category.name', read_only=True)
     subcategory_name = serializers.CharField(source='subcategory.name', read_only=True)
+    
+    # Specification details
     specification = CategorySpecificationSerializer(read_only=True)
+    
+    # Company information (only name)
+    company_name = serializers.CharField(source='user.company.official_name', read_only=True)
+    
+    # User information
+    posted_by = serializers.CharField(source='user.name', read_only=True)
+    
+    # Calculated fields
     total_starting_value = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
     step_completion_status = serializers.SerializerMethodField()
+    
+    # Choice field display values
+    unit_of_measurement_display = serializers.CharField(source='get_unit_of_measurement_display', read_only=True)
+    material_frequency_display = serializers.CharField(source='get_material_frequency_display', read_only=True)
+    origin_display = serializers.CharField(source='get_origin_display', read_only=True)
+    contamination_display = serializers.CharField(source='get_contamination_display', read_only=True)
+    additives_display = serializers.CharField(source='get_additives_display', read_only=True)
+    storage_conditions_display = serializers.CharField(source='get_storage_conditions_display', read_only=True)
+    packaging_display = serializers.CharField(source='get_packaging_display', read_only=True)
+    currency_display = serializers.CharField(source='get_currency_display', read_only=True)
+    auction_duration_display = serializers.CharField(source='get_auction_duration_display', read_only=True)
+    
+    # Derived information
+    auction_status = serializers.SerializerMethodField()
+    time_remaining = serializers.SerializerMethodField()
+    processing_methods_display = serializers.SerializerMethodField()
+    delivery_options_display = serializers.SerializerMethodField()
+    
+    # Location summary
+    location_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = Ad
         fields = [
-            'id', 'user', 'category_name', 'subcategory_name', 'specific_material',
-            'packaging', 'material_frequency', 'specification', 'additional_specifications',
-            'origin', 'contamination', 'additives', 'storage_conditions',
-            'processing_methods', 'location', 'pickup_available', 'delivery_options',
-            'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
-            'starting_bid_price', 'currency', 'auction_duration', 'reserve_price',
-            'total_starting_value', 'title', 'description', 'keywords',
-            'material_image', 'is_active', 'current_step', 'is_complete',
-            'created_at', 'updated_at', 'auction_start_date', 'auction_end_date',
-            'step_completion_status'
+            # IDs and basic info
+            'id', 'posted_by', 'company_name',
+            
+            # Step 1: Material Type
+            'category_name', 'subcategory_name', 'specific_material',
+            'packaging', 'packaging_display', 'material_frequency', 'material_frequency_display',
+            
+            # Step 2: Specifications
+            'specification', 'additional_specifications',
+            
+            # Step 3: Material Origin
+            'origin', 'origin_display',
+            
+            # Step 4: Contamination
+            'contamination', 'contamination_display', 'additives', 'additives_display',
+            'storage_conditions', 'storage_conditions_display',
+            
+            # Step 5: Processing Methods
+            'processing_methods', 'processing_methods_display',
+            
+            # Step 6: Location & Logistics
+            'location', 'location_summary', 'pickup_available', 
+            'delivery_options', 'delivery_options_display',
+            
+            # Step 7: Quantity & Pricing
+            'available_quantity', 'unit_of_measurement', 'unit_of_measurement_display',
+            'minimum_order_quantity', 'starting_bid_price', 'currency', 'currency_display',
+            'auction_duration', 'auction_duration_display', 'reserve_price', 'total_starting_value',
+            
+            # Step 8: Title, Description & Image
+            'title', 'description', 'keywords', 'material_image',
+            
+            # System fields
+            'is_active', 'current_step', 'is_complete', 'created_at', 'updated_at',
+            'auction_start_date', 'auction_end_date',
+            
+            # Derived fields
+            'step_completion_status', 'auction_status', 'time_remaining'
         ]
 
     def get_step_completion_status(self, obj):
         return obj.get_step_completion_status()
+    
+    def get_auction_status(self, obj):
+        """Get current auction status"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        if not obj.is_complete:
+            return "Draft"
+        if not obj.auction_start_date:
+            return "Not Started"
+        if obj.auction_start_date > now:
+            return "Scheduled"
+        if obj.auction_end_date and obj.auction_end_date <= now:
+            return "Ended"
+        return "Active"
+    
+    def get_time_remaining(self, obj):
+        """Get time remaining in auction"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        if not obj.auction_end_date or obj.auction_end_date <= now:
+            return None
+            
+        time_diff = obj.auction_end_date - now
+        days = time_diff.days
+        hours, remainder = divmod(time_diff.seconds, 3600)
+        minutes, _ = divmod(remainder, 60)
+        
+        if days > 0:
+            return f"{days} days, {hours} hours"
+        elif hours > 0:
+            return f"{hours} hours, {minutes} minutes"
+        else:
+            return f"{minutes} minutes"
+    
+    def get_processing_methods_display(self, obj):
+        """Get human-readable processing methods"""
+        if not obj.processing_methods:
+            return []
+        
+        choices_dict = dict(obj.PROCESSING_CHOICES)
+        return [choices_dict.get(method, method) for method in obj.processing_methods]
+    
+    def get_delivery_options_display(self, obj):
+        """Get human-readable delivery options"""
+        if not obj.delivery_options:
+            return []
+        
+        choices_dict = dict(obj.DELIVERY_OPTIONS)
+        return [choices_dict.get(option, option) for option in obj.delivery_options]
+    
+    def get_location_summary(self, obj):
+        """Get location summary"""
+        if obj.location:
+            parts = []
+            if obj.location.city:
+                parts.append(obj.location.city)
+            if obj.location.state_province:
+                parts.append(obj.location.state_province)
+            if obj.location.country:
+                parts.append(obj.location.country)
+            return ", ".join(parts)
+        return None
 
 
 class AdListSerializer(serializers.ModelSerializer):
