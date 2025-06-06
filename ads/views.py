@@ -37,9 +37,17 @@ class AdStepView(APIView):
         }
         return serializers.get(step)
 
-    def post(self, request, step):
-        """Create new ad with Step 1 data"""
+    def post(self, request, step, ad_id=None):
+        """Create new ad with Step 1 data OR handle step updates via POST"""
         try:
+            if ad_id is not None:
+                # If ad_id is provided, this should be a PUT request
+                return Response({
+                    "error": "To update existing ad steps, use PUT method instead of POST",
+                    "correct_method": "PUT",
+                    "correct_url": f"/api/ads/{ad_id}/step/{step}/"
+                }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            
             if step != 1:
                 return Response({"error": "New ads can only be created with Step 1 data"}, 
                               status=status.HTTP_400_BAD_REQUEST)

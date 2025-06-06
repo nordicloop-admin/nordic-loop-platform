@@ -216,7 +216,7 @@ class Ad(models.Model):
         """Return completion status for each step"""
         return {
             1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
-            2: bool(self.specification),
+            2: bool(self.specification or self.additional_specifications),
             3: bool(self.origin),
             4: bool(self.contamination and self.additives and self.storage_conditions),
             5: bool(self.processing_methods),
