@@ -4,7 +4,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from category.repository import CategoryRepository, SubCategoryRepository
 from category.services import CategoryService, SubCategoryService
-from category.serializers import CategorySerializer, SubCategorySerializer
+from category.serializers import CategorySerializer, SubCategorySerializer, CategorySpecificationChoicesSerializer
+from category.models import CategorySpecification
 
 category_repository = CategoryRepository()
 sub_repository = SubCategoryRepository()
@@ -69,6 +70,26 @@ class CategoryView(APIView):
         
 
 
+class CategorySpecificationChoicesView(APIView):
+    """API endpoint to get all available specification choices for the frontend"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Return all specification choices for material grade, color, and form"""
+        try:
+            # Create a dummy object for the serializer
+            choices_data = {}
+            serializer = CategorySpecificationChoicesSerializer(choices_data)
+            return Response({
+                "message": "Specification choices retrieved successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "error": "Failed to retrieve specification choices",
+                "details": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class SubCategoryView(APIView):
     permission_classes = [AllowAny]
@@ -130,8 +151,6 @@ class SubCategoryView(APIView):
         except Exception:
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
-
 
 
 class SubCategoryByCategoryView(APIView):

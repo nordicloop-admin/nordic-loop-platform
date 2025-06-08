@@ -1,0 +1,700 @@
+{
+  "categories": [
+    {
+      "id": "all-materials",
+      "name": "All materials",
+      "subcategories": []
+    },
+    {
+      "id": "plastics",
+      "name": "Plastics",
+      "subcategories": [
+        {
+          "id": "plastics-hips",
+          "name": "HIPS"
+        },
+        {
+          "id": "plastics-bopp",
+          "name": "BOPP"
+        },
+        {
+          "id": "plastics-epdm",
+          "name": "EPDM"
+        },
+        {
+          "id": "plastics-eps",
+          "name": "EPS"
+        },
+        {
+          "id": "plastics-eva",
+          "name": "EVA"
+        },
+        {
+          "id": "plastics-gpps",
+          "name": "GPPS"
+        },
+        {
+          "id": "plastics-hdpe",
+          "name": "HDPE"
+        },
+        {
+          "id": "plastics-hmw",
+          "name": "HMW"
+        },
+        {
+          "id": "plastics-ldpe",
+          "name": "LDPE"
+        },
+        {
+          "id": "plastics-lldpe",
+          "name": "LLDPE"
+        },
+        {
+          "id": "plastics-mixed-hard",
+          "name": "Mixed hard plastics"
+        },
+        {
+          "id": "plastics-noryl",
+          "name": "Noryl"
+        },
+        {
+          "id": "plastics-nylon",
+          "name": "Nylon (PA)"
+        },
+        {
+          "id": "plastics-pbt",
+          "name": "PBT"
+        },
+        {
+          "id": "plastics-pe",
+          "name": "PE"
+        },
+        {
+          "id": "plastics-pf",
+          "name": "PF"
+        },
+        {
+          "id": "plastics-petg",
+          "name": "PETG"
+        },
+        {
+          "id": "plastics-pla",
+          "name": "PLA"
+        },
+        {
+          "id": "plastics-pmma",
+          "name": "PMMA"
+        },
+        {
+          "id": "plastics-polycarbonate",
+          "name": "Polycarbonate"
+        },
+        {
+          "id": "plastics-polyester",
+          "name": "Polyester"
+        },
+        {
+          "id": "plastics-polyurethane",
+          "name": "Polyurethane"
+        },
+        {
+          "id": "plastics-pp",
+          "name": "PP"
+        },
+        {
+          "id": "plastics-ps",
+          "name": "PS"
+        },
+        {
+          "id": "plastics-pva",
+          "name": "PVA"
+        },
+        {
+          "id": "plastics-pvc",
+          "name": "PVC"
+        },
+        {
+          "id": "plastics-sebs",
+          "name": "SEBS"
+        },
+        {
+          "id": "plastics-tpe",
+          "name": "TPE"
+        },
+        {
+          "id": "plastics-tpo",
+          "name": "TPO"
+        },
+        {
+          "id": "plastics-tpu",
+          "name": "TPU"
+        },
+        {
+          "id": "plastics-xps",
+          "name": "XPS"
+        },
+        {
+          "id": "plastics-pet",
+          "name": "PET"
+        },
+        {
+          "id": "plastics-abs",
+          "name": "ABS"
+        },
+        {
+          "id": "plastics-acrylic",
+          "name": "Acrylic"
+        },
+        {
+          "id": "plastics-pom",
+          "name": "POM"
+        },
+        {
+          "id": "plastics-pet-a",
+          "name": "PET-A"
+        },
+        {
+          "id": "plastics-polypropyleneoxide",
+          "name": "Polypropyleneoxide rubber"
+        },
+        {
+          "id": "plastics-polyamide",
+          "name": "Polyamide"
+        },
+        {
+          "id": "plastics-other",
+          "name": "Other plastics"
+        },
+        {
+          "id": "plastics-pvb",
+          "name": "Pvb"
+        },
+        {
+          "id": "plastics-mixed-municipal",
+          "name": "Mixed municipal plastic"
+        }
+      ]
+    },
+    {
+      "id": "paper",
+      "name": "Paper",
+      "subcategories": [
+        {
+          "id": "paper-boxes",
+          "name": "Boxes"
+        },
+        {
+          "id": "paper-cardboard",
+          "name": "Cardboard"
+        },
+        {
+          "id": "paper-newspaper",
+          "name": "Newspaper"
+        },
+        {
+          "id": "paper-tubes",
+          "name": "Paper tubes"
+        },
+        {
+          "id": "paper-composite-packaging",
+          "name": "Composite packaging"
+        },
+        {
+          "id": "paper-white",
+          "name": "White paper"
+        },
+        {
+          "id": "paper-shredding",
+          "name": "Shredding"
+        },
+        {
+          "id": "paper-flyers",
+          "name": "Flyers"
+        },
+        {
+          "id": "paper-magazines",
+          "name": "Magazines"
+        },
+        {
+          "id": "paper-printed",
+          "name": "Printed paper"
+        },
+        {
+          "id": "paper-books",
+          "name": "Books"
+        }
+      ]
+    },
+    {
+      "id": "wood",
+      "name": "Wood",
+      "subcategories": [
+        {
+          "id": "wood-pallets",
+          "name": "Pallets"
+        },
+        {
+          "id": "wood-pinch",
+          "name": "Pinch"
+        },
+        {
+          "id": "wood-packaging-crates",
+          "name": "Wooden packaging, crates"
+        },
+        {
+          "id": "wood-solid",
+          "name": "Solid wood"
+        },
+        {
+          "id": "wood-chipboard",
+          "name": "Chipboard"
+        },
+        {
+          "id": "wood-fibre",
+          "name": "Wood fibre"
+        },
+        {
+          "id": "wood-hoblins",
+          "name": "Hoblins"
+        },
+        {
+          "id": "wood-sawdust",
+          "name": "Sawdust"
+        },
+        {
+          "id": "wood-plywood",
+          "name": "Plywood"
+        }
+      ]
+    },
+    {
+      "id": "glass",
+      "name": "Glass",
+      "subcategories": [
+        {
+          "id": "glass-clear",
+          "name": "Clear glass"
+        },
+        {
+          "id": "glass-coloured",
+          "name": "Coloured glass"
+        },
+        {
+          "id": "glass-mixed",
+          "name": "Mixed glass"
+        },
+        {
+          "id": "glass-car",
+          "name": "Car Glass"
+        },
+        {
+          "id": "glass-crystal-table",
+          "name": "Crystal glass (table glass)"
+        },
+        {
+          "id": "glass-lead-crystal",
+          "name": "Lead crystal (jewellery, cut glass)"
+        },
+        {
+          "id": "glass-borosilicate",
+          "name": "Borosilicate (laboratory and domestic cooking glassware"
+        },
+        {
+          "id": "glass-quartz",
+          "name": "Quartz (laboratory)"
+        },
+        {
+          "id": "glass-soda-lime",
+          "name": "Soda-lime (bottles)"
+        },{
+          "id": "window-glass",
+          "name": "Window glass"
+        }
+      ]
+    },
+    {
+      "id": "textiles",
+      "name": "Textiles",
+      "subcategories": [
+        {
+          "id": "textiles-polyester",
+          "name": "Polyester"
+        },
+        {
+          "id": "textiles-mixed",
+          "name": "Mixed textiles"
+        },
+        {
+          "id": "textiles-cotton",
+          "name": "Cotton"
+        },
+        {
+          "id": "textiles-natural-fibre",
+          "name": "Natural fibre"
+        },
+        {
+          "id": "textiles-synthetic-fibre",
+          "name": "Synthetic fibre"
+        },
+        {
+          "id": "textiles-hollow-fibre",
+          "name": "Hollow fibre"
+        },
+        {
+          "id": "textiles-remnants",
+          "name": "Remnants of textile fabric"
+        },
+        {
+          "id": "textiles-leather",
+          "name": "Leather"
+        },
+        {
+          "id": "textiles-fabrics",
+          "name": "Fabrics"
+        },
+        {
+          "id": "textiles-elastomer",
+          "name": "Elastomer"
+        },
+        {
+          "id": "textiles-plastomer",
+          "name": "Plastomer"
+        }
+      ]
+    },
+    {
+      "id": "building-material",
+      "name": "Building material",
+      "subcategories": [
+        {
+          "id": "building-concrete-recyclate",
+          "name": "Concrete recyclate"
+        },
+        {
+          "id": "building-mixed-recyclate",
+          "name": "Mixed recyclate"
+        },
+        {
+          "id": "building-ornice",
+          "name": "Ornice"
+        },
+        {
+          "id": "building-asphalt-recyclate",
+          "name": "Asphalt recyclate"
+        },
+        {
+          "id": "building-concrete",
+          "name": "Concrete"
+        },
+        {
+          "id": "building-bricks",
+          "name": "Bricks"
+        },
+        {
+          "id": "building-asphalt",
+          "name": "Asphalt"
+        },
+        {
+          "id": "building-ceramics",
+          "name": "Ceramics"
+        },
+        {
+          "id": "building-roof-tiles",
+          "name": "Roof tiles"
+        },
+        {
+          "id": "building-recycled-bricks",
+          "name": "Recycled bricks"
+        },
+        {
+          "id": "building-soil",
+          "name": "Soil"
+        },
+        {
+          "id": "building-mixed-waste-rubble",
+          "name": "Mixed waste - rubble"
+        },
+        {
+          "id": "building-gypsum",
+          "name": "Gypsum"
+        },
+        {
+          "id": "building-asbestos",
+          "name": "Asbestos"
+        },
+        {
+          "id": "building-stoneware",
+          "name": "Stoneware"
+        },
+        {
+          "id": "building-insulating-materials",
+          "name": "Insulating materials"
+        }
+      ]
+    },
+    {
+      "id": "metals",
+      "name": "Metals",
+      "subcategories": [
+        {
+          "id": "metals-copper",
+          "name": "Copper"
+        },
+        {
+          "id": "metals-bronze",
+          "name": "Bronze"
+        },
+        {
+          "id": "metals-brass",
+          "name": "Brass"
+        },
+        {
+          "id": "metals-aluminium",
+          "name": "Aluminium"
+        },
+        {
+          "id": "metals-lead",
+          "name": "Lead"
+        },
+        {
+          "id": "metals-zinc",
+          "name": "Zinc"
+        },
+        {
+          "id": "metals-iron-steel",
+          "name": "Iron and steel"
+        },
+        {
+          "id": "metals-tin",
+          "name": "Tin"
+        },
+        {
+          "id": "metals-mixed",
+          "name": "Mixed metals"
+        },
+        {
+          "id": "metals-nickel",
+          "name": "Nickel"
+        },
+        {
+          "id": "metals-stainless-steel",
+          "name": "Stainless steel"
+        },
+        {
+          "id": "metals-mercury",
+          "name": "Mercury"
+        },
+        {
+          "id": "metals-cast-iron",
+          "name": "Cast Iron"
+        },
+        {
+          "id": "metals-precious",
+          "name": "Precious metals"
+        }
+      ]
+    },
+    {
+      "id": "organic-waste",
+      "name": "Organic waste",
+      "subcategories": [
+        {
+          "id": "organic-manure",
+          "name": "Manure"
+        },
+        {
+          "id": "organic-wood-green-maintenance",
+          "name": "Wood from green maintenance"
+        },
+        {
+          "id": "organic-grass-leaves",
+          "name": "Grass and leaves from green maintenance"
+        },
+        {
+          "id": "organic-agriculture-waste",
+          "name": "Waste from agriculture"
+        },
+        {
+          "id": "organic-biodegradable",
+          "name": "Biodegradable waste from separate collection"
+        },
+        {
+          "id": "organic-used-oil",
+          "name": "Used oil"
+        },
+        {
+          "id": "organic-compost",
+          "name": "Compost"
+        },
+        {
+          "id": "organic-digest",
+          "name": "Digest"
+        },
+        {
+          "id": "organic-gastro-waste",
+          "name": "Gastro waste"
+        },
+        {
+          "id": "organic-sewage-sludge",
+          "name": "Sewage sludge"
+        },
+        {
+          "id": "organic-forestry-waste",
+          "name": "Forestry waste"
+        }
+      ]
+    },
+    {
+      "id": "e-waste",
+      "name": "E-waste",
+      "subcategories": [
+        {
+          "id": "e-waste-large-devices",
+          "name": "Large devices (min 50 cm)"
+        },
+        {
+          "id": "e-waste-small-devices",
+          "name": "Small devices (max 50 cm)"
+        },
+        {
+          "id": "e-waste-small-it",
+          "name": "Small information technology and telecommunication equipment (max size 50 cm)"
+        },
+        {
+          "id": "e-waste-heat-exchange",
+          "name": "Heat exchange equipment"
+        },
+        {
+          "id": "e-waste-screens-monitors",
+          "name": "Screens, monitors"
+        },
+        {
+          "id": "e-waste-light-sources",
+          "name": "Light sources"
+        }
+      ]
+    },
+    {
+      "id": "machinery-and-equipment",
+      "name": "Machinery and equipment",
+      "subcategories": [
+        {
+          "id": "machinery-recycling-machines",
+          "name": "Recycling machines"
+        },
+        {
+          "id": "machinery-recycling-auxiliaries",
+          "name": "Recycling auxiliaries"
+        },
+        {
+          "id": "machinery-single-purpose",
+          "name": "Single-purpose equipment and tools"
+        },
+        {
+          "id": "machinery-measuring-systems",
+          "name": "Measuring systems"
+        },
+        {
+          "id": "machinery-service-maintenance",
+          "name": "Service, maintenance, spare parts"
+        },
+        {
+          "id": "machinery-industrial-automation",
+          "name": "Industrial automation, technological solutions"
+        },
+        {
+          "id": "machinery-packaging",
+          "name": "Packaging machines, packaging lines, packaging technology"
+        },
+        {
+          "id": "machinery-transport",
+          "name": "Transport equipment"
+        },
+        {
+          "id": "machinery-other",
+          "name": "Other"
+        }
+      ]
+    },
+    {
+      "id": "chemical-substances",
+      "name": "Chemical substances",
+      "subcategories": [
+        {
+          "id": "chemical-mineral-oils",
+          "name": "Mineral oils"
+        },
+        {
+          "id": "chemical-solvents",
+          "name": "Solvents"
+        },
+        {
+          "id": "chemical-colors",
+          "name": "Colors"
+        },
+        {
+          "id": "chemical-activated-carbon",
+          "name": "Activated carbon"
+        },
+        {
+          "id": "chemical-soot",
+          "name": "Soot"
+        },
+        {
+          "id": "chemical-lacquers",
+          "name": "Lacquers"
+        },
+        {
+          "id": "chemical-toners",
+          "name": "Toners"
+        },
+        {
+          "id": "chemical-adhesives",
+          "name": "Adhesives"
+        },
+        {
+          "id": "chemical-sealants",
+          "name": "Sealants"
+        },
+        {
+          "id": "chemical-hazardous-waste",
+          "name": "Hazardous waste"
+        },
+        {
+          "id": "chemical-acids",
+          "name": "Acids"
+        },
+        {
+          "id": "chemical-hydroxides",
+          "name": "Hydroxides"
+        },
+        {
+          "id": "chemical-refrigerants",
+          "name": "Refrigerants"
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "subcategories": [
+        {
+          "id": "other-rubber",
+          "name": "Rubber"
+        },
+        {
+          "id": "other-ceramics",
+          "name": "Ceramics"
+        },
+        {
+          "id": "other-composite",
+          "name": "Composite Materials"
+        },
+        {
+          "id": "other-mixed",
+          "name": "Mixed Materials"
+        }
+      ]
+    }
+  ]
+}
