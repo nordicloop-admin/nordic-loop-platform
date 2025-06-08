@@ -66,6 +66,14 @@ class AdStep1Serializer(serializers.ModelSerializer):
         return data
 
     def update(self, instance, validated_data):
+        # Handle category change - if category changes, clear existing specifications
+        category_id = validated_data.get('category_id')
+        if category_id and instance.category and instance.category.id != category_id:
+            # Category is changing, clear existing specifications
+            if instance.specification:
+                instance.specification.delete()
+                instance.specification = None
+        
         # Update step tracking
         validated_data['current_step'] = max(validated_data.get('current_step', 1), 2)
         return super().update(instance, validated_data)

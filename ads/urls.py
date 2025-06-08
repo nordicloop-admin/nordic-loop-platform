@@ -7,7 +7,7 @@ from ads.views import (
 urlpatterns = [
     # Step-by-step endpoints
     # POST /step/1/ - Create new ad with step 1 data
-    # PUT /{ad_id}/step/{2-8}/ - Update steps 2-8
+    # PUT /{ad_id}/step/{1-8}/ - Update steps 1-8
     # GET /{ad_id}/step/{1-8}/ - Get step data
     path("step/<int:step>/", AdStepView.as_view(), name="create-ad-step1"),
     path("<int:ad_id>/step/<int:step>/", AdStepView.as_view(), name="ad-step"),

@@ -103,10 +103,10 @@ class AdStepView(APIView):
             return Response({"error": "Failed to retrieve step data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, ad_id, step):
-        """Update specific step (for steps 2-8)"""
+        """Update specific step (for steps 1-8)"""
         try:
-            if step < 2 or step > 8:
-                return Response({"error": "Invalid step. Use POST for step 1, PUT for steps 2-8."}, 
+            if step < 1 or step > 8:
+                return Response({"error": "Invalid step. Must be between 1 and 8."}, 
                               status=status.HTTP_400_BAD_REQUEST)
 
             ad = ad_service.update_ad_step(ad_id, step, request.data, request.FILES, request.user)
