@@ -74,21 +74,88 @@ class AdStep1Serializer(serializers.ModelSerializer):
 class AdStep2Serializer(serializers.ModelSerializer):
     """Step 2: Specifications"""
     specification = CategorySpecificationSerializer(read_only=True)
-    specification_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    
+    # Direct specification fields for easy frontend handling
+    specification_color = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    specification_material_grade = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    specification_material_form = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    specification_additional = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Ad
-        fields = ['id', 'specification', 'specification_id', 'additional_specifications', 'current_step']
+        fields = [
+            'id', 'specification', 'additional_specifications', 'current_step',
+            'specification_color', 'specification_material_grade', 
+            'specification_material_form', 'specification_additional'
+        ]
 
-    def validate_specification_id(self, value):
-        if value is not None:
-            try:
-                CategorySpecification.objects.get(id=value)
-            except CategorySpecification.DoesNotExist:
-                raise serializers.ValidationError("Invalid specification.")
+    def validate_specification_color(self, value):
+        if value:
+            valid_colors = [choice[0] for choice in CategorySpecification.MATERIAL_COLOR_CHOICES]
+            if value not in valid_colors:
+                raise serializers.ValidationError(f"'{value}' is not a valid color choice.")
         return value
 
+    def validate_specification_material_grade(self, value):
+        if value:
+            valid_grades = [choice[0] for choice in CategorySpecification.MATERIAL_GRADE_CHOICES]
+            if value not in valid_grades:
+                raise serializers.ValidationError(f"'{value}' is not a valid material grade choice.")
+        return value
+
+    def validate_specification_material_form(self, value):
+        if value:
+            valid_forms = [choice[0] for choice in CategorySpecification.MATERIAL_FORM_CHOICES]
+            if value not in valid_forms:
+                raise serializers.ValidationError(f"'{value}' is not a valid material form choice.")
+        return value
+
+    def validate(self, data):
+        """Ensure at least one specification field is provided"""
+        color = data.get('specification_color')
+        grade = data.get('specification_material_grade')
+        form = data.get('specification_material_form')
+        additional = data.get('specification_additional')
+        existing_additional = data.get('additional_specifications')
+
+        # Check if at least one specification is provided
+        if not any([color, grade, form, additional, existing_additional]):
+            raise serializers.ValidationError(
+                "At least one specification field must be provided (color, material grade, material form, or additional specifications)."
+            )
+        
+        return data
+
     def update(self, instance, validated_data):
+        # Handle specification creation/update
+        color = validated_data.pop('specification_color', None)
+        grade = validated_data.pop('specification_material_grade', None)
+        form = validated_data.pop('specification_material_form', None)
+        spec_additional = validated_data.pop('specification_additional', None)
+
+        # If any specification fields are provided, create/update CategorySpecification
+        if any([color, grade, form, spec_additional]):
+            spec_data = {}
+            if color:
+                spec_data['color'] = color
+            if grade:
+                spec_data['material_grade'] = grade
+            if form:
+                spec_data['material_form'] = form
+            if spec_additional:
+                spec_data['additional_specifications'] = spec_additional
+
+            if instance.specification:
+                # Update existing specification
+                for key, value in spec_data.items():
+                    setattr(instance.specification, key, value)
+                instance.specification.save()
+            else:
+                # Create new specification
+                spec_data['Category'] = instance.category
+                specification = CategorySpecification.objects.create(**spec_data)
+                instance.specification = specification
+
         validated_data['current_step'] = max(validated_data.get('current_step', 2), 3)
         return super().update(instance, validated_data)
 

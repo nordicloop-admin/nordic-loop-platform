@@ -1,5 +1,5 @@
 from django.urls import path
-from category.views import CategoryView, SubCategoryView,SubCategoryByCategoryView
+from category.views import CategoryView, SubCategoryView, SubCategoryByCategoryView, CategorySpecificationChoicesView
 
 urlpatterns = [
     path("create/", CategoryView.as_view(), name="create-category"),  
@@ -7,7 +7,8 @@ urlpatterns = [
     path("", CategoryView.as_view(), name="list-categories"),  
     path("categories/<int:category_id>/delete/", CategoryView.as_view(), name="delete-category"),  
 
-
+    # Specification choices
+    path("specification-choices/", CategorySpecificationChoicesView.as_view(), name="specification-choices"),
 
     # subcategories
     path("subcategories/create/", SubCategoryView.as_view(), name="create-subcategory"),  
