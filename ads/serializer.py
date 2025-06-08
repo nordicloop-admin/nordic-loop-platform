@@ -266,8 +266,8 @@ class AdStep7Serializer(serializers.ModelSerializer):
         model = Ad
         fields = [
             'id', 'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
-            'starting_bid_price', 'currency', 'auction_duration', 'reserve_price',
-            'total_starting_value', 'current_step'
+            'starting_bid_price', 'currency', 'auction_duration', 'custom_auction_duration', 
+            'reserve_price', 'total_starting_value', 'current_step'
         ]
 
     def validate_available_quantity(self, value):
@@ -283,6 +283,11 @@ class AdStep7Serializer(serializers.ModelSerializer):
     def validate_reserve_price(self, value):
         if value is not None and value <= 0:
             raise serializers.ValidationError("Reserve price must be greater than 0.")
+        return value
+
+    def validate_custom_auction_duration(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError("Custom auction duration must be at least 1 day.")
         return value
 
     def validate(self, data):
@@ -302,6 +307,20 @@ class AdStep7Serializer(serializers.ModelSerializer):
         if starting_price and reserve_price and reserve_price < starting_price:
             raise serializers.ValidationError(
                 "Reserve price cannot be lower than starting bid price."
+            )
+        
+        # Validate custom auction duration when auction_duration is set to 0 (Custom)
+        auction_duration = data.get('auction_duration')
+        custom_duration = data.get('custom_auction_duration')
+        
+        if auction_duration == 0 and not custom_duration:
+            raise serializers.ValidationError(
+                "Custom auction duration is required when auction duration is set to 'Custom'."
+            )
+        
+        if auction_duration != 0 and custom_duration:
+            raise serializers.ValidationError(
+                "Custom auction duration should only be provided when auction duration is set to 'Custom'."
             )
         
         return data
@@ -408,7 +427,7 @@ class AdCompleteSerializer(serializers.ModelSerializer):
             # Step 7: Quantity & Pricing
             'available_quantity', 'unit_of_measurement', 'unit_of_measurement_display',
             'minimum_order_quantity', 'starting_bid_price', 'currency', 'currency_display',
-            'auction_duration', 'auction_duration_display', 'reserve_price', 'total_starting_value',
+            'auction_duration', 'custom_auction_duration', 'auction_duration_display', 'reserve_price', 'total_starting_value',
             
             # Step 8: Title, Description & Image
             'title', 'description', 'keywords', 'material_image',
@@ -536,7 +555,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
             'origin', 'contamination', 'additives', 'storage_conditions',
             'processing_methods', 'location_data', 'pickup_available', 'delivery_options',
             'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
-            'starting_bid_price', 'currency', 'auction_duration', 'reserve_price',
+            'starting_bid_price', 'currency', 'auction_duration', 'custom_auction_duration', 'reserve_price',
             'title', 'description', 'keywords', 'material_image'
         ]
         read_only_fields = ['id']

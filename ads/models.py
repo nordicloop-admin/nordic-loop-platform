@@ -23,9 +23,19 @@ class Location(models.Model):
 class Ad(models.Model):
     UNIT_CHOICES = [
         ('kg', 'Kilogram'),
-        ('g', 'Gram'),
-        ('lb', 'Pound'),
-        ('tons', 'Tons'),  # Updated to match the form
+        ('tons', 'Tons'),
+        ('tonnes', 'Tonnes'),
+        ('lbs', 'Pounds'),
+        ('pounds', 'Pounds'),
+        ('pieces', 'Pieces'),
+        ('units', 'Units'),
+        ('bales', 'Bales'),
+        ('containers', 'Containers'),
+        ('m³', 'Cubic Meters'),
+        ('cubic_meters', 'Cubic Meters'),
+        ('liters', 'Liters'),
+        ('gallons', 'Gallons'),
+        ('meters', 'Meters'),
     ]
 
     SELLING_TYPE_CHOICES = [
@@ -110,6 +120,7 @@ class Ad(models.Model):
         (7, '7 days'),
         (14, '14 days'),
         (30, '30 days'),
+        (0, 'Custom'),  # 0 will represent custom duration
     ]
 
     # Basic Information
@@ -151,7 +162,7 @@ class Ad(models.Model):
         validators=[MinValueValidator(Decimal('0.01'))],
         help_text="Total quantity available for auction"
     )
-    unit_of_measurement = models.CharField(max_length=10, choices=UNIT_CHOICES, default='tons')
+    unit_of_measurement = models.CharField(max_length=15, choices=UNIT_CHOICES, default='tons')
     minimum_order_quantity = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -171,6 +182,12 @@ class Ad(models.Model):
     )
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='EUR')
     auction_duration = models.IntegerField(choices=AUCTION_DURATION_CHOICES, default=7)
+    custom_auction_duration = models.IntegerField(
+        blank=True, 
+        null=True,
+        validators=[MinValueValidator(1)],
+        help_text="Custom auction duration in days (used when auction_duration is set to 'Custom')"
+    )
     reserve_price = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -207,10 +224,25 @@ class Ad(models.Model):
 
     @property
     def total_starting_value(self):
-        """Calculate total starting value of the auction"""
+        """Calculate total starting value"""
         if self.starting_bid_price and self.available_quantity:
             return self.starting_bid_price * self.available_quantity
         return Decimal('0.00')
+
+    @property
+    def effective_auction_duration(self):
+        """Get the effective auction duration in days"""
+        if self.auction_duration == 0:  # Custom
+            return self.custom_auction_duration if self.custom_auction_duration else 7
+        return self.auction_duration
+
+    def get_auction_duration_display(self):
+        """Get human-readable auction duration"""
+        if self.auction_duration == 0:  # Custom
+            if self.custom_auction_duration:
+                return f"{self.custom_auction_duration} days (Custom)"
+            return "Custom (not set)"
+        return dict(self.AUCTION_DURATION_CHOICES).get(self.auction_duration, f"{self.auction_duration} days")
 
     def get_step_completion_status(self):
         """Return completion status for each step"""

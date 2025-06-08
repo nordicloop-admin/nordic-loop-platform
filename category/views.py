@@ -6,6 +6,7 @@ from category.repository import CategoryRepository, SubCategoryRepository
 from category.services import CategoryService, SubCategoryService
 from category.serializers import CategorySerializer, SubCategorySerializer, CategorySpecificationChoicesSerializer
 from category.models import CategorySpecification
+from ads.models import Ad
 
 category_repository = CategoryRepository()
 sub_repository = SubCategoryRepository()
@@ -87,6 +88,38 @@ class CategorySpecificationChoicesView(APIView):
         except Exception as e:
             return Response({
                 "error": "Failed to retrieve specification choices",
+                "details": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdFormChoicesView(APIView):
+    """API endpoint to get all form choices for ads including units and auction durations"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """Return all form choices for creating/editing ads"""
+        try:
+            choices_data = {
+                "units": [{'value': choice[0], 'label': choice[1]} for choice in Ad.UNIT_CHOICES],
+                "auction_durations": [{'value': choice[0], 'label': choice[1]} for choice in Ad.AUCTION_DURATION_CHOICES],
+                "currencies": [{'value': choice[0], 'label': choice[1]} for choice in Ad.CURRENCY_CHOICES],
+                "packaging": [{'value': choice[0], 'label': choice[1]} for choice in Ad.PACKAGING_CHOICES],
+                "material_frequencies": [{'value': choice[0], 'label': choice[1]} for choice in Ad.MATERIAL_FREQUENCY_CHOICES],
+                "material_origins": [{'value': choice[0], 'label': choice[1]} for choice in Ad.MATERIAL_ORIGIN],
+                "contamination_levels": [{'value': choice[0], 'label': choice[1]} for choice in Ad.MATERIAL_CONTAMINATION],
+                "additives": [{'value': choice[0], 'label': choice[1]} for choice in Ad.ADDITIVES_CHOICES],
+                "storage_conditions": [{'value': choice[0], 'label': choice[1]} for choice in Ad.STORAGE_CONDITIONS],
+                "processing_methods": [{'value': choice[0], 'label': choice[1]} for choice in Ad.PROCESSING_CHOICES],
+                "delivery_options": [{'value': choice[0], 'label': choice[1]} for choice in Ad.DELIVERY_OPTIONS],
+            }
+            
+            return Response({
+                "message": "Ad form choices retrieved successfully",
+                "data": choices_data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "error": "Failed to retrieve ad form choices",
                 "details": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
