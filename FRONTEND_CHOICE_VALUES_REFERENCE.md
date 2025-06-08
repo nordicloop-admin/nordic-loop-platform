@@ -473,3 +473,310 @@ export const DROPDOWN_OPTIONS = {
 ---
 
 **Always refer to this document when implementing choice fields in the frontend to ensure 100% validation success!** 
+
+# Frontend Choice Values Reference
+
+This document provides a comprehensive reference for all choice values and form options available in the Nordic Loop Platform API.
+
+## Getting Choice Values
+
+### API Endpoints
+
+```bash
+# Get all ad form choices (units, durations, etc.)
+GET /api/category/ad-form-choices/
+
+# Get specification choices (colors, grades, forms)
+GET /api/category/specification-choices/
+```
+
+## Units of Measurement
+
+The platform now supports a comprehensive list of units for different material types:
+
+### Available Units
+```javascript
+const units = [
+  { value: 'kg', label: 'Kilogram' },
+  { value: 'tons', label: 'Tons' },
+  { value: 'tonnes', label: 'Tonnes' },
+  { value: 'lbs', label: 'Pounds' },
+  { value: 'pounds', label: 'Pounds' },
+  { value: 'pieces', label: 'Pieces' },
+  { value: 'units', label: 'Units' },
+  { value: 'bales', label: 'Bales' },
+  { value: 'containers', label: 'Containers' },
+  { value: 'm³', label: 'Cubic Meters' },
+  { value: 'cubic_meters', label: 'Cubic Meters' },
+  { value: 'liters', label: 'Liters' },
+  { value: 'gallons', label: 'Gallons' }
+];
+```
+
+### Usage Examples by Material Type
+
+- **Plastics**: `kg`, `tons`, `tonnes`, `pieces`, `liters` (for granules)
+- **Metals**: `kg`, `tons`, `tonnes`, `pieces` (for components)
+- **Paper**: `kg`, `tons`, `bales`
+- **Glass**: `kg`, `tons`, `pieces`, `units` (for bottles)
+- **Textiles**: `kg`, `tons`, `bales`
+- **Chemicals**: `liters`, `gallons`, `containers`, `pieces` (for containers)
+- **Building Materials**: `tons`, `tonnes`, `m³`, `cubic_meters`, `pieces`
+
+## Auction Duration Options
+
+### Available Durations
+```javascript
+const auctionDurations = [
+  { value: 1, label: '1 day' },
+  { value: 3, label: '3 days' },
+  { value: 7, label: '7 days' },
+  { value: 14, label: '14 days' },
+  { value: 30, label: '30 days' },
+  { value: 0, label: 'Custom' }  // NEW: Custom duration option
+];
+```
+
+### Custom Duration Implementation
+
+When `auction_duration` is set to `0` (Custom), you must provide a `custom_auction_duration` value:
+
+```javascript
+// Example form handling
+const [auctionDuration, setAuctionDuration] = useState(7);
+const [customDuration, setCustomDuration] = useState('');
+
+const handleDurationChange = (value) => {
+  setAuctionDuration(value);
+  if (value !== 0) {
+    setCustomDuration(''); // Clear custom duration for predefined options
+  }
+};
+
+// API payload
+const adData = {
+  auction_duration: auctionDuration,
+  custom_auction_duration: auctionDuration === 0 ? parseInt(customDuration) : null,
+  // ... other fields
+};
+```
+
+### Frontend Form Example
+```jsx
+const AuctionDurationField = () => {
+  const [duration, setDuration] = useState(7);
+  const [customDays, setCustomDays] = useState('');
+
+  return (
+    <div>
+      <select 
+        value={duration} 
+        onChange={(e) => setDuration(parseInt(e.target.value))}
+      >
+        <option value={1}>1 day</option>
+        <option value={3}>3 days</option>
+        <option value={7}>7 days</option>
+        <option value={14}>14 days</option>
+        <option value={30}>30 days</option>
+        <option value={0}>Custom</option>
+      </select>
+      
+      {duration === 0 && (
+        <input
+          type="number"
+          min="1"
+          placeholder="Enter days"
+          value={customDays}
+          onChange={(e) => setCustomDays(e.target.value)}
+          required
+        />
+      )}
+    </div>
+  );
+};
+```
+
+## Material Specifications
+
+### Material Colors
+```javascript
+const materialColors = [
+  { value: 'natural_clear', label: 'Natural/Clear' },
+  { value: 'white', label: 'White' },
+  { value: 'black', label: 'Black' },
+  { value: 'red', label: 'Red' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'green', label: 'Green' },
+  { value: 'yellow', label: 'Yellow' },
+  { value: 'orange', label: 'Orange' },
+  { value: 'purple', label: 'Purple' },
+  { value: 'brown', label: 'Brown' },
+  { value: 'gray', label: 'Gray' },
+  { value: 'mixed_colors', label: 'Mixed Colors' },
+  { value: 'custom_color', label: 'Custom Color' }
+];
+```
+
+### Material Grades
+```javascript
+const materialGrades = [
+  { value: 'virgin_grade', label: 'Virgin Grade' },
+  { value: 'industrial_grade', label: 'Industrial Grade' },
+  { value: 'food_grade', label: 'Food Grade' },
+  { value: 'medical_grade', label: 'Medical Grade' },
+  { value: 'automotive_grade', label: 'Automotive Grade' },
+  { value: 'electrical_grade', label: 'Electrical Grade' },
+  { value: 'recycled_grade', label: 'Recycled Grade' }
+];
+```
+
+### Material Forms
+```javascript
+const materialForms = [
+  { value: 'pellets_granules', label: 'Pellets/Granules' },
+  { value: 'flakes', label: 'Flakes' },
+  { value: 'regrind', label: 'Regrind' },
+  { value: 'sheets', label: 'Sheets' },
+  { value: 'film', label: 'Film' },
+  { value: 'parts_components', label: 'Parts/Components' },
+  { value: 'powder', label: 'Powder' },
+  { value: 'fiber', label: 'Fiber' }
+];
+```
+
+## Step 7 API Usage (Quantity & Pricing)
+
+### Request Example
+```javascript
+const step7Data = {
+  available_quantity: "25000.00",
+  unit_of_measurement: "units",
+  minimum_order_quantity: "1000.00",
+  starting_bid_price: "0.45",
+  currency: "EUR",
+  auction_duration: 0,  // Custom duration
+  custom_auction_duration: 12,  // 12 days custom
+  reserve_price: "0.65"
+};
+
+// API call
+const response = await fetch('/api/ads/{id}/step7/', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + token
+  },
+  body: JSON.stringify(step7Data)
+});
+```
+
+### Validation Rules
+
+1. **Custom Duration**: Required when `auction_duration = 0`
+2. **Units**: Must be one of the supported unit types
+3. **Minimum Order**: Cannot exceed available quantity
+4. **Reserve Price**: Must be greater than or equal to starting price
+5. **Custom Duration**: Must be at least 1 day
+
+### Error Handling
+```javascript
+// Example error responses
+{
+  "error": "Custom auction duration is required when auction duration is set to 'Custom'."
+}
+
+{
+  "error": "Custom auction duration should only be provided when auction duration is set to 'Custom'."
+}
+
+{
+  "error": "Custom auction duration must be at least 1 day."
+}
+```
+
+## Complete Form Choices API Response
+
+```javascript
+{
+  "message": "Ad form choices retrieved successfully",
+  "data": {
+    "units": [...],
+    "auction_durations": [...],
+    "currencies": [...],
+    "packaging": [...],
+    "material_frequencies": [...],
+    "material_origins": [...],
+    "contamination_levels": [...],
+    "additives": [...],
+    "storage_conditions": [...],
+    "processing_methods": [...],
+    "delivery_options": [...]
+  }
+}
+```
+
+## Real-World Examples
+
+### Example 1: Glass Bottles by Units
+```javascript
+const glassBottleAd = {
+  title: "Premium Wine Bottles",
+  available_quantity: "25000.00",
+  unit_of_measurement: "units",
+  starting_bid_price: "0.45",  // €0.45 per bottle
+  minimum_order_quantity: "1000.00",
+  auction_duration: 14
+};
+```
+
+### Example 2: Chemical Containers by Pieces
+```javascript
+const containerAd = {
+  title: "Industrial Chemical Containers",
+  available_quantity: "1500.00",
+  unit_of_measurement: "pieces",
+  starting_bid_price: "12.50",  // €12.50 per container
+  minimum_order_quantity: "100.00",
+  auction_duration: 0,
+  custom_auction_duration: 12
+};
+```
+
+### Example 3: Plastic Granules by Volume
+```javascript
+const granuleAd = {
+  title: "Recycled Plastic Granules",
+  available_quantity: "50000.00",
+  unit_of_measurement: "liters",
+  starting_bid_price: "0.85",  // €0.85 per liter
+  minimum_order_quantity: "5000.00",
+  auction_duration: 7
+};
+```
+
+## Frontend Implementation Tips
+
+1. **Dynamic Unit Selection**: Show appropriate units based on material category
+2. **Conditional Custom Duration**: Only show custom duration input when "Custom" is selected
+3. **Real-time Validation**: Validate custom duration and unit combinations client-side
+4. **Price Calculation**: Display total value calculations in real-time
+5. **Unit Display**: Show units consistently throughout the interface (listings, details, bids)
+
+## API Testing
+
+```bash
+# Test new units endpoint
+curl -X GET "http://localhost:8000/api/category/ad-form-choices/"
+
+# Test ad creation with custom duration
+curl -X POST "http://localhost:8000/api/ads/{id}/step7/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "auction_duration": 0,
+    "custom_auction_duration": 15,
+    "unit_of_measurement": "pieces",
+    "available_quantity": "1000.00"
+  }'
+```
+
+This reference should provide everything needed to implement the new unit types and custom auction duration functionality in the frontend. 
