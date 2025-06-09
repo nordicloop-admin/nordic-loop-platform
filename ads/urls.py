@@ -1,7 +1,7 @@
 from django.urls import path
 from ads.views import (
     AdStepView, AdDetailView, AdListView, 
-    UserAdsView, AdStepValidationView
+    UserAdsView, AdStepValidationView, AdActivateView, AdDeactivateView
 )
 
 urlpatterns = [
@@ -17,6 +17,10 @@ urlpatterns = [
     
     # Ad management
     path("<int:ad_id>/", AdDetailView.as_view(), name="ad-detail"),
+    
+    # Ad activation/deactivation
+    path("<int:ad_id>/activate/", AdActivateView.as_view(), name="activate-ad"),
+    path("<int:ad_id>/deactivate/", AdDeactivateView.as_view(), name="deactivate-ad"),
     
     # List ads with filtering
     path("", AdListView.as_view(), name="list-ads"),
