@@ -217,8 +217,26 @@ class AdDetailView(APIView):
     def delete(self, request, ad_id):
         """Delete an ad"""
         try:
+            # Get the ad details before deletion for the response
+            ad = Ad.objects.filter(id=ad_id, user=request.user).first()
+            if not ad:
+                return Response({"error": "Ad not found or you don't have permission to delete it"}, 
+                              status=status.HTTP_404_NOT_FOUND)
+            
+            # Store ad details for response
+            ad_title = ad.title or f"Ad #{ad_id}"
+            
+            # Delete the ad
             ad_service.delete_ad(ad_id, request.user)
-            return Response({"message": "Ad deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            
+            return Response({
+                "message": "Ad deleted successfully",
+                "deleted_ad": {
+                    "id": ad_id,
+                    "title": ad_title
+                }
+            }, status=status.HTTP_200_OK)
+            
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -314,3 +332,56 @@ class AdStepValidationView(APIView):
 
         except Exception as e:
             return Response({"error": "Validation failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdActivateView(APIView):
+    """Activate an ad for auction/bidding"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, ad_id):
+        """Activate/publish an ad to make it visible and available for bidding"""
+        try:
+            ad = ad_service.activate_ad(ad_id, request.user)
+            
+            return Response({
+                "message": "Ad activated successfully and is now live for auction",
+                "ad": {
+                    "id": ad.id,
+                    "title": ad.title,
+                    "is_active": ad.is_active,
+                    "is_complete": ad.is_complete,
+                    "auction_start_date": ad.auction_start_date,
+                    "auction_end_date": ad.auction_end_date,
+                    "auction_duration_display": ad.get_auction_duration_display()
+                }
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Failed to activate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdDeactivateView(APIView):
+    """Deactivate an ad to stop auction/bidding"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, ad_id):
+        """Deactivate/unpublish an ad to make it invisible and stop bidding"""
+        try:
+            ad = ad_service.deactivate_ad(ad_id, request.user)
+            
+            return Response({
+                "message": "Ad deactivated successfully and is no longer visible for bidding",
+                "ad": {
+                    "id": ad.id,
+                    "title": ad.title,
+                    "is_active": ad.is_active,
+                    "is_complete": ad.is_complete
+                }
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Failed to deactivate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
