@@ -11,14 +11,19 @@ env = environ.Env()
 environ.Env.read_env(BASE_DIR / '.env')
 
 # Environment configuration
-ENV = env.str('DJANGO_ENV', 'development').lower()
+# ENV = env('DJANGO_ENV', 'development').lower()
+ENV = env('DJANGO_ENV')
 PRODUCTION = ENV == 'production'
 DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
+# DEBUG = True
 print("DEBUG", DEBUG)
+print("Debug: ", env.str('DJANGO_DEBUG'))
+print("Production: ", ENV)
 
 
 # Security settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
+print("SECRET_KEY", SECRET_KEY)
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://127.0.0.1:8000'])
 
@@ -84,6 +89,8 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DEBUG:
+    print("DATABASE_URL", DATABASE_URL)
+    print("production")
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
@@ -95,7 +102,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': BASE_DIR / 'dbv2.sqlite3',
         }
     }
 
