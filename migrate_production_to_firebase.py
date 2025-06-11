@@ -47,10 +47,43 @@ class ProductionFirebaseMigrator:
         print(f"Database Engine: {db_engine}")
         print(f"DEBUG Mode: {settings.DEBUG}")
         print(f"Firebase Bucket: {firebase_storage_service.bucket.name}")
+        
+        # Check Firebase credentials configuration
+        print(f"\n🔑 Firebase Credentials:")
+        cred_path = getattr(settings, 'FIREBASE_CREDENTIALS_PATH', None)
+        google_creds_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+        google_creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        
+        if cred_path:
+            print(f"   FIREBASE_CREDENTIALS_PATH: {cred_path}")
+            print(f"   File exists: {os.path.exists(cred_path) if cred_path else False}")
+        
+        if google_creds_json:
+            print(f"   GOOGLE_APPLICATION_CREDENTIALS_JSON: ✅ Set (length: {len(google_creds_json)} chars)")
+        else:
+            print(f"   GOOGLE_APPLICATION_CREDENTIALS_JSON: ❌ Not set")
+        
+        if google_creds_path:
+            print(f"   GOOGLE_APPLICATION_CREDENTIALS: {google_creds_path}")
+            print(f"   File exists: {os.path.exists(google_creds_path) if google_creds_path else False}")
+        else:
+            print(f"   GOOGLE_APPLICATION_CREDENTIALS: ❌ Not set")
+        
         print()
         
         if 'postgresql' not in db_engine:
             print("⚠️  Warning: This script is designed for PostgreSQL production database")
+        
+        # Verify we have some form of credentials
+        if not any([
+            cred_path and os.path.exists(cred_path),
+            google_creds_json,
+            google_creds_path and os.path.exists(google_creds_path)
+        ]):
+            print("❌ No Firebase credentials found!")
+            print("   For development: Set FIREBASE_CREDENTIALS_PATH in .env")
+            print("   For production: Set GOOGLE_APPLICATION_CREDENTIALS_JSON with JSON content")
+            return False
             
         return True
     
