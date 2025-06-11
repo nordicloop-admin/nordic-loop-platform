@@ -208,3 +208,12 @@ if PRODUCTION:
     BASE_LINK = "https://nordic-loop-platform.onrender.com/"
 else:
     BASE_LINK = "http://127.0.0.1:8000/"
+
+# Firebase Configuration
+FIREBASE_STORAGE_BUCKET = env('FIREBASE_STORAGE_BUCKET', default='your-project-id.appspot.com')
+FIREBASE_CREDENTIALS_PATH = env('FIREBASE_CREDENTIALS_PATH', default=None)
+
+# Firebase environment variables for production (when not using service account file)
+# These should be set in your production environment:
+# GOOGLE_APPLICATION_CREDENTIALS (path to service account JSON)
+# Or individual Firebase config variables

@@ -4,6 +4,7 @@ from company.models import Company
 from users.models import User
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+from base.fields import FirebaseImageField
 
 
 class Location(models.Model):
@@ -201,7 +202,7 @@ class Ad(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     keywords = models.CharField(max_length=500, blank=True, null=True, help_text="Keywords separated by commas")
-    material_image = models.ImageField(upload_to='material_images/', null=True, blank=True)
+    material_image = FirebaseImageField(folder='material_images', blank=True, null=True)
     
     # System fields
     is_active = models.BooleanField(default=True)
