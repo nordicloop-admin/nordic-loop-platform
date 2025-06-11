@@ -340,6 +340,9 @@ class AdStep7Serializer(serializers.ModelSerializer):
 
 class AdStep8Serializer(serializers.ModelSerializer):
     """Step 8: Title, Description & Image"""
+    # Use ImageField for file uploads, will be converted to URL in the model's pre_save
+    material_image = serializers.ImageField(required=False, allow_null=True)
+    
     class Meta:
         model = Ad
         fields = [
@@ -356,6 +359,19 @@ class AdStep8Serializer(serializers.ModelSerializer):
         if not value or len(value.strip()) < 50:
             raise serializers.ValidationError("Description must be at least 50 characters long.")
         return value.strip()
+    
+    def validate_material_image(self, value):
+        """Validate image file"""
+        if value:
+            # Check file size (10MB limit)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError("Image file too large. Maximum size is 10MB.")
+            
+            # Check content type
+            if not value.content_type.startswith('image/'):
+                raise serializers.ValidationError("Only image files are allowed.")
+        
+        return value
 
     def update(self, instance, validated_data):
         validated_data['current_step'] = 8
@@ -554,6 +570,8 @@ class AdCreateSerializer(serializers.ModelSerializer):
 class AdUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating complete ads with all fields"""
     location_data = serializers.DictField(write_only=True, required=False)
+    # Use ImageField for file uploads
+    material_image = serializers.ImageField(required=False, allow_null=True)
     
     class Meta:
         model = Ad
@@ -567,6 +585,19 @@ class AdUpdateSerializer(serializers.ModelSerializer):
             'title', 'description', 'keywords', 'material_image'
         ]
         read_only_fields = ['id']
+    
+    def validate_material_image(self, value):
+        """Validate image file"""
+        if value:
+            # Check file size (10MB limit)
+            if value.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError("Image file too large. Maximum size is 10MB.")
+            
+            # Check content type
+            if not value.content_type.startswith('image/'):
+                raise serializers.ValidationError("Only image files are allowed.")
+        
+        return value
 
     def validate(self, data):
         """Validate cross-field constraints"""
