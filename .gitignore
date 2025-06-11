@@ -61,6 +61,7 @@ local_settings.py
 # db.sqlite3
 db.sqlite3-journal
 
+
 # Flask stuff:
 instance/
 .webassets-cache
@@ -172,3 +173,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# firebase credentials 
+firebase-credentials.json
+
+# user credentials
+user_credentials.txt
