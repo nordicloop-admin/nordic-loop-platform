@@ -345,4 +345,123 @@ Monitor Firebase operations in your Django logs:
 tail -f django.log | grep -i firebase
 ```
 
+## Firebase Credentials Configuration
+
+The platform supports multiple methods for Firebase authentication to work seamlessly across development and production environments.
+
+### Development Environment
+
+For local development, use a service account file:
+
+```bash
+# .env file
+FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
+FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+```
+
+### Production Environment (Render/Heroku/Cloud Platforms)
+
+For production deployments where you can't store files, use environment variables:
+
+#### Option 1: JSON Content as String (Recommended)
+```bash
+# Set in your cloud platform's environment variables
+GOOGLE_APPLICATION_CREDENTIALS_JSON='{"type": "service_account", "project_id": "your-project", ...}'
+FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+```
+
+#### Option 2: Standard Google Cloud Variable
+```bash
+# If your platform supports file-based credentials
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+```
+
+### How It Works
+
+The Firebase service automatically detects and uses credentials in this priority order:
+
+1. **FIREBASE_CREDENTIALS_PATH** - File path (development)
+2. **GOOGLE_APPLICATION_CREDENTIALS_JSON** - JSON string (production)
+3. **GOOGLE_APPLICATION_CREDENTIALS** - File path (standard)
+4. **Default environment authentication** - For Google Cloud Platform
+
+### Setting Up Production Credentials
+
+#### Step 1: Get Your Service Account JSON
+1. Go to Firebase Console → Project Settings → Service Accounts
+2. Generate new private key → Download JSON file
+3. Copy the entire JSON content
+
+#### Step 2: Configure Production Environment
+
+**For Render:**
+```bash
+# In Render Dashboard → Environment Variables
+GOOGLE_APPLICATION_CREDENTIALS_JSON='{"type":"service_account","project_id":"your-project-id","private_key_id":"abc123...","private_key":"-----BEGIN PRIVATE KEY-----\nMIIE...","client_email":"firebase-adminsdk-...@your-project.iam.gserviceaccount.com","client_id":"123...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-...%40your-project.iam.gserviceaccount.com"}'
+
+FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+```
+
+**For Heroku:**
+```bash
+heroku config:set GOOGLE_APPLICATION_CREDENTIALS_JSON='{"type":"service_account",...}'
+heroku config:set FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+```
+
+#### Step 3: Test Configuration
+
+Run the migration script to verify credentials:
+
+```bash
+# Check status only
+python migrate_production_to_firebase.py --status-only
+
+# Should show:
+# 🔑 Firebase Credentials:
+#    GOOGLE_APPLICATION_CREDENTIALS_JSON: ✅ Set (length: 2456 chars)
+#    🔥 Firebase Storage Status: Connected
+```
+
+### Troubleshooting
+
+#### Common Issues:
+
+1. **"No Firebase credentials found!"**
+   - Ensure you've set the correct environment variable for your environment
+   - Check that JSON string is properly escaped
+
+2. **"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON"**
+   - Verify JSON is valid and properly escaped
+   - Check for missing quotes or special characters
+
+3. **"Permission denied"**
+   - Verify service account has Storage Admin role
+   - Check Firebase Storage bucket name is correct
+
+#### Testing Credentials:
+
+```python
+# Test script
+python -c "
+from base.services.firebase_service import firebase_storage_service
+stats = firebase_storage_service.get_storage_stats()
+print('✅ Firebase connected:', stats)
+"
+```
+
+### Security Best Practices
+
+1. **Never commit credentials to Git**
+   - Use `.env` files for development
+   - Use environment variables for production
+
+2. **Limit service account permissions**
+   - Only grant necessary Firebase Storage permissions
+   - Regularly rotate service account keys
+
+3. **Use different service accounts**
+   - Separate accounts for development/staging/production
+   - Monitor usage and access logs
+
 Your Firebase Storage integration is now complete! 🎉 

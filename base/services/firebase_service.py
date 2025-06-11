@@ -1,6 +1,7 @@
 import os
 import uuid
 import tempfile
+import json
 from datetime import datetime
 from typing import Optional, Tuple, Dict, Any, List
 import firebase_admin
@@ -30,22 +31,62 @@ class FirebaseStorageService:
             firebase_admin.get_app()
             logger.info("Firebase already initialized")
         except ValueError:
-            # Initialize Firebase
-            cred_path = getattr(settings, 'FIREBASE_CREDENTIALS_PATH', None)
+            # Initialize Firebase based on available credentials
+            cred = self._get_firebase_credentials()
             
-            if cred_path and os.path.exists(cred_path):
-                # Use service account file
-                cred = credentials.Certificate(cred_path)
+            if cred:
                 firebase_admin.initialize_app(cred, {
                     'storageBucket': settings.FIREBASE_STORAGE_BUCKET
                 })
-                logger.info("Firebase initialized with service account file")
+                logger.info("Firebase initialized with service account credentials")
             else:
-                # Use environment variables (for production)
+                # Use environment variables (for production with GOOGLE_APPLICATION_CREDENTIALS)
                 firebase_admin.initialize_app(options={
                     'storageBucket': settings.FIREBASE_STORAGE_BUCKET
                 })
                 logger.info("Firebase initialized with environment variables")
+    
+    def _get_firebase_credentials(self):
+        """
+        Get Firebase credentials from multiple sources:
+        1. FIREBASE_CREDENTIALS_PATH (development - file path)
+        2. GOOGLE_APPLICATION_CREDENTIALS_JSON (production - JSON string)
+        3. GOOGLE_APPLICATION_CREDENTIALS (standard env var - file path)
+        """
+        # Method 1: Development - File path from settings
+        cred_path = getattr(settings, 'FIREBASE_CREDENTIALS_PATH', None)
+        if cred_path and os.path.exists(cred_path):
+            logger.info("Using Firebase credentials from FIREBASE_CREDENTIALS_PATH")
+            return credentials.Certificate(cred_path)
+        
+        # Method 2: Production - JSON string from environment
+        cred_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+        if cred_json:
+            try:
+                # Parse JSON string and create temporary file
+                cred_dict = json.loads(cred_json)
+                
+                # Create a temporary file with the credentials
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+                    json.dump(cred_dict, temp_file)
+                    temp_file_path = temp_file.name
+                
+                logger.info("Using Firebase credentials from GOOGLE_APPLICATION_CREDENTIALS_JSON")
+                return credentials.Certificate(temp_file_path)
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
+            except Exception as e:
+                logger.error(f"Failed to process GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
+        
+        # Method 3: Standard GOOGLE_APPLICATION_CREDENTIALS environment variable
+        google_creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if google_creds_path and os.path.exists(google_creds_path):
+            logger.info("Using Firebase credentials from GOOGLE_APPLICATION_CREDENTIALS")
+            return credentials.Certificate(google_creds_path)
+        
+        logger.info("No explicit credentials found, will use default environment authentication")
+        return None
     
     @property
     def bucket(self):
