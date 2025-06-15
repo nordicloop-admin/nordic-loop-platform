@@ -2,10 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from company.serializer import CompanySerializer
+from company.serializer import CompanySerializer, CompanyAdminSerializer
 from company.repository.company_repository import CompanyRepository
 from company.services.company_service import CompanyService
 from rest_framework.permissions import IsAdminUser
+from rest_framework import viewsets, mixins, filters
+from rest_framework.decorators import action
+from django_filters.rest_framework import DjangoFilterBackend
 
 from users.models import User 
 
@@ -106,5 +109,32 @@ class ApproveCompanyView(APIView):
             return Response({"message": "Company approved and user permissions updated."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"Failed to approve the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CompanyAdminViewSet(viewsets.ModelViewSet):
+    queryset = Company.objects.all().order_by('-registration_date')
+    serializer_class = CompanyAdminSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['official_name', 'vat_number', 'email', 'primary_email', 'primary_first_name', 'primary_last_name']
+    filterset_fields = ['status']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        status_param = self.request.query_params.get('status')
+        if status_param and status_param != 'all':
+            queryset = queryset.filter(status=status_param)
+        return queryset
+
+    @action(detail=True, methods=['patch'], url_path='status')
+    def update_status(self, request, pk=None):
+        company = self.get_object()
+        status_value = request.data.get('status')
+        if status_value not in dict(Company.STATUS_CHOICES):
+            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+        company.status = status_value
+        company.save()
+        serializer = self.get_serializer(company)
+        return Response(serializer.data)
 
     
