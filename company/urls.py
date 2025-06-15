@@ -1,5 +1,6 @@
 from django.urls import path
-from company.view import CompanyView, ApproveCompanyView
+from company.view import CompanyView, ApproveCompanyView, CompanyAdminViewSet
+from rest_framework.routers import DefaultRouter
 
 urlpatterns = [
     path("create/", CompanyView.as_view(), name="create-company"),  
@@ -9,3 +10,9 @@ urlpatterns = [
 
     path("approve/<int:company_id>/", ApproveCompanyView.as_view(), name="approve_deney_companies"),
 ]
+
+# Admin endpoints
+router = DefaultRouter()
+router.register(r'admin/companies', CompanyAdminViewSet, basename='admin-companies')
+
+urlpatterns += router.urls

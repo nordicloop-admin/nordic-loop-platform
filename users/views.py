@@ -3,10 +3,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from company.models import Company
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer
+from .serializers import UserSerializer, UserAdminSerializer
+from rest_framework import viewsets, mixins, filters
+from rest_framework.decorators import action
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 class ContactSignupView(APIView):
@@ -85,3 +88,23 @@ class ListUsersView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response({"users": serializer.data})
+
+
+class UserAdminViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserAdminSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['email', 'first_name', 'last_name', 'role']
+    filterset_fields = ['company', 'is_active']
+
+    @action(detail=True, methods=['patch'], url_path='status')
+    def update_status(self, request, pk=None):
+        user = self.get_object()
+        active = request.data.get('active')
+        if active is None:
+            return Response({'error': 'Missing active field'}, status=status.HTTP_400_BAD_REQUEST)
+        user.is_active = bool(active)
+        user.save()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
