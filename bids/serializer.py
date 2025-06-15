@@ -247,3 +247,41 @@ class BidStatsSerializer(serializers.Serializer):
     average_bid = serializers.DecimalField(max_digits=12, decimal_places=2)
     total_volume_requested = serializers.DecimalField(max_digits=15, decimal_places=2)
     unique_bidders = serializers.IntegerField()
+
+
+class BidAdminSerializer(serializers.ModelSerializer):
+    itemId = serializers.CharField(source='ad.id', read_only=True)
+    itemName = serializers.CharField(source='ad.title', read_only=True)
+    bidAmount = serializers.DecimalField(source='bid_price_per_unit', max_digits=12, decimal_places=2)
+    previousBid = serializers.SerializerMethodField()
+    bidderName = serializers.CharField(source='user.get_full_name', read_only=True)
+    bidderCompany = serializers.CharField(source='user.company.official_name', read_only=True)
+    bidderEmail = serializers.EmailField(source='user.email', read_only=True)
+    isHighest = serializers.SerializerMethodField()
+    createdAt = serializers.DateTimeField(source='created_at')
+    expiresAt = serializers.SerializerMethodField()
+    needsReview = serializers.SerializerMethodField()
+    id = serializers.CharField(source='pk')
+
+    class Meta:
+        model = Bid
+        fields = [
+            'id', 'itemId', 'itemName', 'bidAmount', 'previousBid', 'bidderName', 'bidderCompany',
+            'bidderEmail', 'status', 'isHighest', 'createdAt', 'expiresAt', 'needsReview'
+        ]
+
+    def get_previousBid(self, obj):
+        # Get the previous highest bid for the same ad before this bid
+        previous = Bid.objects.filter(ad=obj.ad, created_at__lt=obj.created_at).order_by('-created_at').first()
+        return previous.bid_price_per_unit if previous else None
+
+    def get_isHighest(self, obj):
+        return obj.is_winning
+
+    def get_expiresAt(self, obj):
+        # Use ad's auction_end_date if available
+        return obj.ad.auction_end_date if obj.ad and obj.ad.auction_end_date else None
+
+    def get_needsReview(self, obj):
+        # Placeholder: implement logic if needed
+        return False
