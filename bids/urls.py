@@ -1,8 +1,9 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 from .views import (
     BidCreateView, BidUpdateView, BidDeleteView, BidDetailView,
     AdBidsListView, AllBidsListView, UserBidsListView, BidHistoryView, AdBidStatsView,
-    BidSearchView, WinningBidsView, CloseAuctionView, BidView
+    BidSearchView, WinningBidsView, CloseAuctionView, BidView, BidAdminViewSet
 )
 
 urlpatterns = [
@@ -33,3 +34,8 @@ urlpatterns = [
     path("legacy/<int:bid_id>/update/", BidView.as_view(), name="legacy-update-bid"),
     path("legacy/<int:bid_id>/delete/", BidView.as_view(), name="legacy-delete-bid"),
 ]
+
+# Admin endpoints
+router = DefaultRouter()
+router.register(r'admin/bids', BidAdminViewSet, basename='admin-bids')
+urlpatterns += router.urls

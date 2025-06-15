@@ -1,8 +1,10 @@
 from django.urls import path
 from ads.views import (
     AdStepView, AdDetailView, AdListView, 
-    UserAdsView, AdStepValidationView, AdActivateView, AdDeactivateView
+    UserAdsView, AdStepValidationView, AdActivateView, AdDeactivateView,
+    MarketplaceAdminViewSet, SubscriptionAdminViewSet, AddressAdminViewSet
 )
+from rest_framework.routers import DefaultRouter
 
 urlpatterns = [
     # Step-by-step endpoints
@@ -28,3 +30,10 @@ urlpatterns = [
     # User's ads
     path("user/", UserAdsView.as_view(), name="user-ads"),
 ]
+
+# Admin endpoints
+router = DefaultRouter()
+router.register(r'admin/marketplace', MarketplaceAdminViewSet, basename='admin-marketplace')
+router.register(r'admin/subscriptions', SubscriptionAdminViewSet, basename='admin-subscriptions')
+router.register(r'admin/addresses', AddressAdminViewSet, basename='admin-addresses')
+urlpatterns += router.urls

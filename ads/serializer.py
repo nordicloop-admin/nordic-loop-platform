@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Ad, Location
+from .models import Ad, Location, Subscription, Address
 from category.serializers import CategorySpecificationSerializer
 from category.models import Category, SubCategory, CategorySpecification
 from decimal import Decimal
@@ -688,6 +688,85 @@ class AdUpdateSerializer(serializers.ModelSerializer):
                     instance.save()
         except Exception:
             pass  # Don't fail the entire update if location update fails
+
+
+class MarketplaceAdminSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='title')
+    category = serializers.CharField(source='category.name', read_only=True)
+    basePrice = serializers.DecimalField(source='starting_bid_price', max_digits=10, decimal_places=2)
+    highestBid = serializers.SerializerMethodField()
+    status = serializers.CharField()
+    volume = serializers.SerializerMethodField()
+    seller = serializers.CharField(source='user.company.official_name', read_only=True)
+    countryOfOrigin = serializers.CharField(source='location.country', read_only=True)
+    createdAt = serializers.DateField(source='created_at')
+    image = serializers.SerializerMethodField()
+    id = serializers.CharField(source='pk')
+
+    class Meta:
+        model = Ad
+        fields = [
+            'id', 'name', 'category', 'basePrice', 'highestBid', 'status', 'volume',
+            'seller', 'countryOfOrigin', 'createdAt', 'image'
+        ]
+
+    def get_highestBid(self, obj):
+        highest = obj.bids.order_by('-bid_price_per_unit').first()
+        return highest.bid_price_per_unit if highest else None
+
+    def get_volume(self, obj):
+        return f"{obj.available_quantity} {obj.unit_of_measurement}" if obj.available_quantity else None
+
+    def get_image(self, obj):
+        # Return image URL or path
+        return obj.material_image.url if obj.material_image else None
+
+
+class SubscriptionAdminSerializer(serializers.ModelSerializer):
+    companyId = serializers.CharField(source='company.id')
+    companyName = serializers.CharField(source='company.official_name')
+    plan = serializers.CharField()
+    status = serializers.CharField()
+    startDate = serializers.DateField(source='start_date')
+    endDate = serializers.DateField(source='end_date')
+    autoRenew = serializers.BooleanField(source='auto_renew')
+    paymentMethod = serializers.CharField(source='payment_method')
+    lastPayment = serializers.DateField(source='last_payment')
+    amount = serializers.CharField()
+    contactName = serializers.CharField(source='contact_name')
+    contactEmail = serializers.EmailField(source='contact_email')
+    id = serializers.CharField(source='pk')
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'companyId', 'companyName', 'plan', 'status', 'startDate', 'endDate',
+            'autoRenew', 'paymentMethod', 'lastPayment', 'amount', 'contactName', 'contactEmail'
+        ]
+
+
+class AddressAdminSerializer(serializers.ModelSerializer):
+    companyId = serializers.CharField(source='company.id')
+    companyName = serializers.CharField(source='company.official_name')
+    type = serializers.CharField()
+    addressLine1 = serializers.CharField(source='address_line1')
+    addressLine2 = serializers.CharField(source='address_line2')
+    city = serializers.CharField()
+    postalCode = serializers.CharField(source='postal_code')
+    country = serializers.CharField()
+    isVerified = serializers.BooleanField(source='is_verified')
+    isPrimary = serializers.BooleanField(source='is_primary')
+    contactName = serializers.CharField(source='contact_name')
+    contactPhone = serializers.CharField(source='contact_phone')
+    createdAt = serializers.DateField(source='created_at')
+    id = serializers.CharField(source='pk')
+
+    class Meta:
+        model = Address
+        fields = [
+            'id', 'companyId', 'companyName', 'type', 'addressLine1', 'addressLine2', 'city',
+            'postalCode', 'country', 'isVerified', 'isPrimary', 'contactName', 'contactPhone', 'createdAt'
+        ]
 
 
 

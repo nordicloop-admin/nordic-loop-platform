@@ -269,3 +269,56 @@ class Ad(models.Model):
             if not status.get(step, False):
                 return step
         return None
+
+class Subscription(models.Model):
+    PLAN_CHOICES = [
+        ("basic", "Basic"),
+        ("premium", "Premium"),
+        ("enterprise", "Enterprise"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("expired", "Expired"),
+        ("payment_failed", "Payment Failed"),
+    ]
+    PAYMENT_METHOD_CHOICES = [
+        ("credit_card", "Credit Card"),
+        ("invoice", "Invoice"),
+        ("paypal", "PayPal"),
+    ]
+    company = models.ForeignKey('company.Company', on_delete=models.CASCADE, related_name='subscriptions')
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    auto_renew = models.BooleanField(default=True)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    last_payment = models.DateField()
+    amount = models.CharField(max_length=50)
+    contact_name = models.CharField(max_length=255)
+    contact_email = models.EmailField()
+
+    def __str__(self):
+        return f"{self.company.official_name} - {self.plan} ({self.status})"
+
+class Address(models.Model):
+    TYPE_CHOICES = [
+        ("business", "Business"),
+        ("shipping", "Shipping"),
+        ("billing", "Billing"),
+    ]
+    company = models.ForeignKey('company.Company', on_delete=models.CASCADE, related_name='addresses')
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    address_line1 = models.CharField(max_length=255)
+    address_line2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=20)
+    country = models.CharField(max_length=100)
+    is_verified = models.BooleanField(default=False)
+    is_primary = models.BooleanField(default=False)
+    contact_name = models.CharField(max_length=255)
+    contact_phone = models.CharField(max_length=50)
+    created_at = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.company.official_name} - {self.type} - {self.address_line1}"
