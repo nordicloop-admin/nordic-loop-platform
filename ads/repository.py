@@ -1,6 +1,7 @@
 from base.utils.responses import RepositoryResponse
 from base.services.logging import LoggingService
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Max
+from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import Ad, Location
@@ -103,6 +104,71 @@ class AdRepository:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve ad", None)
 
+    def get_admin_ads_filtered(self, search=None, status=None, page=1, page_size=10) -> RepositoryResponse:
+        """
+        Get ads for admin with filtering and pagination support
+        """
+        try:
+            # Start with all ads, including related objects for optimization
+            queryset = Ad.objects.select_related(
+                'user', 'category', 'location', 'user__company'
+            ).prefetch_related('bids').all().order_by('-created_at')
+            
+            # Apply search filter across multiple fields
+            if search:
+                queryset = queryset.filter(
+                    Q(title__icontains=search) |
+                    Q(description__icontains=search) |
+                    Q(category__name__icontains=search) |
+                    Q(user__username__icontains=search) |
+                    Q(user__company__official_name__icontains=search) |
+                    Q(specific_material__icontains=search) |
+                    Q(keywords__icontains=search)
+                )
+            
+            # Apply status filter
+            if status and status != 'all':
+                if status == 'active':
+                    queryset = queryset.filter(is_active=True, is_complete=True)
+                elif status == 'inactive':
+                    queryset = queryset.filter(is_active=False)
+                elif status == 'pending':
+                    queryset = queryset.filter(is_complete=False)
+                elif status == 'draft':
+                    queryset = queryset.filter(is_complete=False, is_active=False)
+            
+            # Apply pagination
+            paginator = Paginator(queryset, page_size)
+            
+            try:
+                ads_page = paginator.page(page)
+            except:
+                # If page number is out of range, return first page
+                ads_page = paginator.page(1)
+            
+            pagination_data = {
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': ads_page.number,
+                'page_size': page_size,
+                'next': ads_page.has_next(),
+                'previous': ads_page.has_previous(),
+                'results': list(ads_page.object_list)
+            }
+            
+            return RepositoryResponse(
+                success=True,
+                message="Ads retrieved successfully",
+                data=pagination_data,
+            )
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(
+                success=False,
+                message="Failed to get ads",
+                data=None,
+            )
+
     def update_ad_step(self, ad_id: int, step: int, data: Dict[str, Any], 
                       files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> RepositoryResponse:
         """Update a specific step of the ad"""
@@ -198,7 +264,7 @@ class AdRepository:
 
             ads = Ad.objects.filter(query).select_related(
                 'category', 'subcategory', 'location'
-            ).order_by('-updated_at')
+            ).order_by('-created_at')
 
             return RepositoryResponse(True, "User ads retrieved successfully", list(ads))
 

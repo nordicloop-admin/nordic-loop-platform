@@ -48,6 +48,20 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
+    def get_admin_ads_filtered(self, search=None, status=None, page=1, page_size=10) -> Dict[str, Any]:
+        """
+        Get filtered ads for admin with pagination
+        """
+        try:
+            result = self.repository.get_admin_ads_filtered(search, status, page, page_size)
+            if result.success:
+                return result.data
+            else:
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
     def update_ad_step(self, ad_id: int, step: int, data: Dict[str, Any], 
                       files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
         """Update a specific step of the ad"""
