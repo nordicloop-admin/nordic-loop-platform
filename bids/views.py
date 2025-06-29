@@ -2,19 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.decorators import action
 
 from .repository import BidRepository
 from .services import BidService
 from .serializer import (
     BidCreateSerializer, BidListSerializer, BidDetailSerializer, 
-    BidUpdateSerializer, BidHistorySerializer, BidStatsSerializer,
-    BidAdminSerializer
+    BidUpdateSerializer, BidHistorySerializer, BidStatsSerializer
 )
 from .models import Bid, BidHistory
 from ads.models import Ad
@@ -398,23 +394,3 @@ class BidView(APIView):
     def delete(self, request, bid_id):
         """Legacy delete bid endpoint"""
         return BidDeleteView.as_view()(request, bid_id)
-
-
-class BidAdminViewSet(viewsets.ModelViewSet):
-    queryset = Bid.objects.select_related('ad', 'user', 'user__company').all().order_by('-created_at')
-    serializer_class = BidAdminSerializer
-    permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['ad__title', 'user__email', 'user__first_name', 'user__last_name', 'user__company__official_name']
-    filterset_fields = ['status']
-
-    @action(detail=True, methods=['patch'], url_path='status')
-    def update_status(self, request, pk=None):
-        bid = self.get_object()
-        status_value = request.data.get('status')
-        if status_value not in dict(Bid.STATUS_CHOICES):
-            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-        bid.status = status_value
-        bid.save()
-        serializer = self.get_serializer(bid)
-        return Response(serializer.data)

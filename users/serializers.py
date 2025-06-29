@@ -1,33 +1,64 @@
 # users/serializers.py
 from rest_framework import serializers
 from .models import User
-from company.serializer import CompanySerializer
-from company.models import Company
+
 
 class UserSerializer(serializers.ModelSerializer):
-    company = CompanySerializer()
+    company_name = serializers.CharField(source='company.official_name', read_only=True)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'date_joined', 'company']
+        fields = ['id', 'email', 'first_name', 'last_name', 'name', 'company', 'company_name', 'role', 'date_joined']
 
-class UserAdminSerializer(serializers.ModelSerializer):
-    companyId = serializers.SerializerMethodField()
-    companyName = serializers.SerializerMethodField()
-    firstName = serializers.CharField(source='first_name')
-    lastName = serializers.CharField(source='last_name')
-    position = serializers.CharField(source='role', required=False)
-    createdAt = serializers.DateTimeField(source='date_joined')
-    id = serializers.CharField(source='pk')
+
+class AdminUserListSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for user list view with specific field mapping
+    """
+    firstName = serializers.CharField(source='first_name', read_only=True)
+    lastName = serializers.CharField(source='last_name', read_only=True)
+    companyName = serializers.CharField(source='company.official_name', read_only=True)
+    status = serializers.SerializerMethodField()
+    lastLogin = serializers.DateTimeField(source='last_login', read_only=True)
+    joinDate = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'firstName', 'lastName', 'position', 'companyId', 'companyName', 'createdAt'
+            'id',
+            'firstName',
+            'lastName',
+            'email',
+            'companyName',
+            'role',
+            'status',
+            'lastLogin',
+            'joinDate'
         ]
 
-    def get_companyId(self, obj):
-        return str(obj.company.pk) if obj.company else None
+    def get_status(self, obj):
+        """
+        Convert is_active boolean to status string
+        """
+        return "active" if obj.is_active else "inactive"
 
-    def get_companyName(self, obj):
-        return obj.company.official_name if obj.company else None
+    def get_joinDate(self, obj):
+        """
+        Convert datetime to date string
+        """
+        if obj.date_joined:
+            return obj.date_joined.date()
+        return None
+
+
+class AdminUserDetailSerializer(AdminUserListSerializer):
+    """
+    Admin serializer for user detail view - extends list serializer
+    """
+    # Add any additional fields for detail view if needed
+    username = serializers.CharField(read_only=True)
+    canPlaceAds = serializers.BooleanField(source='can_place_ads', read_only=True)
+    canPlaceBids = serializers.BooleanField(source='can_place_bids', read_only=True)
+    
+    class Meta(AdminUserListSerializer.Meta):
+        fields = AdminUserListSerializer.Meta.fields + ['username', 'canPlaceAds', 'canPlaceBids']

@@ -1,18 +1,13 @@
 from django.urls import path
-from company.view import CompanyView, ApproveCompanyView, CompanyAdminViewSet
-from rest_framework.routers import DefaultRouter
+from .view import CompanyView, ApproveCompanyView, AdminCompanyListView, AdminCompanyDetailView
 
 urlpatterns = [
-    path("create/", CompanyView.as_view(), name="create-company"),  
-    path("<int:company_id>/", CompanyView.as_view(), name="get-update-delete-company"),  
-    path("get/by-vat/<str:vat>/", CompanyView.as_view(), name="get-company-by-vat"), 
-    path("", CompanyView.as_view(), name="list-companies"),  
-
-    path("approve/<int:company_id>/", ApproveCompanyView.as_view(), name="approve_deney_companies"),
+    path("", CompanyView.as_view(), name="company-list-create"),
+    path("<int:company_id>/", CompanyView.as_view(), name="company-detail"),
+    path("vat/<str:vat>/", CompanyView.as_view(), name="company-by-vat"),
+    path("<int:company_id>/approve/", ApproveCompanyView.as_view(), name="approve-company"),
+    
+    # Admin endpoints
+    path("admin/companies/", AdminCompanyListView.as_view(), name="admin-company-list"),
+    path("admin/companies/<int:company_id>/", AdminCompanyDetailView.as_view(), name="admin-company-detail"),
 ]
-
-# Admin endpoints
-router = DefaultRouter()
-router.register(r'admin/companies', CompanyAdminViewSet, basename='admin-companies')
-
-urlpatterns += router.urls

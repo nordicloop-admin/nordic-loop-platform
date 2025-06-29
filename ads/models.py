@@ -206,6 +206,11 @@ class Ad(models.Model):
     
     # System fields
     is_active = models.BooleanField(default=True)
+    # status = models.CharField(max_length=20, choices=[
+    #     ('active', 'Active'),
+    #     ('pending', 'Pending'),
+    #     ('inactive', 'Inactive')
+    # ], default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     auction_start_date = models.DateTimeField(blank=True, null=True)

@@ -29,91 +29,69 @@ class BidCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bid
         fields = [
-            'ad', 'bid_price_per_unit', 'volume_requested', 'volume_type',
-            'notes', 'max_auto_bid_price'
+            'ad', 'bid_price_per_unit', 'volume_requested', 
+            'delivery_requirements', 'payment_terms', 'notes'
         ]
         
+    def validate_ad(self, value):
+        """Validate that the ad exists and is active"""
+        if not value.is_active or not value.is_complete:
+            raise serializers.ValidationError("Cannot bid on inactive or incomplete ads.")
+        return value
+    
+    def validate_bid_price_per_unit(self, value):
+        """Validate bid price"""
+        if value <= 0:
+            raise serializers.ValidationError("Bid price must be greater than zero.")
+        return value
+    
+    def validate_volume_requested(self, value):
+        """Validate volume requested"""
+        if value <= 0:
+            raise serializers.ValidationError("Volume requested must be greater than zero.")
+        return value
+    
     def validate(self, data):
-        """Validate bid data against ad requirements"""
+        """Cross-field validation"""
         ad = data.get('ad')
+        volume_requested = data.get('volume_requested')
         bid_price = data.get('bid_price_per_unit')
-        volume = data.get('volume_requested')
         
-        if not ad:
-            raise serializers.ValidationError("Ad is required")
+        if ad and volume_requested:
+            # Check if volume requested doesn't exceed available quantity
+            if volume_requested > ad.available_quantity:
+                raise serializers.ValidationError(
+                    f"Volume requested ({volume_requested}) cannot exceed available quantity ({ad.available_quantity})."
+                )
             
-        # Check if ad is active
-        if not ad.is_active:
-            raise serializers.ValidationError("Cannot bid on inactive ads")
+            # Check minimum order quantity
+            if ad.minimum_order_quantity and volume_requested < ad.minimum_order_quantity:
+                raise serializers.ValidationError(
+                    f"Volume requested ({volume_requested}) is below minimum order quantity ({ad.minimum_order_quantity})."
+                )
         
-        # Check if auction has ended
-        if ad.auction_end_date and ad.auction_end_date < timezone.now():
-            raise serializers.ValidationError("Auction has ended")
-        
-        # Check minimum bid requirements
-        if ad.starting_bid_price and bid_price < ad.starting_bid_price:
-            raise serializers.ValidationError(
-                f"Bid price must be at least {ad.starting_bid_price} {ad.currency}"
-            )
-        
-        # Check if this bid is higher than current highest
-        highest_bid = Bid.objects.filter(
-            ad=ad, 
-            status__in=['active', 'winning']
-        ).order_by('-bid_price_per_unit').first()
-        
-        if highest_bid and bid_price <= highest_bid.bid_price_per_unit:
-            raise serializers.ValidationError(
-                f"Bid must be higher than current highest bid of {highest_bid.bid_price_per_unit} {ad.currency}"
-            )
-        
-        # Check volume requirements
-        if ad.minimum_order_quantity and volume < ad.minimum_order_quantity:
-            raise serializers.ValidationError(
-                f"Volume must be at least {ad.minimum_order_quantity} {ad.unit_of_measurement}"
-            )
-        
-        if volume > ad.available_quantity:
-            raise serializers.ValidationError(
-                f"Volume cannot exceed available quantity of {ad.available_quantity} {ad.unit_of_measurement}"
-            )
+        if ad and bid_price:
+            # Check if bid meets minimum starting price
+            if bid_price < ad.starting_bid_price:
+                raise serializers.ValidationError(
+                    f"Bid price ({bid_price}) must be at least the starting bid price ({ad.starting_bid_price})."
+                )
         
         return data
-
+    
     def create(self, validated_data):
-        """Create bid and update statuses of existing bids"""
+        """Create bid with automatic user assignment"""
+        # Get user from request context
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             validated_data['user'] = request.user
         
-        # Check if user already has a bid for this ad
-        existing_bid = Bid.objects.filter(
-            user=validated_data['user'],
-            ad=validated_data['ad']
-        ).first()
+        # Calculate total bid value
+        validated_data['total_bid_value'] = (
+            validated_data['bid_price_per_unit'] * validated_data['volume_requested']
+        )
         
-        if existing_bid:
-            # Update existing bid instead of creating new one
-            for attr, value in validated_data.items():
-                setattr(existing_bid, attr, value)
-            existing_bid.save()
-            return existing_bid
-        
-        # Create new bid
-        bid = Bid.objects.create(**validated_data)
-        
-        # Update status of other bids for this ad
-        Bid.objects.filter(
-            ad=bid.ad,
-            status='winning'
-        ).exclude(id=bid.id).update(status='outbid')
-        
-        # Set this bid as winning if it's the highest
-        if bid.is_winning:
-            bid.status = 'winning'
-            bid.save()
-        
-        return bid
+        return super().create(validated_data)
 
 
 class AdBasicSerializer(serializers.ModelSerializer):
@@ -129,38 +107,64 @@ class AdBasicSerializer(serializers.ModelSerializer):
 
 
 class BidListSerializer(serializers.ModelSerializer):
-    """Serializer for listing bids with basic info"""
-    bidder_name = serializers.CharField(source='user.username', read_only=True)
+    """Serializer for listing bids (simplified view)"""
     ad_title = serializers.CharField(source='ad.title', read_only=True)
-    currency = serializers.CharField(source='ad.currency', read_only=True)
-    unit = serializers.CharField(source='ad.unit_of_measurement', read_only=True)
-    is_winning = serializers.BooleanField(read_only=True)
-    rank = serializers.IntegerField(read_only=True)
+    ad_id = serializers.IntegerField(source='ad.id', read_only=True)
+    bidder_name = serializers.CharField(source='user.username', read_only=True)
+    company_name = serializers.CharField(source='user.company.official_name', read_only=True)
     
     class Meta:
         model = Bid
         fields = [
-            'id', 'bidder_name', 'ad_title', 'bid_price_per_unit', 'volume_requested',
-            'total_bid_value', 'currency', 'unit', 'status', 'is_winning', 'rank',
-            'created_at', 'updated_at'
+            'id', 'ad_id', 'ad_title', 'bidder_name', 'company_name',
+            'bid_price_per_unit', 'volume_requested', 'total_bid_value',
+            'status', 'created_at', 'updated_at'
         ]
 
 
 class BidDetailSerializer(serializers.ModelSerializer):
-    """Detailed serializer for single bid view"""
-    bidder = UserSerializer(source='user', read_only=True)
-    ad_details = AdBasicSerializer(source='ad', read_only=True)
-    is_winning = serializers.BooleanField(read_only=True)
-    rank = serializers.IntegerField(read_only=True)
+    """Serializer for detailed bid view"""
+    ad_details = serializers.SerializerMethodField()
+    bidder_details = serializers.SerializerMethodField()
+    bid_ranking = serializers.SerializerMethodField()
     
     class Meta:
         model = Bid
         fields = [
-            'id', 'bidder', 'ad_details', 'bid_price_per_unit', 'volume_requested',
-            'volume_type', 'total_bid_value', 'status', 'is_auto_bid',
-            'max_auto_bid_price', 'notes', 'is_winning', 'rank',
-            'created_at', 'updated_at'
+            'id', 'ad_details', 'bidder_details', 'bid_price_per_unit',
+            'volume_requested', 'total_bid_value', 'delivery_requirements',
+            'payment_terms', 'notes', 'status', 'created_at', 'updated_at',
+            'bid_ranking'
         ]
+    
+    def get_ad_details(self, obj):
+        """Get relevant ad information"""
+        return {
+            'id': obj.ad.id,
+            'title': obj.ad.title,
+            'starting_bid_price': obj.ad.starting_bid_price,
+            'available_quantity': obj.ad.available_quantity,
+            'minimum_order_quantity': obj.ad.minimum_order_quantity,
+            'currency': obj.ad.currency,
+            'auction_end_date': obj.ad.auction_end_date
+        }
+    
+    def get_bidder_details(self, obj):
+        """Get bidder information"""
+        return {
+            'username': obj.user.username,
+            'company': obj.user.company.official_name if obj.user.company else None,
+            'email': obj.user.email
+        }
+    
+    def get_bid_ranking(self, obj):
+        """Get bid ranking among all bids for this ad"""
+        higher_bids = Bid.objects.filter(
+            ad=obj.ad,
+            bid_price_per_unit__gt=obj.bid_price_per_unit,
+            status__in=['active', 'winning']
+        ).count()
+        return higher_bids + 1
 
 
 class BidUpdateSerializer(serializers.ModelSerializer):
@@ -168,64 +172,60 @@ class BidUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Bid
-        fields = ['bid_price_per_unit', 'volume_requested', 'notes', 'max_auto_bid_price']
+        fields = [
+            'bid_price_per_unit', 'volume_requested', 
+            'delivery_requirements', 'payment_terms', 'notes'
+        ]
     
     def validate_bid_price_per_unit(self, value):
-        """Ensure new bid price is higher than current highest"""
-        bid = self.instance
-        if bid:
-            ad = bid.ad
-            
-            # Check if new price meets minimum requirements
-            if ad.starting_bid_price and value < ad.starting_bid_price:
-                raise serializers.ValidationError(
-                    f"Bid price must be at least {ad.starting_bid_price} {ad.currency}"
-                )
-            
-            # Check if new price is higher than other bids
-            highest_bid = Bid.objects.filter(
-                ad=ad,
-                status__in=['active', 'winning']
-            ).exclude(id=bid.id).order_by('-bid_price_per_unit').first()
-            
-            if highest_bid and value <= highest_bid.bid_price_per_unit:
-                raise serializers.ValidationError(
-                    f"Bid must be higher than current highest bid of {highest_bid.bid_price_per_unit} {ad.currency}"
-                )
-        
+        """Validate bid price"""
+        if value <= 0:
+            raise serializers.ValidationError("Bid price must be greater than zero.")
         return value
-
+    
+    def validate_volume_requested(self, value):
+        """Validate volume requested"""
+        if value <= 0:
+            raise serializers.ValidationError("Volume requested must be greater than zero.")
+        return value
+    
+    def validate(self, data):
+        """Cross-field validation"""
+        instance = self.instance
+        ad = instance.ad
+        
+        volume_requested = data.get('volume_requested', instance.volume_requested)
+        bid_price = data.get('bid_price_per_unit', instance.bid_price_per_unit)
+        
+        # Check if volume requested doesn't exceed available quantity
+        if volume_requested > ad.available_quantity:
+            raise serializers.ValidationError(
+                f"Volume requested ({volume_requested}) cannot exceed available quantity ({ad.available_quantity})."
+            )
+        
+        # Check minimum order quantity
+        if ad.minimum_order_quantity and volume_requested < ad.minimum_order_quantity:
+            raise serializers.ValidationError(
+                f"Volume requested ({volume_requested}) is below minimum order quantity ({ad.minimum_order_quantity})."
+            )
+        
+        # Check if bid meets minimum starting price
+        if bid_price < ad.starting_bid_price:
+            raise serializers.ValidationError(
+                f"Bid price ({bid_price}) must be at least the starting bid price ({ad.starting_bid_price})."
+            )
+        
+        return data
+    
     def update(self, instance, validated_data):
-        """Update bid and create history entry"""
-        # Store previous values for history
-        previous_price = instance.bid_price_per_unit
-        previous_volume = instance.volume_requested
+        """Update bid and recalculate total value"""
+        # Recalculate total bid value if relevant fields changed
+        if 'bid_price_per_unit' in validated_data or 'volume_requested' in validated_data:
+            bid_price = validated_data.get('bid_price_per_unit', instance.bid_price_per_unit)
+            volume = validated_data.get('volume_requested', instance.volume_requested)
+            validated_data['total_bid_value'] = bid_price * volume
         
-        # Update bid
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        
-        # Create history entry
-        BidHistory.objects.create(
-            bid=instance,
-            previous_price=previous_price,
-            new_price=instance.bid_price_per_unit,
-            previous_volume=previous_volume,
-            new_volume=instance.volume_requested,
-            change_reason='bid_updated'
-        )
-        
-        # Update other bid statuses
-        if instance.is_winning:
-            Bid.objects.filter(
-                ad=instance.ad,
-                status='winning'
-            ).exclude(id=instance.id).update(status='outbid')
-            instance.status = 'winning'
-            instance.save()
-        
-        return instance
+        return super().update(instance, validated_data)
 
 
 class BidHistorySerializer(serializers.ModelSerializer):
@@ -233,55 +233,21 @@ class BidHistorySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BidHistory
-        fields = [
-            'id', 'previous_price', 'new_price', 'previous_volume', 'new_volume',
-            'change_reason', 'timestamp'
-        ]
+        fields = ['id', 'bid', 'field_changed', 'old_value', 'new_value', 'timestamp', 'notes']
 
 
 class BidStatsSerializer(serializers.Serializer):
-    """Serializer for bid statistics on an ad"""
+    """Serializer for bid statistics"""
     total_bids = serializers.IntegerField()
-    highest_bid = serializers.DecimalField(max_digits=12, decimal_places=2)
-    lowest_bid = serializers.DecimalField(max_digits=12, decimal_places=2)
-    average_bid = serializers.DecimalField(max_digits=12, decimal_places=2)
-    total_volume_requested = serializers.DecimalField(max_digits=15, decimal_places=2)
+    highest_bid = serializers.DecimalField(max_digits=15, decimal_places=3)
+    lowest_bid = serializers.DecimalField(max_digits=15, decimal_places=3)
+    average_bid = serializers.DecimalField(max_digits=15, decimal_places=3)
+    total_volume_requested = serializers.DecimalField(max_digits=15, decimal_places=3)
     unique_bidders = serializers.IntegerField()
-
-
-class BidAdminSerializer(serializers.ModelSerializer):
-    itemId = serializers.CharField(source='ad.id', read_only=True)
-    itemName = serializers.CharField(source='ad.title', read_only=True)
-    bidAmount = serializers.DecimalField(source='bid_price_per_unit', max_digits=12, decimal_places=2)
-    previousBid = serializers.SerializerMethodField()
-    bidderName = serializers.CharField(source='user.get_full_name', read_only=True)
-    bidderCompany = serializers.CharField(source='user.company.official_name', read_only=True)
-    bidderEmail = serializers.EmailField(source='user.email', read_only=True)
-    isHighest = serializers.SerializerMethodField()
-    createdAt = serializers.DateTimeField(source='created_at')
-    expiresAt = serializers.SerializerMethodField()
-    needsReview = serializers.SerializerMethodField()
-    id = serializers.CharField(source='pk')
-
-    class Meta:
-        model = Bid
-        fields = [
-            'id', 'itemId', 'itemName', 'bidAmount', 'previousBid', 'bidderName', 'bidderCompany',
-            'bidderEmail', 'status', 'isHighest', 'createdAt', 'expiresAt', 'needsReview'
-        ]
-
-    def get_previousBid(self, obj):
-        # Get the previous highest bid for the same ad before this bid
-        previous = Bid.objects.filter(ad=obj.ad, created_at__lt=obj.created_at).order_by('-created_at').first()
-        return previous.bid_price_per_unit if previous else None
-
-    def get_isHighest(self, obj):
-        return obj.is_winning
-
-    def get_expiresAt(self, obj):
-        # Use ad's auction_end_date if available
-        return obj.ad.auction_end_date if obj.ad and obj.ad.auction_end_date else None
-
-    def get_needsReview(self, obj):
-        # Placeholder: implement logic if needed
-        return False
+    bid_range = serializers.DecimalField(max_digits=15, decimal_places=3)
+    
+    # Status breakdown
+    active_bids = serializers.IntegerField()
+    winning_bids = serializers.IntegerField()
+    outbid_bids = serializers.IntegerField()
+    rejected_bids = serializers.IntegerField()
