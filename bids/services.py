@@ -30,46 +30,51 @@ class BidService:
     ) -> Bid:
         """Create a new bid with comprehensive validation"""
         try:
-            # Get the ad
-            ad = Ad.objects.get(id=ad_id, is_active=True)
-            
-            # Validate user can bid
+            # Validate user authentication
             if not user or not user.is_authenticated:
-                raise ValueError("Authentication required")
-            
+                raise ValueError("User authentication required")
+
+            # Validate ad exists and is active
+            try:
+                ad = Ad.objects.get(id=ad_id)
+            except Ad.DoesNotExist:
+                raise ValueError("Ad not found")
+
+            if not ad.is_active or not ad.is_complete:
+                raise ValueError("Cannot bid on inactive or incomplete ads")
+
+            # Check if user is not the ad owner
             if user == ad.user:
                 raise ValueError("You cannot bid on your own ad")
-            
-            # Check auction timing
-            if ad.auction_end_date and ad.auction_end_date < timezone.now():
-                raise ValueError("Auction has ended")
-            
-            # Validate bid price
-            if ad.starting_bid_price and Decimal(str(bid_price_per_unit)) < ad.starting_bid_price:
-                raise ValueError(f"Bid must be at least {ad.starting_bid_price} {ad.currency}")
-            
-            # Check against current highest bid
-            current_highest = self.get_highest_bid_for_ad(ad_id)
-            if current_highest and Decimal(str(bid_price_per_unit)) <= current_highest.bid_price_per_unit:
-                raise ValueError(f"Bid must be higher than current highest bid of {current_highest.bid_price_per_unit} {ad.currency}")
-            
-            # Validate volume
-            if ad.minimum_order_quantity and Decimal(str(volume_requested)) < ad.minimum_order_quantity:
-                raise ValueError(f"Volume must be at least {ad.minimum_order_quantity} {ad.unit_of_measurement}")
-            
-            if Decimal(str(volume_requested)) > ad.available_quantity:
-                raise ValueError(f"Volume cannot exceed available quantity of {ad.available_quantity} {ad.unit_of_measurement}")
 
+            # Validate bid constraints
+            if bid_price_per_unit <= 0:
+                raise ValueError("Bid price must be greater than zero")
+
+            if volume_requested <= 0:
+                raise ValueError("Volume requested must be greater than zero")
+
+            # Check ad constraints
+            if ad.starting_bid_price and bid_price_per_unit < float(ad.starting_bid_price):
+                raise ValueError(f"Bid price must be at least {ad.starting_bid_price}")
+
+            if ad.minimum_order_quantity and volume_requested < float(ad.minimum_order_quantity):
+                raise ValueError(f"Volume must be at least {ad.minimum_order_quantity}")
+
+            if volume_requested > float(ad.available_quantity):
+                raise ValueError(f"Volume cannot exceed {ad.available_quantity}")
+
+            # Prepare bid data
             data = {
-                "ad_id": ad_id,
-                "bid_price_per_unit": bid_price_per_unit,
-                "volume_requested": volume_requested,
-                "volume_type": volume_type,
-                "notes": notes,
+                'ad_id': ad_id,
+                'bid_price_per_unit': bid_price_per_unit,
+                'volume_requested': volume_requested,
+                'volume_type': volume_type,
+                'notes': notes,
             }
-            
+
             if max_auto_bid_price:
-                data["max_auto_bid_price"] = max_auto_bid_price
+                data['max_auto_bid_price'] = max_auto_bid_price
 
             response = self.repository.place_bid(data, user)
 
@@ -98,80 +103,62 @@ class BidService:
             logging_service.log_error(e)
             raise e
 
-    def update_bid(self, bid_id: int, bid_price_per_unit: Optional[float] = None, 
-                   volume_requested: Optional[float] = None, user: Optional[User] = None, 
-                   notes: Optional[str] = None) -> dict:
+    def update_bid(
+        self, 
+        bid_id: int,
+        bid_price_per_unit: Optional[float] = None,
+        volume_requested: Optional[float] = None,
+        notes: Optional[str] = None,
+        user: Optional[User] = None
+    ) -> Bid:
         """Update an existing bid"""
         try:
             if not user or not user.is_authenticated:
-                return {"error": "Authentication required"}
+                raise ValueError("User authentication required")
 
-            bid = Bid.objects.select_related('ad').get(id=bid_id, user=user)
+            bid = Bid.objects.get(id=bid_id, user=user)
             
-            # Check if auction is still active
-            if bid.ad.auction_end_date and bid.ad.auction_end_date < timezone.now():
-                return {"error": "Cannot update bid - auction has ended"}
-            
-            # Store previous values
-            previous_price = bid.bid_price_per_unit
-            previous_volume = bid.volume_requested
-            
-            # Update fields
+            # Check if bid can be updated
+            if bid.status in ['won', 'lost', 'cancelled']:
+                raise ValueError("Cannot update bid with status: " + bid.status)
+
+            # Validate new constraints if provided
+            data = {}
             if bid_price_per_unit is not None:
-                # Validate new price
-                new_price = Decimal(str(bid_price_per_unit))
-                if bid.ad.starting_bid_price and new_price < bid.ad.starting_bid_price:
-                    return {"error": f"Bid must be at least {bid.ad.starting_bid_price} {bid.ad.currency}"}
-                
-                # Check against other bids
-                highest_other_bid = Bid.objects.filter(
-                    ad=bid.ad,
-                    status__in=['active', 'winning']
-                ).exclude(id=bid.id).order_by('-bid_price_per_unit').first()
-                
-                if highest_other_bid and new_price <= highest_other_bid.bid_price_per_unit:
-                    return {"error": f"Bid must be higher than current highest bid of {highest_other_bid.bid_price_per_unit} {bid.ad.currency}"}
-                
-                bid.bid_price_per_unit = new_price
-            
-            if volume_requested is not None:
-                new_volume = Decimal(str(volume_requested))
-                if bid.ad.minimum_order_quantity and new_volume < bid.ad.minimum_order_quantity:
-                    return {"error": f"Volume must be at least {bid.ad.minimum_order_quantity} {bid.ad.unit_of_measurement}"}
-                
-                if new_volume > bid.ad.available_quantity:
-                    return {"error": f"Volume cannot exceed available quantity of {bid.ad.available_quantity} {bid.ad.unit_of_measurement}"}
-                
-                bid.volume_requested = new_volume
-            
-            if notes is not None:
-                bid.notes = notes
-            
-            bid.save()
-            
-            # Create history entry
-            BidHistory.objects.create(
-                bid=bid,
-                previous_price=previous_price,
-                new_price=bid.bid_price_per_unit,
-                previous_volume=previous_volume,
-                new_volume=bid.volume_requested,
-                change_reason='bid_updated'
-            )
-            
-            # Update bid statuses
-            self._update_bid_statuses(bid.ad.id, bid.id)
+                if bid_price_per_unit <= 0:
+                    raise ValueError("Bid price must be greater than zero")
+                if bid.ad.starting_bid_price and bid_price_per_unit < float(bid.ad.starting_bid_price):
+                    raise ValueError(f"Bid price must be at least {bid.ad.starting_bid_price}")
+                data['bid_price_per_unit'] = bid_price_per_unit
 
-            return {
-                "message": "Bid updated successfully",
-                "bid": bid
-            }
+            if volume_requested is not None:
+                if volume_requested <= 0:
+                    raise ValueError("Volume requested must be greater than zero")
+                if bid.ad.minimum_order_quantity and volume_requested < float(bid.ad.minimum_order_quantity):
+                    raise ValueError(f"Volume must be at least {bid.ad.minimum_order_quantity}")
+                if volume_requested > float(bid.ad.available_quantity):
+                    raise ValueError(f"Volume cannot exceed {bid.ad.available_quantity}")
+                data['volume_requested'] = volume_requested
+
+            if notes is not None:
+                data['notes'] = notes
+
+            response = self.repository.update_existing_bid(bid, data)
+            if not response.success:
+                raise ValueError(response.message)
+
+            updated_bid = response.data
+            
+            # Update bid statuses for the ad
+            self._update_bid_statuses(bid.ad.id)
+            
+            return updated_bid
 
         except Bid.DoesNotExist:
-            return {"error": "Bid not found or you don't have permission to update it"}
+            raise ValueError("Bid not found or you don't have permission to update it")
         except Exception as e:
             logging_service.log_error(e)
-            return {"error": "Something went wrong"}
+            raise e
 
     def delete_bid(self, bid_id: int, user: Optional[User] = None) -> None:
         """Delete a bid (mark as cancelled)"""
@@ -203,6 +190,20 @@ class BidService:
         except Exception as e:
             logging_service.log_error(e)
             return None
+
+    def get_admin_bids_filtered(self, search=None, status=None, page=1, page_size=10) -> Dict[str, Any]:
+        """
+        Get filtered bids for admin with pagination
+        """
+        try:
+            result = self.repository.get_admin_bids_filtered(search, status, page, page_size)
+            if result.success:
+                return result.data
+            else:
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
 
     def get_bids_for_ad(self, ad_id: int, status_filter: Optional[str] = None) -> List[Bid]:
         """Get all bids for a specific ad"""
@@ -301,43 +302,45 @@ class BidService:
             logging_service.log_error(e)
 
     def _handle_auto_bidding(self, ad_id: int, new_bid: Bid):
-        """Handle auto-bidding logic when a new bid is placed"""
+        """Handle automatic bidding for users who were outbid"""
         try:
-            # Find users with auto-bid enabled for this ad who were outbid
-            auto_bid_users = Bid.objects.filter(
-                ad_id=ad_id,
-                status='outbid',
-                max_auto_bid_price__isnull=False,
-                max_auto_bid_price__gt=new_bid.bid_price_per_unit
-            ).exclude(user=new_bid.user)
+            # Get users with auto-bidding enabled who were outbid
+            outbid_users = self.repository.get_outbid_users_for_auto_bidding(
+                ad_id, new_bid.bid_price_per_unit
+            )
             
-            for outbid_bid in auto_bid_users:
-                # Calculate new auto-bid price (small increment above current highest)
-                increment = Decimal('0.01')  # Small increment
+            for outbid_bid in outbid_users:
+                # Calculate new auto bid price (increment by minimum step)
+                increment = Decimal('0.01')  # You can make this configurable
                 new_auto_price = new_bid.bid_price_per_unit + increment
                 
-                # Don't exceed their maximum
+                # Check if within auto bid limit
                 if new_auto_price <= outbid_bid.max_auto_bid_price:
-                    # Update their bid
-                    previous_price = outbid_bid.bid_price_per_unit
-                    outbid_bid.bid_price_per_unit = new_auto_price
-                    outbid_bid.status = 'active'
-                    outbid_bid.is_auto_bid = True
-                    outbid_bid.save()
+                    # Place auto bid
+                    auto_bid_data = {
+                        'bid_price_per_unit': float(new_auto_price),
+                        'volume_requested': float(outbid_bid.volume_requested),
+                        'volume_type': outbid_bid.volume_type,
+                        'notes': outbid_bid.notes + " (Auto-bid)"
+                    }
                     
-                    # Create history
-                    BidHistory.objects.create(
-                        bid=outbid_bid,
-                        previous_price=previous_price,
-                        new_price=new_auto_price,
-                        previous_volume=outbid_bid.volume_requested,
-                        new_volume=outbid_bid.volume_requested,
-                        change_reason='auto_bid'
-                    )
-                    
-                    # Update statuses again
-                    self._update_bid_statuses(ad_id, outbid_bid.id)
-                    break  # Only one auto-bid per round
+                    # Update the existing bid instead of creating new one
+                    auto_response = self.repository.update_existing_bid(outbid_bid, auto_bid_data)
+                    if auto_response.success:
+                        # Mark as auto bid
+                        auto_bid = auto_response.data
+                        auto_bid.is_auto_bid = True
+                        auto_bid.save()
+                        
+                        # Create history entry
+                        BidHistory.objects.create(
+                            bid=auto_bid,
+                            previous_price=outbid_bid.bid_price_per_unit,
+                            new_price=auto_bid.bid_price_per_unit,
+                            previous_volume=outbid_bid.volume_requested,
+                            new_volume=auto_bid.volume_requested,
+                            change_reason='auto_bid'
+                        )
             
         except Exception as e:
             logging_service.log_error(e)

@@ -3,6 +3,7 @@ from bids.views import (
     BidCreateView, BidUpdateView, BidDeleteView, BidDetailView,
     AllBidsListView, AdBidsListView, UserBidsListView, BidHistoryView,
     AdBidStatsView, BidSearchView, WinningBidsView, CloseAuctionView,
+    AdminBidListView, AdminBidDetailView,
     BidView  # Legacy view
 )
 
@@ -42,6 +43,10 @@ urlpatterns = [
     
     # Close auction for an ad
     path("ad/<int:ad_id>/close/", CloseAuctionView.as_view(), name="close-auction"),
+    
+    # Admin endpoints
+    path("admin/bids/", AdminBidListView.as_view(), name="admin-bid-list"),
+    path("admin/bids/<int:bid_id>/", AdminBidDetailView.as_view(), name="admin-bid-detail"),
     
     # Legacy endpoints for backward compatibility
     path("", BidView.as_view(), name="legacy-bid-create"),
