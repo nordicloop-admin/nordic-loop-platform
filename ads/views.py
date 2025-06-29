@@ -1,16 +1,19 @@
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django.http import Http404
 from ads.repository import AdRepository
 from ads.services import AdService
 from ads.models import Ad
 from ads.serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
-    AdStep8Serializer, AdCompleteSerializer, AdListSerializer
+    AdStep8Serializer, AdCompleteSerializer, AdListSerializer, AdUpdateSerializer,
+    AdminAuctionListSerializer, AdminAuctionDetailSerializer
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
@@ -385,3 +388,92 @@ class AdDeactivateView(APIView):
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "Failed to deactivate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminAuctionListView(APIView):
+    """
+    Admin endpoint for listing auctions with filtering and pagination
+    GET /api/ads/admin/auctions/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        try:
+            # Get query parameters
+            search = request.query_params.get('search', None)
+            status_filter = request.query_params.get('status', None)
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+
+            # Validate status parameter
+            if status_filter and status_filter != 'all':
+                valid_statuses = ['active', 'inactive', 'pending', 'draft']
+                if status_filter not in valid_statuses:
+                    return Response(
+                        {"error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Get filtered ads
+            pagination_data = ad_service.get_admin_ads_filtered(
+                search=search,
+                status=status_filter,
+                page=page,
+                page_size=page_size
+            )
+
+            # Serialize the results
+            serializer = AdminAuctionListSerializer(pagination_data['results'], many=True)
+            
+            # Format response according to specification
+            response_data = {
+                "count": pagination_data['count'],
+                "next": pagination_data['next'],
+                "previous": pagination_data['previous'],
+                "results": serializer.data,
+                "page_size": pagination_data['page_size'],
+                "total_pages": pagination_data['total_pages'],
+                "current_page": pagination_data['current_page']
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": f"ValueError: {str(ve)}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            return Response(
+                {
+                    "error": "Failed to retrieve auctions",
+                    "details": str(e),
+                    "traceback": error_details
+                }, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminAuctionDetailView(APIView):
+    """
+    Admin endpoint for retrieving a specific auction
+    GET /api/ads/admin/auctions/{id}/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, ad_id):
+        try:
+            ad = ad_service.get_ad_by_id(ad_id)
+            if not ad:
+                return Response(
+                    {"error": "Auction not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = AdminAuctionDetailSerializer(ad)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve auction"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

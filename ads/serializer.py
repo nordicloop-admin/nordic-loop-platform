@@ -3,6 +3,12 @@ from .models import Ad, Location, Subscription, Address
 from category.serializers import CategorySpecificationSerializer
 from category.models import Category, SubCategory, CategorySpecification
 from decimal import Decimal
+from django.contrib.auth import get_user_model
+from django.db.models import Max
+from users.serializers import UserSerializer
+from users.models import User
+
+User = get_user_model()
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -688,6 +694,136 @@ class AdUpdateSerializer(serializers.ModelSerializer):
                     instance.save()
         except Exception:
             pass  # Don't fail the entire update if location update fails
+
+
+class AdminAuctionListSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for auction list view with specific field mapping
+    """
+    name = serializers.CharField(source='title', read_only=True)
+    category = serializers.CharField(source='category.name', read_only=True)
+    basePrice = serializers.DecimalField(source='starting_bid_price', max_digits=12, decimal_places=3, read_only=True)
+    highestBid = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    volume = serializers.SerializerMethodField()
+    seller = serializers.SerializerMethodField()
+    countryOfOrigin = serializers.SerializerMethodField()
+    createdAt = serializers.SerializerMethodField()
+    image = serializers.CharField(source='material_image', read_only=True)
+
+    class Meta:
+        model = Ad
+        fields = [
+            'id',
+            'name',
+            'category',
+            'basePrice',
+            'highestBid',
+            'status',
+            'volume',
+            'seller',
+            'countryOfOrigin',
+            'createdAt',
+            'image'
+        ]
+
+    def get_createdAt(self, obj):
+        """
+        Convert datetime to date string
+        """
+        if obj.created_at:
+            return obj.created_at.date()
+        return None
+
+    def get_highestBid(self, obj):
+        """
+        Get the highest bid amount for this ad
+        """
+        try:
+            # Get the highest bid amount using the prefetched bids
+            if hasattr(obj, 'bids') and obj.bids.exists():
+                highest_bid = obj.bids.aggregate(
+                    highest=Max('bid_price_per_unit')
+                )['highest']
+                return float(highest_bid) if highest_bid else 0.0
+            return 0.0
+        except:
+            return 0.0
+
+    def get_status(self, obj):
+        """
+        Get status string based on ad state
+        """
+        if obj.is_complete and obj.is_active:
+            return "active"
+        elif obj.is_complete and not obj.is_active:
+            return "inactive"
+        elif not obj.is_complete:
+            return "draft"
+        else:
+            return "pending"
+
+    def get_volume(self, obj):
+        """
+        Format volume as string with quantity and unit
+        """
+        if obj.available_quantity and obj.unit_of_measurement:
+            return f"{obj.available_quantity} {obj.unit_of_measurement}"
+        return ""
+
+    def get_seller(self, obj):
+        """
+        Get seller name from company or user
+        """
+        if obj.user:
+            if obj.user.company and obj.user.company.official_name:
+                return obj.user.company.official_name
+            elif obj.user.first_name and obj.user.last_name:
+                return f"{obj.user.first_name} {obj.user.last_name}"
+            else:
+                return obj.user.username
+        return ""
+
+    def get_countryOfOrigin(self, obj):
+        """
+        Get country from location or user's company
+        """
+        if obj.location and obj.location.country:
+            return obj.location.country
+        elif obj.user and obj.user.company and obj.user.company.country:
+            return obj.user.company.country
+        return ""
+
+
+class AdminAuctionDetailSerializer(AdminAuctionListSerializer):
+    """
+    Admin serializer for auction detail view - extends list serializer
+    """
+    description = serializers.CharField(read_only=True)
+    specificMaterial = serializers.CharField(source='specific_material', read_only=True)
+    reservePrice = serializers.DecimalField(source='reserve_price', max_digits=12, decimal_places=2, read_only=True)
+    auctionEndDate = serializers.DateTimeField(source='auction_end_date', read_only=True)
+    totalBids = serializers.SerializerMethodField()
+    
+    class Meta(AdminAuctionListSerializer.Meta):
+        fields = AdminAuctionListSerializer.Meta.fields + [
+            'description', 
+            'specificMaterial', 
+            'reservePrice', 
+            'auctionEndDate',
+            'totalBids'
+        ]
+
+    def get_totalBids(self, obj):
+        """
+        Get total number of bids for this ad
+        """
+        try:
+            if hasattr(obj, 'bids'):
+                return obj.bids.count()
+            return 0
+        except:
+            return 0
 
 
 

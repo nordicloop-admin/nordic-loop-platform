@@ -9,6 +9,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ### Endpoints
 
 - `GET /api/company/admin/companies/`
+
   - **Query Params:** `search`, `status` (`all`, `pending`, `approved`, `rejected`)
   - **Response:**
     ```json
@@ -41,8 +42,8 @@ This document outlines the implemented backend endpoints, request/response struc
       "current_page": 1
     }
     ```
-
 - `POST /api/company/admin/companies/`
+
   - **Request:**
     ```json
     {
@@ -62,23 +63,23 @@ This document outlines the implemented backend endpoints, request/response struc
     }
     ```
   - **Response:** Created company object
-
 - `PATCH /api/company/admin/companies/{id}/status/`
+
   - **Request Body:**
     ```json
     {
       "status": "approved"
     }
     ```
-
 - `GET /api/company/admin/companies/{id}/`
-  - **Response:** Company object (see above)
 
+  - **Response:** Company object (see above)
 - `PUT /api/company/admin/companies/{id}/`
+
   - **Request:** Same as POST
   - **Response:** Updated company object
-
 - `DELETE /api/company/admin/companies/{id}/`
+
   - **Response:** Success/failure
 
 ---
@@ -88,6 +89,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ### Endpoints
 
 - `GET /api/users/admin/users/`
+
   - **Query Params:** `search`, `company`, `is_active`
   - **Response:**
     ```json
@@ -113,8 +115,8 @@ This document outlines the implemented backend endpoints, request/response struc
       "current_page": 1
     }
     ```
-
 - `POST /api/users/admin/users/`
+
   - **Request:**
     ```json
     {
@@ -126,23 +128,23 @@ This document outlines the implemented backend endpoints, request/response struc
     }
     ```
   - **Response:** Created user object
-
 - `GET /api/users/admin/users/{id}/`
-  - **Response:** User object
 
+  - **Response:** User object
 - `PUT /api/users/admin/users/{id}/`
+
   - **Request:** Same as POST
   - **Response:** Updated user object
-
 - `PATCH /api/users/admin/users/{id}/status/`
+
   - **Request Body:**
     ```json
     {
       "active": true
     }
     ```
-
 - `DELETE /api/users/admin/users/{id}/`
+
   - **Response:** Success/failure
 
 ---
@@ -152,6 +154,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ### Endpoints
 
 - `GET /api/bids/admin/bids/`
+
   - **Query Params:** `search`, `status`
   - **Response:**
     ```json
@@ -178,11 +181,11 @@ This document outlines the implemented backend endpoints, request/response struc
       "current_page": 1
     }
     ```
-
 - `GET /api/bids/admin/bids/{id}/`
-  - **Response:** Bid object
 
+  - **Response:** Bid object
 - `PATCH /api/bids/admin/bids/{id}/status/`
+
   - **Request Body:**
     ```json
     {
@@ -196,7 +199,8 @@ This document outlines the implemented backend endpoints, request/response struc
 
 ### Endpoints
 
-- `GET /api/ads/admin/auctions/` _(Previously /api/ads/admin/marketplace/)_
+- `GET /api/ads/admin/auctions/` 
+
   - **Query Params:** `search`, `status`
   - **Response:**
     ```json
@@ -224,8 +228,8 @@ This document outlines the implemented backend endpoints, request/response struc
       "current_page": 1
     }
     ```
-
 - `POST /api/ads/admin/auctions/`
+
   - **Request:**
     ```json
     {
@@ -239,23 +243,23 @@ This document outlines the implemented backend endpoints, request/response struc
     }
     ```
   - **Response:** Created listing object
-
 - `GET /api/ads/admin/auctions/{id}/`
-  - **Response:** Listing object
 
+  - **Response:** Listing object
 - `PUT /api/ads/admin/auctions/{id}/`
+
   - **Request:** Same as POST
   - **Response:** Updated listing object
-
 - `PATCH /api/ads/admin/auctions/{id}/status/`
+
   - **Request Body:**
     ```json
     {
       "status": "active"
     }
     ```
-
 - `DELETE /api/ads/admin/auctions/{id}/`
+
   - **Response:** Success/failure
 
 ---
@@ -265,6 +269,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ### Endpoints
 
 - `GET /api/ads/admin/subscriptions/`
+
   - **Query Params:** `search`, `plan`, `status`
   - **Response:**
     ```json
@@ -294,15 +299,15 @@ This document outlines the implemented backend endpoints, request/response struc
       "current_page": 1
     }
     ```
-
 - `GET /api/ads/admin/subscriptions/{id}/`
-  - **Response:** Subscription object
 
+  - **Response:** Subscription object
 - `PUT /api/ads/admin/subscriptions/{id}/`
+
   - **Request:** Same structure as response object
   - **Response:** Updated subscription object
-
 - `PATCH /api/ads/admin/subscriptions/{id}/status/`
+
   - **Request Body:**
     ```json
     {
@@ -317,6 +322,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ### Endpoints
 
 - `GET /api/ads/admin/addresses/`
+
   - **Query Params:** `search`, `type`, `is_verified`
   - **Response:**
     ```json
@@ -347,15 +353,15 @@ This document outlines the implemented backend endpoints, request/response struc
       "current_page": 1
     }
     ```
-
 - `GET /api/ads/admin/addresses/{id}/`
-  - **Response:** Address object
 
+  - **Response:** Address object
 - `PUT /api/ads/admin/addresses/{id}/`
+
   - **Request:** Same structure as response object
   - **Response:** Updated address object
-
 - `PATCH /api/ads/admin/addresses/{id}/verify/`
+
   - **Request Body:**
     ```json
     {
@@ -368,17 +374,20 @@ This document outlines the implemented backend endpoints, request/response struc
 ## Implementation Details
 
 ### Authentication & Authorization
+
 - All endpoints require admin authentication using `IsAdminUser` permission
 - Use JWT tokens for authentication: `Authorization: Bearer <token>`
 - Admin users must have `is_staff=True` and `is_superuser=True`
 
 ### Pagination
+
 - All list endpoints use `StandardResultsSetPagination`
 - Default page size: 10 items per page
 - Query parameters: `page`, `page_size` (max 100)
 - Response includes: `count`, `next`, `previous`, `results`, `page_size`, `total_pages`, `current_page`
 
 ### Search & Filtering
+
 - **Companies:** Search by `official_name`, `vat_number`, `email`, `primary_email`, `primary_first_name`, `primary_last_name`
 - **Users:** Search by `email`, `first_name`, `last_name`, `role`
 - **Bids:** Search by `ad__title`, `user__email`, `user__first_name`, `user__last_name`, `user__company__official_name`
@@ -387,6 +396,7 @@ This document outlines the implemented backend endpoints, request/response struc
 - **Addresses:** Search by `company__official_name`, `contact_name`, `contact_phone`, `city`, `country`
 
 ### Error Handling
+
 - **200:** Success
 - **201:** Created
 - **400:** Bad Request (validation errors)
@@ -398,6 +408,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ### Data Models Implemented
 
 #### Company Model
+
 ```python
 - official_name: CharField
 - vat_number: CharField (unique)
@@ -411,6 +422,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ```
 
 #### User Model
+
 ```python
 - email: EmailField
 - first_name/last_name: CharField
@@ -420,6 +432,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ```
 
 #### Ad Model (Marketplace)
+
 ```python
 - title: CharField
 - category: ForeignKey
@@ -431,6 +444,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ```
 
 #### Bid Model
+
 ```python
 - user: ForeignKey to User
 - ad: ForeignKey to Ad
@@ -441,6 +455,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ```
 
 #### Subscription Model
+
 ```python
 - company: ForeignKey to Company
 - plan: CharField (basic/premium/enterprise)
@@ -451,6 +466,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ```
 
 #### Address Model
+
 ```python
 - company: ForeignKey to Company
 - type: CharField (business/shipping/billing)
@@ -465,6 +481,7 @@ This document outlines the implemented backend endpoints, request/response struc
 ## Usage Examples
 
 ### Authentication
+
 ```javascript
 // Login first to get JWT token
 const response = await fetch('/api/users/login/', {
@@ -482,6 +499,7 @@ const headers = {
 ```
 
 ### List Companies with Search
+
 ```javascript
 const response = await fetch('/api/company/admin/companies/?search=eco&status=approved', {
   headers: { 'Authorization': `Bearer ${token}` }
@@ -490,6 +508,7 @@ const data = await response.json();
 ```
 
 ### Update Company Status
+
 ```javascript
 const response = await fetch('/api/company/admin/companies/1/status/', {
   method: 'PATCH',
@@ -502,6 +521,7 @@ const response = await fetch('/api/company/admin/companies/1/status/', {
 ```
 
 ### Paginated Results
+
 ```javascript
 const response = await fetch('/api/users/admin/users/?page=2&page_size=20', {
   headers: { 'Authorization': `Bearer ${token}` }
@@ -513,14 +533,14 @@ const { results, count, total_pages, current_page } = await response.json();
 
 ## Status
 
-✅ **All endpoints implemented and tested**  
-✅ **Response formats match specification exactly**  
-✅ **Admin authentication and authorization working**  
-✅ **Search, filtering, and pagination implemented**  
-✅ **CRUD operations functional**  
-✅ **Status update endpoints working**  
+✅ **All endpoints implemented and tested**
+✅ **Response formats match specification exactly**
+✅ **Admin authentication and authorization working**
+✅ **Search, filtering, and pagination implemented**
+✅ **CRUD operations functional**
+✅ **Status update endpoints working**
 ✅ **Production ready**
 
 ---
 
-This guideline reflects the actual implementation. All endpoints are functional and ready for frontend integration. 
+This guideline reflects the actual implementation. All endpoints are functional and ready for frontend integration.

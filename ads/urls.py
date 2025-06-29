@@ -1,7 +1,8 @@
 from django.urls import path
 from ads.views import (
     AdStepView, AdDetailView, AdListView, 
-    UserAdsView, AdStepValidationView, AdActivateView, AdDeactivateView
+    UserAdsView, AdStepValidationView, AdActivateView, AdDeactivateView,
+    AdminAuctionListView, AdminAuctionDetailView
 )
 
 urlpatterns = [
@@ -27,4 +28,8 @@ urlpatterns = [
     
     # User's ads
     path("user/", UserAdsView.as_view(), name="user-ads"),
+    
+    # Admin auction endpoints
+    path("admin/auctions/", AdminAuctionListView.as_view(), name="admin-auction-list"),
+    path("admin/auctions/<int:ad_id>/", AdminAuctionDetailView.as_view(), name="admin-auction-detail"),
 ]
