@@ -218,8 +218,8 @@ class BidUpdateSerializer(serializers.ModelSerializer):
         return data
     
     def update(self, instance, validated_data):
-        """Update bid and recalculate total value"""
-        # Recalculate total bid value if relevant fields changed
+        """Update bid with total bid value recalculation"""
+        # Calculate new total bid value if price or volume changes
         if 'bid_price_per_unit' in validated_data or 'volume_requested' in validated_data:
             bid_price = validated_data.get('bid_price_per_unit', instance.bid_price_per_unit)
             volume = validated_data.get('volume_requested', instance.volume_requested)
@@ -251,3 +251,56 @@ class BidStatsSerializer(serializers.Serializer):
     winning_bids = serializers.IntegerField()
     outbid_bids = serializers.IntegerField()
     rejected_bids = serializers.IntegerField()
+
+
+class AdminBidListSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for bid list view with specific field mapping
+    """
+    itemId = serializers.IntegerField(source='ad.id', read_only=True)
+    itemName = serializers.CharField(source='ad.title', read_only=True)
+    bidderName = serializers.SerializerMethodField()
+    bidderEmail = serializers.CharField(source='user.email', read_only=True)
+    bidAmount = serializers.DecimalField(source='bid_price_per_unit', max_digits=12, decimal_places=3, read_only=True)
+    volume = serializers.DecimalField(source='volume_requested', max_digits=10, decimal_places=3, read_only=True)
+    unit = serializers.CharField(source='ad.unit_of_measurement', read_only=True)
+    bidDate = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = Bid
+        fields = [
+            'id',
+            'itemId',
+            'itemName',
+            'bidderName',
+            'bidderEmail',
+            'bidAmount',
+            'volume',
+            'unit',
+            'status',
+            'bidDate'
+        ]
+
+    def get_bidderName(self, obj):
+        """
+        Get bidder name from user's first_name, last_name, or username
+        """
+        if obj.user.first_name and obj.user.last_name:
+            return f"{obj.user.first_name} {obj.user.last_name}"
+        elif obj.user.name:
+            return obj.user.name
+        else:
+            return obj.user.username
+
+
+class AdminBidDetailSerializer(AdminBidListSerializer):
+    """
+    Admin serializer for bid detail view - extends list serializer
+    """
+    # Add any additional fields for detail view if needed
+    totalValue = serializers.DecimalField(source='total_bid_value', max_digits=15, decimal_places=2, read_only=True)
+    notes = serializers.CharField(read_only=True)
+    companyName = serializers.CharField(source='user.company.official_name', read_only=True)
+    
+    class Meta(AdminBidListSerializer.Meta):
+        fields = AdminBidListSerializer.Meta.fields + ['totalValue', 'notes', 'companyName']

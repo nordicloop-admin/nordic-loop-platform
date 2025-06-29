@@ -1,6 +1,7 @@
 from typing import List, Optional
 from django.db.models import Q, Max, Min, Avg, Sum, Count
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from decimal import Decimal
 
 from base.utils.responses import RepositoryResponse
@@ -131,6 +132,63 @@ class BidRepository:
         except Bid.DoesNotExist:
             return None
 
+    def get_admin_bids_filtered(self, search=None, status=None, page=1, page_size=10) -> RepositoryResponse:
+        """
+        Get bids for admin with filtering and pagination support
+        """
+        try:
+            queryset = Bid.objects.select_related('user', 'ad', 'user__company').all().order_by('-created_at')
+            
+            # Apply search filter
+            if search:
+                queryset = queryset.filter(
+                    Q(user__first_name__icontains=search) |
+                    Q(user__last_name__icontains=search) |
+                    Q(user__username__icontains=search) |
+                    Q(user__email__icontains=search) |
+                    Q(user__company__official_name__icontains=search) |
+                    Q(ad__title__icontains=search) |
+                    Q(notes__icontains=search)
+                )
+            
+            # Apply status filter
+            if status and status != 'all':
+                valid_statuses = ['active', 'outbid', 'winning', 'won', 'lost', 'cancelled']
+                if status in valid_statuses:
+                    queryset = queryset.filter(status=status)
+            
+            # Apply pagination
+            paginator = Paginator(queryset, page_size)
+            
+            try:
+                bids_page = paginator.page(page)
+            except:
+                # If page number is out of range, return first page
+                bids_page = paginator.page(1)
+            
+            pagination_data = {
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': bids_page.number,
+                'page_size': page_size,
+                'next': bids_page.has_next(),
+                'previous': bids_page.has_previous(),
+                'results': list(bids_page.object_list)
+            }
+            
+            return RepositoryResponse(
+                success=True,
+                message="Bids retrieved successfully",
+                data=pagination_data,
+            )
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(
+                success=False,
+                message="Failed to get bids",
+                data=None,
+            )
+
     def get_bids_for_ad(self, ad_id: int, status_filter: Optional[str] = None) -> List[Bid]:
         """Get all bids for a specific ad"""
         try:
@@ -201,129 +259,132 @@ class BidRepository:
             
             return stats
             
-        except Exception:
+        except Exception as e:
+            logging_service.log_error(e)
             return {}
 
     def search_bids(self, filters: dict) -> List[Bid]:
-        """Search bids with various filters"""
+        """Advanced bid search with multiple filters"""
         try:
-            queryset = Bid.objects.select_related('user', 'ad').order_by('-created_at')
+            queryset = Bid.objects.select_related('user', 'ad').all()
             
-            # Apply filters
-            if filters.get('ad_title'):
-                queryset = queryset.filter(ad__title__icontains=filters['ad_title'])
-            
-            if filters.get('category'):
-                queryset = queryset.filter(ad__category__name__icontains=filters['category'])
-            
-            if filters.get('min_price'):
-                try:
-                    queryset = queryset.filter(bid_price_per_unit__gte=Decimal(str(filters['min_price'])))
-                except (ValueError, TypeError):
-                    pass
-            
-            if filters.get('max_price'):
-                try:
-                    queryset = queryset.filter(bid_price_per_unit__lte=Decimal(str(filters['max_price'])))
-                except (ValueError, TypeError):
-                    pass
-            
+            # Filter by status
             if filters.get('status'):
                 queryset = queryset.filter(status=filters['status'])
             
+            # Filter by ad ID
+            if filters.get('ad_id'):
+                queryset = queryset.filter(ad_id=filters['ad_id'])
+            
+            # Filter by user ID
             if filters.get('user_id'):
-                try:
-                    queryset = queryset.filter(user_id=int(filters['user_id']))
-                except (ValueError, TypeError):
-                    pass
+                queryset = queryset.filter(user_id=filters['user_id'])
             
-            if filters.get('volume_type'):
-                queryset = queryset.filter(volume_type=filters['volume_type'])
+            # Filter by price range
+            if filters.get('min_price'):
+                queryset = queryset.filter(bid_price_per_unit__gte=Decimal(str(filters['min_price'])))
+            if filters.get('max_price'):
+                queryset = queryset.filter(bid_price_per_unit__lte=Decimal(str(filters['max_price'])))
             
-            if filters.get('is_auto_bid') is not None:
-                queryset = queryset.filter(is_auto_bid=bool(filters['is_auto_bid']))
+            # Filter by volume range
+            if filters.get('min_volume'):
+                queryset = queryset.filter(volume_requested__gte=Decimal(str(filters['min_volume'])))
+            if filters.get('max_volume'):
+                queryset = queryset.filter(volume_requested__lte=Decimal(str(filters['max_volume'])))
             
-            return list(queryset)
+            # Filter by date range
+            if filters.get('date_from'):
+                queryset = queryset.filter(created_at__gte=filters['date_from'])
+            if filters.get('date_to'):
+                queryset = queryset.filter(created_at__lte=filters['date_to'])
             
-        except Exception:
+            # Filter by keyword (search in notes or ad title)
+            if filters.get('keyword'):
+                keyword = filters['keyword']
+                queryset = queryset.filter(
+                    Q(notes__icontains=keyword) |
+                    Q(ad__title__icontains=keyword) |
+                    Q(user__username__icontains=keyword)
+                )
+            
+            return list(queryset.order_by('-created_at'))
+            
+        except Exception as e:
+            logging_service.log_error(e)
             return []
 
     def get_outbid_users_for_auto_bidding(self, ad_id: int, current_highest_price: Decimal) -> List[Bid]:
-        """Get users who were outbid and have auto-bidding enabled"""
+        """Get users with auto-bidding enabled who were outbid"""
         try:
             return list(Bid.objects.filter(
                 ad_id=ad_id,
                 status='outbid',
-                max_auto_bid_price__isnull=False,
-                max_auto_bid_price__gt=current_highest_price
-            ).select_related('user'))
+                max_auto_bid_price__gt=current_highest_price,
+                max_auto_bid_price__isnull=False
+            ).select_related('user').order_by('-max_auto_bid_price'))
         except Exception:
             return []
 
     def update_bid_statuses_for_ad(self, ad_id: int) -> bool:
-        """Update bid statuses for all bids on an ad"""
+        """Update all bid statuses for an ad based on current highest bid"""
         try:
-            # Get all active bids for the ad
-            bids = Bid.objects.filter(
+            # Get all active bids for this ad
+            active_bids = Bid.objects.filter(
                 ad_id=ad_id,
                 status__in=['active', 'winning']
             ).order_by('-bid_price_per_unit', '-created_at')
             
-            if bids.exists():
-                bids_list = list(bids)
-                
-                # Set the highest bid as winning
-                highest_bid = bids_list[0]
-                if highest_bid.status != 'winning':
-                    highest_bid.status = 'winning'
-                    highest_bid.save()
-                
-                # Set others as outbid
-                for bid in bids_list[1:]:
-                    if bid.status != 'outbid':
-                        bid.status = 'outbid'
-                        bid.save()
+            if not active_bids.exists():
+                return True
+            
+            # Set the highest bid as winning
+            highest_bid = active_bids.first()
+            highest_bid.status = 'winning'
+            highest_bid.save()
+            
+            # Set all other bids as outbid
+            for bid in active_bids[1:]:
+                bid.status = 'outbid'
+                bid.save()
             
             return True
             
-        except Exception:
+        except Exception as e:
+            logging_service.log_error(e)
             return False
 
     def close_auction_bids(self, ad_id: int, winning_bid_id: Optional[int] = None) -> bool:
-        """Close all bids for an auction"""
+        """Close auction and set final bid statuses"""
         try:
             if winning_bid_id:
-                # Mark winning bid as won
-                Bid.objects.filter(id=winning_bid_id).update(status='won')
+                # Mark specific bid as won
+                winning_bid = Bid.objects.get(id=winning_bid_id, ad_id=ad_id)
+                winning_bid.status = 'won'
+                winning_bid.save()
                 
                 # Mark all other bids as lost
-                Bid.objects.filter(
-                    ad_id=ad_id,
-                    status__in=['active', 'winning', 'outbid']
-                ).exclude(id=winning_bid_id).update(status='lost')
+                Bid.objects.filter(ad_id=ad_id).exclude(id=winning_bid_id).update(status='lost')
             else:
-                # No winner - mark all as lost
-                Bid.objects.filter(
-                    ad_id=ad_id,
-                    status__in=['active', 'winning', 'outbid']
-                ).update(status='lost')
+                # No winner - mark all bids as lost
+                Bid.objects.filter(ad_id=ad_id).update(status='lost')
             
             return True
             
-        except Exception:
+        except Exception as e:
+            logging_service.log_error(e)
             return False
 
     def get_bid_history(self, bid_id: int) -> List[BidHistory]:
-        """Get history for a specific bid"""
+        """Get bid modification history"""
         try:
             return list(BidHistory.objects.filter(bid_id=bid_id).order_by('-timestamp'))
         except Exception:
             return []
 
     def list_bids(self, ad_id: Optional[int] = None, user: Optional[User] = None) -> RepositoryResponse:
-        """Legacy method for listing bids"""
+        """List bids with optional filtering by ad or user"""
         try:
-            queryset = Bid.objects.select_related('user', 'ad')
+            queryset = Bid.objects.select_related('user', 'ad').all()
             
             if ad_id:
                 queryset = queryset.filter(ad_id=ad_id)
@@ -336,7 +397,8 @@ class BidRepository:
             return RepositoryResponse(success=True, data=bids, message="Bids retrieved successfully")
             
         except Exception as e:
-            return RepositoryResponse(success=False, message=f"Error retrieving bids: {str(e)}", data=[])
+            logging_service.log_error(e)
+            return RepositoryResponse(success=False, data=None, message="Failed to retrieve bids")
         
     
 
