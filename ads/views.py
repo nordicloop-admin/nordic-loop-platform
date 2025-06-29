@@ -2,22 +2,18 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from ads.repository import AdRepository
 from ads.services import AdService
-from ads.models import Ad, Subscription, Address
+from ads.models import Ad
 from ads.serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
-    AdStep8Serializer, AdCompleteSerializer, AdListSerializer, MarketplaceAdminSerializer,
-    SubscriptionAdminSerializer, AddressAdminSerializer
+    AdStep8Serializer, AdCompleteSerializer, AdListSerializer
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
-from rest_framework import viewsets, filters
-from rest_framework.decorators import action
-from django_filters.rest_framework import DjangoFilterBackend
 
 ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
@@ -389,63 +385,3 @@ class AdDeactivateView(APIView):
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "Failed to deactivate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class MarketplaceAdminViewSet(viewsets.ModelViewSet):
-    queryset = Ad.objects.select_related('category', 'user', 'user__company', 'location').all().order_by('-created_at')
-    serializer_class = MarketplaceAdminSerializer
-    permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['title', 'category__name', 'user__company__official_name', 'location__country']
-    filterset_fields = ['status']
-
-    @action(detail=True, methods=['patch'], url_path='status')
-    def update_status(self, request, pk=None):
-        ad = self.get_object()
-        status_value = request.data.get('status')
-        if status_value not in ['active', 'pending', 'inactive']:
-            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-        ad.status = status_value
-        ad.save()
-        serializer = self.get_serializer(ad)
-        return Response(serializer.data)
-
-
-class SubscriptionAdminViewSet(viewsets.ModelViewSet):
-    queryset = Subscription.objects.select_related('company').all().order_by('-start_date')
-    serializer_class = SubscriptionAdminSerializer
-    permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['company__official_name', 'contact_name', 'contact_email']
-    filterset_fields = ['plan', 'status']
-
-    @action(detail=True, methods=['patch'], url_path='status')
-    def update_status(self, request, pk=None):
-        subscription = self.get_object()
-        status_value = request.data.get('status')
-        if status_value not in dict(Subscription.STATUS_CHOICES):
-            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-        subscription.status = status_value
-        subscription.save()
-        serializer = self.get_serializer(subscription)
-        return Response(serializer.data)
-
-
-class AddressAdminViewSet(viewsets.ModelViewSet):
-    queryset = Address.objects.select_related('company').all().order_by('-created_at')
-    serializer_class = AddressAdminSerializer
-    permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['company__official_name', 'contact_name', 'contact_phone', 'city', 'country']
-    filterset_fields = ['type', 'is_verified']
-
-    @action(detail=True, methods=['patch'], url_path='verify')
-    def verify_address(self, request, pk=None):
-        address = self.get_object()
-        is_verified = request.data.get('isVerified')
-        if is_verified is None:
-            return Response({'error': 'Missing isVerified field'}, status=status.HTTP_400_BAD_REQUEST)
-        address.is_verified = bool(is_verified)
-        address.save()
-        serializer = self.get_serializer(address)
-        return Response(serializer.data)

@@ -104,3 +104,17 @@ class  CompanyService:
         except Exception as e:
             logging_service.log_error(e)
             raise e
+
+    def get_admin_companies_filtered(self, search=None, status=None, page=1, page_size=10) -> Dict[str, Any]:
+        """
+        Get filtered companies for admin with pagination
+        """
+        try:
+            result = self.repository.get_admin_companies_filtered(search, status, page, page_size)
+            if result.success:
+                return result.data
+            else:
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e

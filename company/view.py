@@ -2,14 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from company.serializer import CompanySerializer, CompanyAdminSerializer
+from company.serializer import CompanySerializer, AdminCompanyListSerializer, AdminCompanyDetailSerializer
 from company.repository.company_repository import CompanyRepository
 from company.services.company_service import CompanyService
 from rest_framework.permissions import IsAdminUser
-from rest_framework import viewsets, mixins, filters
-from rest_framework.decorators import action
-from django_filters.rest_framework import DjangoFilterBackend
-from company.models import Company
 
 from users.models import User 
 
@@ -87,7 +83,6 @@ class CompanyView(APIView):
             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 class ApproveCompanyView(APIView):
     permission_classes = [IsAdminUser]  
 
@@ -100,7 +95,6 @@ class ApproveCompanyView(APIView):
             if company.status == "approved":
                 return Response({"message": "Company is already approved."}, status=status.HTTP_200_OK)
 
-
             company.status = "approved"
             company.save()
 
@@ -112,30 +106,85 @@ class ApproveCompanyView(APIView):
             return Response({"error": f"Failed to approve the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class CompanyAdminViewSet(viewsets.ModelViewSet):
-    queryset = Company.objects.all().order_by('-registration_date')
-    serializer_class = CompanyAdminSerializer
+class AdminCompanyListView(APIView):
+    """
+    Admin endpoint for listing companies with filtering and pagination
+    GET /api/company/admin/companies/
+    """
     permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['official_name', 'vat_number', 'email', 'primary_email', 'primary_first_name', 'primary_last_name']
-    filterset_fields = ['status']
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        status_param = self.request.query_params.get('status')
-        if status_param and status_param != 'all':
-            queryset = queryset.filter(status=status_param)
-        return queryset
+    def get(self, request):
+        try:
+            # Get query parameters
+            search = request.query_params.get('search', None)
+            status_filter = request.query_params.get('status', 'all')
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
 
-    @action(detail=True, methods=['patch'], url_path='status')
-    def update_status(self, request, pk=None):
-        company = self.get_object()
-        status_value = request.data.get('status')
-        if status_value not in dict(Company.STATUS_CHOICES):
-            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-        company.status = status_value
-        company.save()
-        serializer = self.get_serializer(company)
-        return Response(serializer.data)
+            # Validate status parameter
+            valid_statuses = ['all', 'pending', 'approved', 'rejected']
+            if status_filter not in valid_statuses:
+                return Response(
+                    {"error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Get filtered companies
+            pagination_data = service.get_admin_companies_filtered(
+                search=search,
+                status=status_filter,
+                page=page,
+                page_size=page_size
+            )
+
+            # Serialize the results
+            serializer = AdminCompanyListSerializer(pagination_data['results'], many=True)
+            
+            # Format response according to specification
+            response_data = {
+                "count": pagination_data['count'],
+                "next": pagination_data['next'],
+                "previous": pagination_data['previous'],
+                "results": serializer.data,
+                "page_size": pagination_data['page_size'],
+                "total_pages": pagination_data['total_pages'],
+                "current_page": pagination_data['current_page']
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve companies"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminCompanyDetailView(APIView):
+    """
+    Admin endpoint for retrieving a specific company
+    GET /api/company/admin/companies/{id}/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, company_id):
+        try:
+            company = service.get_company_by_id(company_id)
+            if not company:
+                return Response(
+                    {"error": "Company not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = AdminCompanyDetailSerializer(company)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve company"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     

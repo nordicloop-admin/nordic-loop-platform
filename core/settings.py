@@ -25,7 +25,7 @@ print("Production: ", ENV)
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 print("SECRET_KEY", SECRET_KEY)
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://127.0.0.1:8000'])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:3000'])
 
 # Application definition
 INSTALLED_APPS = [
@@ -159,7 +159,7 @@ STORAGES = {
 }
 
 # Security headers
-if not DEBUG:
+if not DEBUG and PRODUCTION:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

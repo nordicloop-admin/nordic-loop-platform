@@ -6,10 +6,13 @@ from company.models import Company
 from rest_framework.permissions import AllowAny, IsAdminUser
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, UserAdminSerializer
-from rest_framework import viewsets, mixins, filters
-from rest_framework.decorators import action
-from django_filters.rest_framework import DjangoFilterBackend
+from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer
+from users.repository.user_repository import UserRepository
+from users.services.user_service import UserService
+
+# Initialize repository and service
+repository = UserRepository()
+service = UserService(repository)
 
 
 class ContactSignupView(APIView):
@@ -45,7 +48,6 @@ class ContactSignupView(APIView):
             "username": user.username,
             "company": str(user.company)
         }, status=status.HTTP_201_CREATED)
-
 
 
 class ContactLoginView(APIView):
@@ -92,21 +94,81 @@ class ListUsersView(APIView):
         return Response({"users": serializer.data})
 
 
-class UserAdminViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().order_by('-date_joined')
-    serializer_class = UserAdminSerializer
+class AdminUserListView(APIView):
+    """
+    Admin endpoint for listing users with filtering and pagination
+    GET /api/users/admin/users/
+    """
     permission_classes = [IsAdminUser]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
-    search_fields = ['email', 'first_name', 'last_name', 'role']
-    filterset_fields = ['company', 'is_active']
 
-    @action(detail=True, methods=['patch'], url_path='status')
-    def update_status(self, request, pk=None):
-        user = self.get_object()
-        active = request.data.get('active')
-        if active is None:
-            return Response({'error': 'Missing active field'}, status=status.HTTP_400_BAD_REQUEST)
-        user.is_active = bool(active)
-        user.save()
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
+    def get(self, request):
+        try:
+            # Get query parameters
+            search = request.query_params.get('search', None)
+            company = request.query_params.get('company', None)
+            is_active = request.query_params.get('is_active', None)
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+
+            # Convert is_active string to boolean if provided
+            if is_active is not None:
+                is_active = is_active.lower() in ['true', '1', 'yes', 'active']
+
+            # Get filtered users
+            pagination_data = service.get_admin_users_filtered(
+                search=search,
+                company=company,
+                is_active=is_active,
+                page=page,
+                page_size=page_size
+            )
+
+            # Serialize the results
+            serializer = AdminUserListSerializer(pagination_data['results'], many=True)
+            
+            # Format response according to specification
+            response_data = {
+                "count": pagination_data['count'],
+                "next": pagination_data['next'],
+                "previous": pagination_data['previous'],
+                "results": serializer.data,
+                "page_size": pagination_data['page_size'],
+                "total_pages": pagination_data['total_pages'],
+                "current_page": pagination_data['current_page']
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve users"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminUserDetailView(APIView):
+    """
+    Admin endpoint for retrieving a specific user
+    GET /api/users/admin/users/{id}/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, user_id):
+        try:
+            user = service.get_user_by_id(user_id)
+            if not user:
+                return Response(
+                    {"error": "User not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = AdminUserDetailSerializer(user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve user"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

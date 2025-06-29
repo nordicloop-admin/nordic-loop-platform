@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.core.paginator import Paginator
 from base.utils.responses import RepositoryResponse
 from base.services.logging import LoggingService
 from company.models import Company
@@ -125,6 +126,62 @@ class CompanyRepository:
             return RepositoryResponse(
                 success=False,
                 message="Failed to get companies by status",
+                data=None,
+            )
+
+    def get_admin_companies_filtered(self, search=None, status=None, page=1, page_size=10) -> RepositoryResponse:
+        """
+        Get companies for admin with filtering and pagination support
+        """
+        try:
+            queryset = Company.objects.all().order_by('-registration_date')
+            
+            # Apply search filter
+            if search:
+                queryset = queryset.filter(
+                    Q(official_name__icontains=search) |
+                    Q(vat_number__icontains=search) |
+                    Q(email__icontains=search) |
+                    Q(country__icontains=search) |
+                    Q(primary_first_name__icontains=search) |
+                    Q(primary_last_name__icontains=search) |
+                    Q(primary_email__icontains=search)
+                )
+            
+            # Apply status filter
+            if status and status != 'all':
+                if status in ['pending', 'approved', 'rejected']:
+                    queryset = queryset.filter(status=status)
+            
+            # Apply pagination
+            paginator = Paginator(queryset, page_size)
+            
+            try:
+                companies_page = paginator.page(page)
+            except:
+                # If page number is out of range, return first page
+                companies_page = paginator.page(1)
+            
+            pagination_data = {
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': companies_page.number,
+                'page_size': page_size,
+                'next': companies_page.has_next(),
+                'previous': companies_page.has_previous(),
+                'results': list(companies_page.object_list)
+            }
+            
+            return RepositoryResponse(
+                success=True,
+                message="Companies retrieved successfully",
+                data=pagination_data,
+            )
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(
+                success=False,
+                message="Failed to get companies",
                 data=None,
             )
 
