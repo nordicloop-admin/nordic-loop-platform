@@ -13,7 +13,8 @@ from ads.serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
     AdStep8Serializer, AdCompleteSerializer, AdListSerializer, AdUpdateSerializer,
-    AdminAuctionListSerializer, AdminAuctionDetailSerializer
+    AdminAuctionListSerializer, AdminAuctionDetailSerializer,
+    AdminAddressListSerializer, AdminAddressDetailSerializer
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
@@ -477,3 +478,124 @@ class AdminAuctionDetailView(APIView):
                 {"error": "Failed to retrieve auction"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class AdminAddressListView(APIView):
+    """
+    Admin endpoint for listing addresses with filtering and pagination
+    GET /api/ads/admin/addresses/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        try:
+            # Get query parameters
+            search = request.query_params.get('search', None)
+            type_filter = request.query_params.get('type', None)
+            is_verified_param = request.query_params.get('is_verified', None)
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 10)), 100)
+
+            # Parse is_verified parameter
+            is_verified = None
+            if is_verified_param is not None:
+                is_verified = is_verified_param.lower() in ('true', '1', 'yes')
+
+            # Get filtered addresses
+            pagination_data = ad_service.get_admin_addresses_filtered(
+                search=search,
+                type_filter=type_filter,
+                is_verified=is_verified,
+                page=page,
+                page_size=page_size
+            )
+
+            # Serialize the data
+            serializer = AdminAddressListSerializer(pagination_data['results'], many=True)
+
+            return Response({
+                'count': pagination_data['count'],
+                'next': pagination_data['next'],
+                'previous': pagination_data['previous'],
+                'results': serializer.data,
+                'page_size': pagination_data['page_size'],
+                'total_pages': pagination_data['total_pages'],
+                'current_page': pagination_data['current_page']
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve addresses',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminAddressDetailView(APIView):
+    """
+    Admin endpoint for retrieving a specific address
+    GET /api/ads/admin/addresses/{id}/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, address_id):
+        try:
+            # Get address by ID
+            address = ad_service.get_address_by_id(address_id)
+            
+            if not address:
+                return Response({
+                    'error': 'Address not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Serialize the data
+            serializer = AdminAddressDetailSerializer(address)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve address',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminAddressVerifyView(APIView):
+    """
+    Admin endpoint for verifying/unverifying addresses
+    PATCH /api/ads/admin/addresses/{id}/verify/
+    """
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, address_id):
+        try:
+            # Get is_verified status from request
+            is_verified = request.data.get('isVerified')
+            
+            if is_verified is None:
+                return Response({
+                    'error': 'isVerified field is required',
+                    'example': {'isVerified': True}
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update address verification status
+            address = ad_service.update_address_verification(address_id, is_verified)
+            
+            if not address:
+                return Response({
+                    'error': 'Address not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Serialize the updated address
+            serializer = AdminAddressDetailSerializer(address)
+
+            verification_action = "verified" if is_verified else "unverified"
+            return Response({
+                'message': f'Address successfully {verification_action}',
+                'address': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                'error': 'Failed to update address verification',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

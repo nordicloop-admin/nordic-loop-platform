@@ -4,7 +4,7 @@ from django.db.models import Q, Count, Max
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import Ad, Location
+from .models import Ad, Location, Address
 from .serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
@@ -469,3 +469,94 @@ class AdRepository:
     def list_ads_by_user(self, user: User) -> RepositoryResponse:
         """Legacy method - use list_user_ads instead"""
         return self.list_user_ads(user)
+
+    def get_admin_addresses_filtered(self, search=None, type_filter=None, is_verified=None, page=1, page_size=10) -> RepositoryResponse:
+        """
+        Get addresses for admin with filtering and pagination support
+        """
+        try:
+            # Start with all addresses, including related objects for optimization
+            queryset = Address.objects.select_related('company').all().order_by('-created_at')
+            
+            # Apply search filter across multiple fields
+            if search:
+                queryset = queryset.filter(
+                    Q(company__official_name__icontains=search) |
+                    Q(contact_name__icontains=search) |
+                    Q(contact_phone__icontains=search) |
+                    Q(city__icontains=search) |
+                    Q(country__icontains=search) |
+                    Q(address_line1__icontains=search) |
+                    Q(address_line2__icontains=search)
+                )
+            
+            # Apply type filter
+            if type_filter:
+                queryset = queryset.filter(type=type_filter)
+            
+            # Apply is_verified filter
+            if is_verified is not None:
+                queryset = queryset.filter(is_verified=is_verified)
+            
+            # Apply pagination
+            paginator = Paginator(queryset, page_size)
+            
+            try:
+                addresses_page = paginator.page(page)
+            except:
+                # If page number is out of range, return first page
+                addresses_page = paginator.page(1)
+            
+            pagination_data = {
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': addresses_page.number,
+                'page_size': page_size,
+                'next': addresses_page.has_next(),
+                'previous': addresses_page.has_previous(),
+                'results': list(addresses_page.object_list)
+            }
+            
+            return RepositoryResponse(
+                success=True,
+                message="Addresses retrieved successfully",
+                data=pagination_data,
+            )
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(
+                success=False,
+                message="Failed to get addresses",
+                data=None,
+            )
+
+    def get_address_by_id(self, address_id: int) -> RepositoryResponse:
+        """Get address by ID for admin"""
+        try:
+            address = Address.objects.select_related('company').filter(id=address_id).first()
+            
+            if not address:
+                return RepositoryResponse(False, "Address not found", None)
+
+            return RepositoryResponse(True, "Address retrieved successfully", address)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to retrieve address", None)
+
+    def update_address_verification(self, address_id: int, is_verified: bool) -> RepositoryResponse:
+        """Update address verification status for admin"""
+        try:
+            address = Address.objects.filter(id=address_id).first()
+            
+            if not address:
+                return RepositoryResponse(False, "Address not found", None)
+
+            address.is_verified = is_verified
+            address.save()
+
+            return RepositoryResponse(True, f"Address verification status updated to {is_verified}", address)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to update address verification", None)
