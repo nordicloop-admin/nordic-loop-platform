@@ -252,3 +252,33 @@ class AdService:
         except Exception as e:
             logging_service.log_error(e)
             raise e
+
+    def get_admin_subscriptions_filtered(self, search=None, plan=None, status=None, page=1, page_size=10) -> Dict[str, Any]:
+        """
+        Get filtered subscriptions for admin with pagination
+        """
+        try:
+            result = self.repository.get_admin_subscriptions_filtered(search, plan, status, page, page_size)
+            if result.success:
+                return result.data
+            else:
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def get_subscription_by_id(self, subscription_id: int):
+        """
+        Get subscription by ID for admin
+        """
+        try:
+            result = self.repository.get_subscription_by_id(subscription_id)
+            if result.success:
+                return result.data
+            else:
+                if "not found" in result.message.lower():
+                    return None
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e

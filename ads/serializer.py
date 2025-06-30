@@ -877,4 +877,45 @@ class AdminAddressDetailSerializer(AdminAddressListSerializer):
         fields = AdminAddressListSerializer.Meta.fields
 
 
+class AdminSubscriptionListSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for subscription list view with specific field mapping
+    """
+    companyId = serializers.CharField(source='company.id', read_only=True)
+    companyName = serializers.CharField(source='company.official_name', read_only=True)
+    startDate = serializers.DateField(source='start_date', read_only=True)
+    endDate = serializers.DateField(source='end_date', read_only=True)
+    autoRenew = serializers.BooleanField(source='auto_renew', read_only=True)
+    paymentMethod = serializers.CharField(source='payment_method', read_only=True)
+    lastPayment = serializers.DateField(source='last_payment', read_only=True)
+    contactName = serializers.CharField(source='contact_name', read_only=True)
+    contactEmail = serializers.EmailField(source='contact_email', read_only=True)
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'id',
+            'companyId',
+            'companyName',
+            'plan',
+            'status',
+            'startDate',
+            'endDate',
+            'autoRenew',
+            'paymentMethod',
+            'lastPayment',
+            'amount',
+            'contactName',
+            'contactEmail'
+        ]
+
+
+class AdminSubscriptionDetailSerializer(AdminSubscriptionListSerializer):
+    """
+    Admin serializer for subscription detail view - extends list serializer
+    """
+    class Meta(AdminSubscriptionListSerializer.Meta):
+        fields = AdminSubscriptionListSerializer.Meta.fields
+
+
      
