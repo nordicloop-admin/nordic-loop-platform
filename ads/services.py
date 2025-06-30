@@ -206,3 +206,49 @@ class AdService:
     def update_step(self, step: int, ad_id: int, data: Dict[str, Any], user: Optional[User] = None) -> Ad:
         """Legacy method - use update_ad_step instead"""
         return self.update_ad_step(ad_id, step, data, None, user)
+
+    def get_admin_addresses_filtered(self, search=None, type_filter=None, is_verified=None, page=1, page_size=10) -> Dict[str, Any]:
+        """
+        Get filtered addresses for admin with pagination
+        """
+        try:
+            result = self.repository.get_admin_addresses_filtered(search, type_filter, is_verified, page, page_size)
+            if result.success:
+                return result.data
+            else:
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def get_address_by_id(self, address_id: int):
+        """
+        Get address by ID for admin
+        """
+        try:
+            result = self.repository.get_address_by_id(address_id)
+            if result.success:
+                return result.data
+            else:
+                if "not found" in result.message.lower():
+                    return None
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def update_address_verification(self, address_id: int, is_verified: bool):
+        """
+        Update address verification status for admin
+        """
+        try:
+            result = self.repository.update_address_verification(address_id, is_verified)
+            if result.success:
+                return result.data
+            else:
+                if "not found" in result.message.lower():
+                    return None
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e

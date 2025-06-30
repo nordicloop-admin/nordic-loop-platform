@@ -826,6 +826,55 @@ class AdminAuctionDetailSerializer(AdminAuctionListSerializer):
             return 0
 
 
+class AdminAddressListSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for address list view with specific field mapping
+    """
+    companyId = serializers.CharField(source='company.id', read_only=True)
+    companyName = serializers.CharField(source='company.official_name', read_only=True)
+    addressLine1 = serializers.CharField(source='address_line1', read_only=True)
+    addressLine2 = serializers.CharField(source='address_line2', read_only=True)
+    postalCode = serializers.CharField(source='postal_code', read_only=True)
+    isVerified = serializers.BooleanField(source='is_verified', read_only=True)
+    isPrimary = serializers.BooleanField(source='is_primary', read_only=True)
+    contactName = serializers.CharField(source='contact_name', read_only=True)
+    contactPhone = serializers.CharField(source='contact_phone', read_only=True)
+    createdAt = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Address
+        fields = [
+            'id',
+            'companyId',
+            'companyName',
+            'type',
+            'addressLine1',
+            'addressLine2',
+            'city',
+            'postalCode',
+            'country',
+            'isVerified',
+            'isPrimary',
+            'contactName',
+            'contactPhone',
+            'createdAt'
+        ]
+
+    def get_createdAt(self, obj):
+        """
+        Convert date to string format
+        """
+        if obj.created_at:
+            return obj.created_at.strftime('%Y-%m-%d')
+        return None
+
+
+class AdminAddressDetailSerializer(AdminAddressListSerializer):
+    """
+    Admin serializer for address detail view - extends list serializer
+    """
+    class Meta(AdminAddressListSerializer.Meta):
+        fields = AdminAddressListSerializer.Meta.fields
 
 
      

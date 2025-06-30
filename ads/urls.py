@@ -2,7 +2,8 @@ from django.urls import path
 from ads.views import (
     AdStepView, AdDetailView, AdListView, 
     UserAdsView, AdStepValidationView, AdActivateView, AdDeactivateView,
-    AdminAuctionListView, AdminAuctionDetailView
+    AdminAuctionListView, AdminAuctionDetailView,
+    AdminAddressListView, AdminAddressDetailView, AdminAddressVerifyView
 )
 
 urlpatterns = [
@@ -32,4 +33,9 @@ urlpatterns = [
     # Admin auction endpoints
     path("admin/auctions/", AdminAuctionListView.as_view(), name="admin-auction-list"),
     path("admin/auctions/<int:ad_id>/", AdminAuctionDetailView.as_view(), name="admin-auction-detail"),
+    
+    # Admin address endpoints
+    path("admin/addresses/", AdminAddressListView.as_view(), name="admin-address-list"),
+    path("admin/addresses/<int:address_id>/", AdminAddressDetailView.as_view(), name="admin-address-detail"),
+    path("admin/addresses/<int:address_id>/verify/", AdminAddressVerifyView.as_view(), name="admin-address-verify"),
 ]

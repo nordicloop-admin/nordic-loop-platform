@@ -1,5 +1,112 @@
 from django.contrib import admin
-from .models import Ad, Location
+from .models import Ad, Location, Address, Subscription
+
+
+@admin.register(Address)
+class AddressAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 
+        'company', 
+        'type', 
+        'city', 
+        'country', 
+        'is_verified', 
+        'is_primary', 
+        'contact_name', 
+        'created_at'
+    )
+    
+    list_filter = (
+        'type', 
+        'country', 
+        'is_verified', 
+        'is_primary', 
+        'created_at'
+    )
+    
+    search_fields = (
+        'company__official_name',
+        'contact_name',
+        'contact_phone',
+        'address_line1',
+        'address_line2',
+        'city',
+        'country',
+        'postal_code'
+    )
+    
+    readonly_fields = ('created_at',)
+    
+    fieldsets = (
+        ('Company Information', {
+            'fields': ('company',)
+        }),
+        ('Address Details', {
+            'fields': ('type', 'address_line1', 'address_line2', 'city', 'postal_code', 'country')
+        }),
+        ('Contact Information', {
+            'fields': ('contact_name', 'contact_phone')
+        }),
+        ('Status', {
+            'fields': ('is_verified', 'is_primary')
+        }),
+        ('System Information', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    ordering = ['-created_at']
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'company',
+        'plan',
+        'status',
+        'start_date',
+        'end_date',
+        'auto_renew',
+        'payment_method',
+        'amount'
+    )
+    
+    list_filter = (
+        'plan',
+        'status',
+        'payment_method',
+        'auto_renew',
+        'start_date',
+        'end_date'
+    )
+    
+    search_fields = (
+        'company__official_name',
+        'contact_name',
+        'contact_email',
+        'amount'
+    )
+    
+    readonly_fields = ('start_date',)
+    
+    fieldsets = (
+        ('Company Information', {
+            'fields': ('company',)
+        }),
+        ('Subscription Details', {
+            'fields': ('plan', 'status', 'start_date', 'end_date', 'auto_renew')
+        }),
+        ('Payment Information', {
+            'fields': ('payment_method', 'last_payment', 'amount')
+        }),
+        ('Contact Information', {
+            'fields': ('contact_name', 'contact_email')
+        }),
+    )
+    
+    ordering = ['-start_date']
 
 
 @admin.register(Location)
