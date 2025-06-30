@@ -14,7 +14,8 @@ from ads.serializer import (
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
     AdStep8Serializer, AdCompleteSerializer, AdListSerializer, AdUpdateSerializer,
     AdminAuctionListSerializer, AdminAuctionDetailSerializer,
-    AdminAddressListSerializer, AdminAddressDetailSerializer
+    AdminAddressListSerializer, AdminAddressDetailSerializer,
+    AdminSubscriptionListSerializer, AdminSubscriptionDetailSerializer
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
@@ -597,5 +598,79 @@ class AdminAddressVerifyView(APIView):
         except Exception as e:
             return Response({
                 'error': 'Failed to update address verification',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminSubscriptionListView(APIView):
+    """
+    Admin endpoint for listing subscriptions with filtering and pagination
+    GET /api/ads/admin/subscriptions/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        try:
+            # Get query parameters
+            search = request.query_params.get('search', None)
+            plan = request.query_params.get('plan', None)
+            status_filter = request.query_params.get('status', None)
+            page = int(request.query_params.get('page', 1))
+            page_size = min(int(request.query_params.get('page_size', 10)), 100)
+
+            # Get filtered subscriptions
+            pagination_data = ad_service.get_admin_subscriptions_filtered(
+                search=search,
+                plan=plan,
+                status=status_filter,
+                page=page,
+                page_size=page_size
+            )
+
+            # Serialize the data
+            serializer = AdminSubscriptionListSerializer(pagination_data['results'], many=True)
+
+            return Response({
+                'count': pagination_data['count'],
+                'next': pagination_data['next'],
+                'previous': pagination_data['previous'],
+                'results': serializer.data,
+                'page_size': pagination_data['page_size'],
+                'total_pages': pagination_data['total_pages'],
+                'current_page': pagination_data['current_page']
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve subscriptions',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminSubscriptionDetailView(APIView):
+    """
+    Admin endpoint for retrieving a specific subscription
+    GET /api/ads/admin/subscriptions/{id}/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, subscription_id):
+        try:
+            # Get subscription by ID
+            subscription = ad_service.get_subscription_by_id(subscription_id)
+            
+            if not subscription:
+                return Response({
+                    'error': 'Subscription not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Serialize the data
+            serializer = AdminSubscriptionDetailSerializer(subscription)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve subscription',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
