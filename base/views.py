@@ -118,3 +118,119 @@ class SystemStatsView(APIView):
                 {"error": f"Failed to retrieve system stats: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class UserDashboardStatsView(APIView):
+    """
+    Return personalized dashboard statistics for the logged-in user
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get user-specific dashboard statistics including:
+        - Active bids count
+        - Subscription information
+        - Verification status
+        - Recent activities
+        """
+        try:
+            user = request.user
+            company = user.company if hasattr(user, 'company') else None
+            
+            # Count user's active bids
+            active_bids_count = Bid.objects.filter(
+                user=user,
+                status='active'
+            ).count()
+            
+            # Count user's winning bids
+            winning_bids_count = Bid.objects.filter(
+                user=user,
+                status='winning'
+            ).count()
+            
+            # Count user's total bids
+            total_user_bids = Bid.objects.filter(user=user).count()
+            
+            # Get user's recent bids
+            recent_bids = Bid.objects.filter(user=user).order_by('-created_at')[:5]
+            recent_bids_data = []
+            for bid in recent_bids:
+                bid_data = {
+                    'id': bid.id,
+                    'status': bid.status,
+                    'price': float(bid.bid_price_per_unit),
+                    'created_at': bid.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                }
+                # Try to get ad info safely
+                try:
+                    if hasattr(bid, 'ad') and bid.ad:
+                        bid_data['ad_id'] = bid.ad.id
+                except:
+                    bid_data['ad_id'] = None
+                
+                recent_bids_data.append(bid_data)
+            
+            # Get user's active ads (if applicable)
+            ads_count = 0
+            recent_ads_data = []
+            from ads.models import Ad
+            if hasattr(user, 'can_place_ads') and user.can_place_ads:
+                # Count active ads
+                ads_count = Ad.objects.filter(
+                    user=user,
+                    is_active=True
+                ).count()
+                
+                # Get recent ads
+                recent_ads = Ad.objects.filter(user=user).order_by('-created_at')[:5]
+                for ad in recent_ads:
+                    ad_data = {
+                        'id': ad.id,
+                        'title': ad.title if hasattr(ad, 'title') else 'Ad',
+                        'status': 'active' if ad.is_active else 'inactive',
+                        'created_at': ad.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    }
+                    # Try to get bids count safely
+                    try:
+                        ad_data['bids_count'] = Bid.objects.filter(ad=ad).count()
+                    except:
+                        ad_data['bids_count'] = 0
+                        
+                    recent_ads_data.append(ad_data)
+            
+            # Build the response
+            response_data = {
+                "user_id": user.id,
+                "username": user.username,
+                "active_bids": active_bids_count,
+                "winning_bids": winning_bids_count,
+                "total_bids": total_user_bids,
+                "active_ads": ads_count,
+                "recent_bids": recent_bids_data,
+                "recent_ads": recent_ads_data
+            }
+            
+            # Add company information if available
+            if company:
+                response_data.update({
+                    "company_id": company.id,
+                    "company_name": company.official_name,
+                    "subscription": "Free Plan",  # This should be replaced with actual subscription logic
+                    "verification_status": company.status,
+                    "is_verified": company.status == "approved",
+                    "pending_verification": company.status == "pending"
+                })
+                
+                # Add verification message if pending
+                if company.status == "pending":
+                    response_data["verification_message"] = "Your business is under verification"
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve user dashboard stats: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
