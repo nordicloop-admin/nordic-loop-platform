@@ -307,6 +307,43 @@ class UserAdsView(ListAPIView):
         ).order_by('-updated_at')
 
 
+class UserAdsCountView(APIView):
+    """Return the count of ads created by the logged-in user"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get the number of ads created by the current user"""
+        try:
+            # Get query parameters
+            only_complete = self.request.query_params.get('complete', 'false').lower() == 'true'
+            only_active = self.request.query_params.get('active', 'false').lower() == 'true'
+            
+            # Build the query
+            query = Q(user=self.request.user)
+            if only_complete:
+                query &= Q(is_complete=True)
+            if only_active:
+                query &= Q(is_active=True)
+                
+            # Count the ads
+            ads_count = Ad.objects.filter(query).count()
+            
+            return Response(
+                {
+                    "user_id": request.user.id,
+                    "username": request.user.username,
+                    "ads_count": ads_count
+                },
+                status=status.HTTP_200_OK
+            )
+        
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve ads count: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class AdStepValidationView(APIView):
     """Validate step data without saving"""
     permission_classes = [IsAuthenticated]
