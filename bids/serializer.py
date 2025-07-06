@@ -30,7 +30,7 @@ class BidCreateSerializer(serializers.ModelSerializer):
         model = Bid
         fields = [
             'ad', 'bid_price_per_unit', 'volume_requested', 
-            'delivery_requirements', 'payment_terms', 'notes'
+            'volume_type', 'notes', 'max_auto_bid_price', 'is_auto_bid'
         ]
         
     def validate_ad(self, value):
@@ -132,9 +132,8 @@ class BidDetailSerializer(serializers.ModelSerializer):
         model = Bid
         fields = [
             'id', 'ad_details', 'bidder_details', 'bid_price_per_unit',
-            'volume_requested', 'total_bid_value', 'delivery_requirements',
-            'payment_terms', 'notes', 'status', 'created_at', 'updated_at',
-            'bid_ranking'
+            'volume_requested', 'total_bid_value', 'notes', 'status', 
+            'created_at', 'updated_at', 'bid_ranking'
         ]
     
     def get_ad_details(self, obj):
@@ -174,7 +173,7 @@ class BidUpdateSerializer(serializers.ModelSerializer):
         model = Bid
         fields = [
             'bid_price_per_unit', 'volume_requested', 
-            'delivery_requirements', 'payment_terms', 'notes'
+            'volume_type', 'notes', 'max_auto_bid_price', 'is_auto_bid'
         ]
     
     def validate_bid_price_per_unit(self, value):
