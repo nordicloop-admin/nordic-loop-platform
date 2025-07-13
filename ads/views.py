@@ -15,7 +15,8 @@ from ads.serializer import (
     AdStep8Serializer, AdCompleteSerializer, AdListSerializer, AdUpdateSerializer,
     AdminAuctionListSerializer, AdminAuctionDetailSerializer,
     AdminAddressListSerializer, AdminAddressDetailSerializer,
-    AdminSubscriptionListSerializer, AdminSubscriptionDetailSerializer
+    AdminSubscriptionListSerializer, AdminSubscriptionDetailSerializer,
+    UserSubscriptionSerializer, UpdateUserSubscriptionSerializer
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
@@ -709,5 +710,92 @@ class AdminSubscriptionDetailView(APIView):
         except Exception as e:
             return Response({
                 'error': 'Failed to retrieve subscription',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserSubscriptionView(APIView):
+    """
+    Endpoint for retrieving the logged-in user's subscription
+    GET /api/ads/user/subscription/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get the user's company
+            user = request.user
+            if not user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Get the latest subscription for the company
+            subscription = ad_service.get_company_subscription(user.company.id)
+            
+            if not subscription:
+                return Response({
+                    'error': 'No subscription found for this company',
+                    'company_id': user.company.id,
+                    'company_name': user.company.official_name
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Serialize the subscription data
+            serializer = UserSubscriptionSerializer(subscription)
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve user subscription',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UpdateUserSubscriptionView(APIView):
+    """
+    Endpoint for updating the logged-in user's subscription
+    PUT /api/ads/user/subscription/update/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def put(self, request):
+        try:
+            # Get the user's company
+            user = request.user
+            if not user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Get the latest subscription for the company
+            subscription = ad_service.get_company_subscription(user.company.id)
+            
+            if not subscription:
+                return Response({
+                    'error': 'No subscription found for this company',
+                    'company_id': user.company.id,
+                    'company_name': user.company.official_name
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Validate and update the subscription
+            serializer = UpdateUserSubscriptionSerializer(subscription, data=request.data, partial=True)
+            
+            if serializer.is_valid():
+                updated_subscription = serializer.save()
+                response_serializer = UserSubscriptionSerializer(updated_subscription)
+                return Response({
+                    'message': 'Subscription updated successfully',
+                    'subscription': response_serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Invalid data provided',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            return Response({
+                'error': 'Failed to update subscription',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -282,3 +282,19 @@ class AdService:
         except Exception as e:
             logging_service.log_error(e)
             raise e
+
+    def get_company_subscription(self, company_id: int):
+        """
+        Get the latest subscription for a company
+        """
+        try:
+            result = self.repository.get_company_subscription(company_id)
+            if result.success:
+                return result.data
+            else:
+                if "not found" in result.message.lower():
+                    return None
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
