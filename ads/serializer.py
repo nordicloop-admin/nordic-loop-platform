@@ -977,3 +977,59 @@ class UpdateUserSubscriptionSerializer(serializers.ModelSerializer):
         if value not in valid_methods:
             raise serializers.ValidationError(f"Invalid payment method. Must be one of: {', '.join(valid_methods)}")
         return value
+
+
+class UserAddressSerializer(serializers.ModelSerializer):
+    """
+    Serializer for retrieving the logged-in user's company addresses
+    """
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    created_at = serializers.DateField(read_only=True)
+    is_verified = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = Address
+        fields = [
+            'id', 'type', 'type_display', 'address_line1', 'address_line2', 'city',
+            'postal_code', 'country', 'is_verified', 'is_primary', 'contact_name',
+            'contact_phone', 'created_at'
+        ]
+        read_only_fields = ['id', 'is_verified', 'created_at']
+
+
+class CreateAddressSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a new company address
+    """
+    class Meta:
+        model = Address
+        fields = [
+            'type', 'address_line1', 'address_line2', 'city', 'postal_code',
+            'country', 'is_primary', 'contact_name', 'contact_phone'
+        ]
+        
+    def validate_type(self, value):
+        """Ensure address type is valid"""
+        valid_types = [choice[0] for choice in Address.TYPE_CHOICES]
+        if value not in valid_types:
+            raise serializers.ValidationError(f"Invalid address type. Must be one of: {', '.join(valid_types)}")
+        return value
+
+
+class UpdateAddressSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating an existing company address
+    """
+    class Meta:
+        model = Address
+        fields = [
+            'type', 'address_line1', 'address_line2', 'city', 'postal_code',
+            'country', 'is_primary', 'contact_name', 'contact_phone'
+        ]
+        
+    def validate_type(self, value):
+        """Ensure address type is valid"""
+        valid_types = [choice[0] for choice in Address.TYPE_CHOICES]
+        if value not in valid_types:
+            raise serializers.ValidationError(f"Invalid address type. Must be one of: {', '.join(valid_types)}")
+        return value

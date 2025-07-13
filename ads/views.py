@@ -9,14 +9,15 @@ from django.http import Http404
 from ads.repository import AdRepository
 from ads.services import AdService
 from ads.models import Ad
-from ads.serializer import (
+from .serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
     AdStep8Serializer, AdCompleteSerializer, AdListSerializer, AdUpdateSerializer,
     AdminAuctionListSerializer, AdminAuctionDetailSerializer,
     AdminAddressListSerializer, AdminAddressDetailSerializer,
     AdminSubscriptionListSerializer, AdminSubscriptionDetailSerializer,
-    UserSubscriptionSerializer, UpdateUserSubscriptionSerializer
+    UserSubscriptionSerializer, UpdateUserSubscriptionSerializer,
+    UserAddressSerializer, CreateAddressSerializer, UpdateAddressSerializer
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
@@ -798,4 +799,163 @@ class UpdateUserSubscriptionView(APIView):
             return Response({
                 'error': 'Failed to update subscription',
                 'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserAddressListView(APIView):
+    """
+    Endpoint for retrieving and creating company addresses for the logged-in user
+    GET /api/ads/user/addresses/
+    POST /api/ads/user/addresses/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Check if user has a company
+            if not request.user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get all addresses for the company
+            addresses = ad_service.get_company_addresses(request.user.company.id)
+            
+            serializer = UserAddressSerializer(addresses, many=True)
+            return Response({
+                'addresses': serializer.data
+            }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({
+                'error': 'Failed to retrieve addresses',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        try:
+            # Check if user has a company
+            if not request.user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate and create the address
+            serializer = CreateAddressSerializer(data=request.data)
+            if serializer.is_valid():
+                # Create the address for the company
+                address = ad_service.create_company_address(
+                    request.user.company.id, 
+                    serializer.validated_data
+                )
+                
+                if not address:
+                    return Response({
+                        'error': 'Failed to create address'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                # Return the created address
+                response_serializer = UserAddressSerializer(address)
+                return Response({
+                    'message': 'Address created successfully',
+                    'address': response_serializer.data
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    'error': 'Invalid data provided',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({
+                'error': 'Failed to create address',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserAddressDetailView(APIView):
+    """
+    Endpoint for retrieving, updating and deleting a specific company address
+    GET /api/ads/user/addresses/{id}/
+    PUT /api/ads/user/addresses/{id}/
+    DELETE /api/ads/user/addresses/{id}/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, address_id):
+        try:
+            # Check if user has a company
+            if not request.user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get the address, ensuring it belongs to the user's company
+            address = ad_service.get_address_by_id_for_company(address_id, request.user.company.id)
+            
+            if not address:
+                return Response({
+                    'error': 'Address not found or does not belong to your company'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            serializer = UserAddressSerializer(address)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({
+                'error': 'Failed to retrieve address',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def put(self, request, address_id):
+        try:
+            # Check if user has a company
+            if not request.user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # First check if the address exists and belongs to the company
+            address = ad_service.get_address_by_id_for_company(address_id, request.user.company.id)
+            
+            if not address:
+                return Response({
+                    'error': 'Address not found or does not belong to your company'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Validate the update data
+            serializer = UpdateAddressSerializer(data=request.data, partial=True)
+            if serializer.is_valid():
+                # Update the address
+                updated_address = ad_service.update_company_address(
+                    address_id,
+                    request.user.company.id,
+                    serializer.validated_data
+                )
+                
+                if not updated_address:
+                    return Response({
+                        'error': 'Failed to update address'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+                # Return the updated address
+                response_serializer = UserAddressSerializer(updated_address)
+                return Response({
+                    'message': 'Address updated successfully',
+                    'address': response_serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Invalid data provided',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({
+                'error': 'Failed to update address',
+                'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

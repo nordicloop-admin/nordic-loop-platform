@@ -291,10 +291,59 @@ class AdService:
             result = self.repository.get_company_subscription(company_id)
             if result.success:
                 return result.data
-            else:
-                if "not found" in result.message.lower():
-                    return None
-                raise Exception(result.message)
+            return None
         except Exception as e:
             logging_service.log_error(e)
-            raise e
+            return None
+            
+    def get_company_addresses(self, company_id: int) -> List:
+        """
+        Get all addresses for a company
+        """
+        try:
+            result = self.repository.get_company_addresses(company_id)
+            if result.success:
+                return result.data
+            return []
+        except Exception as e:
+            logging_service.log_error(e)
+            return []
+            
+    def create_company_address(self, company_id: int, address_data: dict):
+        """
+        Create a new address for a company
+        """
+        try:
+            result = self.repository.create_company_address(company_id, address_data)
+            if result.success:
+                return result.data
+            return None
+        except Exception as e:
+            logging_service.log_error(e)
+            return None
+            
+    def get_address_by_id_for_company(self, address_id: int, company_id: int):
+        """
+        Get a specific address by ID, ensuring it belongs to the specified company
+        """
+        try:
+            result = self.repository.get_address_by_id_for_company(address_id, company_id)
+            if result.success:
+                return result.data
+            return None
+        except Exception as e:
+            logging_service.log_error(e)
+            return None
+            
+    def update_company_address(self, address_id: int, company_id: int, address_data: dict):
+        """
+        Update an existing address for a company
+        """
+        try:
+            result = self.repository.update_company_address(address_id, company_id, address_data)
+            if result.success:
+                return result.data
+            return None
+        except Exception as e:
+            logging_service.log_error(e)
+            return None
