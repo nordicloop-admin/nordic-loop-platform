@@ -617,11 +617,68 @@ class AdRepository:
                 message="Failed to get subscriptions",
                 data=None,
             )
+            
+    def get_admin_subscriptions_filtered(self, search=None, plan=None, status=None, page=1, page_size=10) -> RepositoryResponse:
+        """
+        Get subscriptions for admin with filtering and pagination support
+        """
+        try:
+            # Start with all subscriptions, including related objects for optimization
+            queryset = Subscription.objects.select_related('company').all().order_by('-start_date')
+            
+            # Apply search filter across multiple fields
+            if search:
+                queryset = queryset.filter(
+                    Q(company__official_name__icontains=search) |
+                    Q(contact_name__icontains=search) |
+                    Q(contact_email__icontains=search) |
+                    Q(amount__icontains=search)
+                )
+            
+            # Apply plan filter
+            if plan:
+                queryset = queryset.filter(plan=plan)
+            
+            # Apply status filter
+            if status:
+                queryset = queryset.filter(status=status)
+            
+            # Apply pagination
+            paginator = Paginator(queryset, page_size)
+            
+            try:
+                subscriptions_page = paginator.page(page)
+            except:
+                # If page number is out of range, return first page
+                subscriptions_page = paginator.page(1)
+            
+            pagination_data = {
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': subscriptions_page.number,
+                'page_size': page_size,
+                'next': subscriptions_page.has_next(),
+                'previous': subscriptions_page.has_previous(),
+                'results': list(subscriptions_page.object_list)
+            }
+            
+            return RepositoryResponse(
+                success=True,
+                message="Subscriptions retrieved successfully",
+                data=pagination_data,
+            )
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(
+                success=False,
+                message="Failed to get subscriptions",
+                data=None,
+            )
 
     def get_subscription_by_id(self, subscription_id: int) -> RepositoryResponse:
         """Get subscription by ID for admin"""
         try:
-            subscription = Subscription.objects.select_related('company').filter(id=subscription_id).first()
+            subscription = Subscription.objects.filter(id=subscription_id).first()
             
             if not subscription:
                 return RepositoryResponse(False, "Subscription not found", None)
@@ -631,3 +688,22 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve subscription", None)
+
+    def get_company_subscription(self, company_id: int) -> RepositoryResponse:
+        """
+        Get the latest active subscription for a company
+        """
+        try:
+            # Get the most recent subscription for the company
+            subscription = Subscription.objects.filter(
+                company_id=company_id
+            ).order_by('-end_date').first()
+            
+            if not subscription:
+                return RepositoryResponse(False, "No subscription found for this company", None)
+
+            return RepositoryResponse(True, "Company subscription retrieved successfully", subscription)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to retrieve company subscription", None)
