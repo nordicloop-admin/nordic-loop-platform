@@ -234,3 +234,56 @@ class UserDashboardStatsView(APIView):
                 {"error": f"Failed to retrieve user dashboard stats: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class TotalBidsCountView(APIView):
+    """
+    Return the total number of bids in the system with optional filtering
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """
+        Get the total count of bids in the system with optional filtering by status
+        """
+        try:
+            # Get query parameters for filtering
+            status_filter = request.query_params.get('status', None)
+            date_from = request.query_params.get('date_from', None)
+            date_to = request.query_params.get('date_to', None)
+            
+            # Build the base query
+            query = Q()
+            
+            # Apply status filter if provided
+            if status_filter:
+                statuses = status_filter.split(',')
+                query &= Q(status__in=statuses)
+            
+            # Apply date range filters if provided
+            if date_from:
+                query &= Q(created_at__gte=date_from)
+            if date_to:
+                query &= Q(created_at__lte=date_to)
+            
+            # Count bids with the applied filters
+            total_bids = Bid.objects.filter(query).count()
+            
+            # Count bids by status
+            status_counts = {}
+            for status_choice, _ in Bid.STATUS_CHOICES:
+                status_counts[status_choice] = Bid.objects.filter(status=status_choice).count()
+            
+            # Build the response
+            response_data = {
+                "total_bids": total_bids,
+                "status_counts": status_counts
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve total bids count: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
