@@ -707,3 +707,91 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve company subscription", None)
+            
+    def get_company_addresses(self, company_id: int) -> RepositoryResponse:
+        """
+        Get all addresses for a company
+        """
+        try:
+            addresses = Address.objects.filter(company_id=company_id).order_by('-is_primary', '-created_at')
+            
+            if not addresses.exists():
+                return RepositoryResponse(False, "No addresses found for this company", [])
+
+            return RepositoryResponse(True, "Company addresses retrieved successfully", list(addresses))
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to retrieve company addresses", None)
+            
+    def create_company_address(self, company_id: int, address_data: dict) -> RepositoryResponse:
+        """
+        Create a new address for a company
+        """
+        try:
+            # If this is set as primary, unset any existing primary addresses of the same type
+            if address_data.get('is_primary', False):
+                Address.objects.filter(
+                    company_id=company_id,
+                    type=address_data.get('type'),
+                    is_primary=True
+                ).update(is_primary=False)
+            
+            # Create the new address
+            address = Address.objects.create(
+                company_id=company_id,
+                **address_data
+            )
+            
+            return RepositoryResponse(True, "Address created successfully", address)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to create address", None)
+            
+    def get_address_by_id_for_company(self, address_id: int, company_id: int) -> RepositoryResponse:
+        """
+        Get a specific address by ID, ensuring it belongs to the specified company
+        """
+        try:
+            address = Address.objects.filter(id=address_id, company_id=company_id).first()
+            
+            if not address:
+                return RepositoryResponse(False, "Address not found or does not belong to this company", None)
+
+            return RepositoryResponse(True, "Address retrieved successfully", address)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to retrieve address", None)
+            
+    def update_company_address(self, address_id: int, company_id: int, address_data: dict) -> RepositoryResponse:
+        """
+        Update an existing address for a company
+        """
+        try:
+            # First get the address to ensure it belongs to the company
+            address = Address.objects.filter(id=address_id, company_id=company_id).first()
+            
+            if not address:
+                return RepositoryResponse(False, "Address not found or does not belong to this company", None)
+            
+            # If this is being set as primary, unset any existing primary addresses of the same type
+            if address_data.get('is_primary', False) and not address.is_primary:
+                Address.objects.filter(
+                    company_id=company_id,
+                    type=address_data.get('type', address.type),
+                    is_primary=True
+                ).update(is_primary=False)
+            
+            # Update the address fields
+            for key, value in address_data.items():
+                setattr(address, key, value)
+            
+            address.save()
+            
+            return RepositoryResponse(True, "Address updated successfully", address)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to update address", None)
