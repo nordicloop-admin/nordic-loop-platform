@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/category/', include('category.urls')),
     path('api/ads/', include('ads.urls')),
     path('api/bids/', include('bids.urls')),
+    path('api/notifications/', include('notifications.urls')),
 ]
 
 # Serve media files during development
