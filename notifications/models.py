@@ -7,11 +7,11 @@ class Notification(models.Model):
     Notification model for storing user notifications
     """
     NOTIFICATION_TYPES = [
-        ('info', 'Information'),
-        ('success', 'Success'),
-        ('warning', 'Warning'),
-        ('error', 'Error'),
+        ('feature', 'Feature'),
         ('system', 'System'),
+        ('auction', 'Auction'),
+        ('promotion', 'Promotion'),
+        ('welcome', 'Welcome'),
     ]
     
     title = models.CharField(max_length=255)
