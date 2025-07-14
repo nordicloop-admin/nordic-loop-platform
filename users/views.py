@@ -3,10 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from company.models import Company
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer
+from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer, UserProfileSerializer
 from users.repository.user_repository import UserRepository
 from users.services.user_service import UserService
 
@@ -158,18 +158,67 @@ class AdminUserDetailView(APIView):
 
     def get(self, request, user_id):
         try:
+            # Get user by ID
             user = service.get_user_by_id(user_id)
+            
             if not user:
-                return Response(
-                    {"error": "User not found"}, 
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
+                return Response({
+                    'error': 'User not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
             serializer = AdminUserDetailSerializer(user)
             return Response(serializer.data, status=status.HTTP_200_OK)
-
+                
         except Exception as e:
-            return Response(
-                {"error": "Failed to retrieve user"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({
+                'error': 'Failed to retrieve user',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserProfileView(APIView):
+    """
+    Endpoint for retrieving and updating the logged-in user's profile
+    GET /api/users/profile/
+    PATCH /api/users/profile/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get the current logged-in user
+            user = request.user
+            
+            serializer = UserProfileSerializer(user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve user profile',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def patch(self, request):
+        try:
+            # Get the current logged-in user
+            user = request.user
+            
+            # Update the user with the provided data
+            serializer = UserProfileSerializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    'message': 'Profile updated successfully',
+                    'user': serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Invalid data provided',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({
+                'error': 'Failed to update user profile',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -62,3 +62,32 @@ class AdminUserDetailSerializer(AdminUserListSerializer):
     
     class Meta(AdminUserListSerializer.Meta):
         fields = AdminUserListSerializer.Meta.fields + ['username', 'canPlaceAds', 'canPlaceBids']
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user profile retrieval and update
+    """
+    company_name = serializers.CharField(source='company.official_name', read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'name',
+            'company', 'company_name', 'role', 'role_display',
+            'can_place_ads', 'can_place_bids', 'date_joined'
+        ]
+        read_only_fields = ['id', 'email', 'company', 'company_name', 'date_joined']
+        
+    def update(self, instance, validated_data):
+        """
+        Custom update method to handle name field
+        """
+        # Update the name field if first_name or last_name is updated
+        if 'first_name' in validated_data or 'last_name' in validated_data:
+            first_name = validated_data.get('first_name', instance.first_name)
+            last_name = validated_data.get('last_name', instance.last_name)
+            validated_data['name'] = f"{first_name} {last_name}".strip()
+            
+        return super().update(instance, validated_data)

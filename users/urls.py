@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import ContactSignupView, ContactLoginView, ListUsersView, AdminUserListView, AdminUserDetailView
+from .views import ContactSignupView, ContactLoginView, ListUsersView, AdminUserListView, AdminUserDetailView, UserProfileView
 
 urlpatterns = [
     path("signup/", ContactSignupView.as_view(), name="contact-signup"),
     path("login/", ContactLoginView.as_view(), name="contact-login"),
     path("", ListUsersView.as_view(), name="list-users"),
+    path("profile/", UserProfileView.as_view(), name="user-profile"),
     
     # Admin endpoints
     path("admin/users/", AdminUserListView.as_view(), name="admin-user-list"),
