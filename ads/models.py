@@ -252,16 +252,29 @@ class Ad(models.Model):
 
     def get_step_completion_status(self):
         """Return completion status for each step"""
-        return {
-            1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
-            2: bool(self.specification or self.additional_specifications),
-            3: bool(self.origin),
-            4: bool(self.contamination and self.additives and self.storage_conditions),
-            5: bool(self.processing_methods),
-            6: bool(self.location and self.delivery_options),
-            7: bool(self.available_quantity and self.starting_bid_price and self.currency),
-            8: bool(self.title and self.description),
-        }
+        # Check if this is a plastic material (category_id 1 is assumed to be plastic)
+        is_plastic = self.category and self.category.id == 1
+        
+        if is_plastic:
+            # Full pathway for plastics
+            return {
+                1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
+                2: bool(self.specification or self.additional_specifications),
+                3: bool(self.origin),
+                4: bool(self.contamination and self.additives and self.storage_conditions),
+                5: bool(self.processing_methods),
+                6: bool(self.location and self.delivery_options),
+                7: bool(self.available_quantity and self.starting_bid_price and self.currency),
+                8: bool(self.title and self.description),
+            }
+        else:
+            # Shortened pathway for other materials
+            return {
+                1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
+                2: bool(self.location and self.delivery_options),  # Location & Logistics (was step 6)
+                3: bool(self.available_quantity and self.starting_bid_price and self.currency),  # Quantity & Price (was step 7)
+                4: bool(self.title and self.description),  # Image & Description (was step 8)
+            }
 
     def is_step_complete(self, step_number):
         """Check if a specific step is complete"""
@@ -270,7 +283,17 @@ class Ad(models.Model):
     def get_next_incomplete_step(self):
         """Get the next incomplete step number"""
         status = self.get_step_completion_status()
-        for step in range(1, 9):
+        # Check if this is a plastic material (category_id 1 is assumed to be plastic)
+        is_plastic = self.category and self.category.id == 1
+        
+        if is_plastic:
+            # Full pathway for plastics (8 steps)
+            max_step = 9
+        else:
+            # Shortened pathway for other materials (4 steps)
+            max_step = 5
+            
+        for step in range(1, max_step):
             if not status.get(step, False):
                 return step
         return None
