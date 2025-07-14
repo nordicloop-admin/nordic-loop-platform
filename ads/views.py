@@ -1010,3 +1010,47 @@ class UserAddressDetailView(APIView):
                 'error': 'Failed to update address',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    def delete(self, request, address_id):
+        try:
+            # Check if user has a company
+            if not request.user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # First check if the address exists and belongs to the company
+            address = ad_service.get_address_by_id_for_company(address_id, request.user.company.id)
+            
+            if not address:
+                return Response({
+                    'error': 'Address not found or does not belong to your company'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Store address details for response
+            address_type = address.get_type_display()
+            address_city = address.city
+            
+            # Delete the address
+            success = ad_service.delete_company_address(address_id, request.user.company.id)
+            
+            if not success:
+                return Response({
+                    'error': 'Failed to delete address'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            return Response({
+                'message': f'{address_type} address in {address_city} deleted successfully',
+                'deleted_address': {
+                    'id': address_id,
+                    'type': address_type,
+                    'city': address_city
+                }
+            }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({
+                'error': 'Failed to delete address',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
