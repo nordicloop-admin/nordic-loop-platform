@@ -336,14 +336,21 @@ class AdService:
             return None
             
     def update_company_address(self, address_id: int, company_id: int, address_data: dict):
-        """
-        Update an existing address for a company
-        """
+        """Update an existing address for a company"""
         try:
             result = self.repository.update_company_address(address_id, company_id, address_data)
-            if result.success:
-                return result.data
-            return None
+            if not result.success:
+                return None
+            return result.data
         except Exception as e:
             logging_service.log_error(e)
             return None
+            
+    def delete_company_address(self, address_id: int, company_id: int):
+        """Delete an address for a company"""
+        try:
+            result = self.repository.delete_company_address(address_id, company_id)
+            return result.success
+        except Exception as e:
+            logging_service.log_error(e)
+            return False

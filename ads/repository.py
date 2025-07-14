@@ -795,3 +795,27 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to update address", None)
+            
+    def delete_company_address(self, address_id: int, company_id: int) -> RepositoryResponse:
+        """
+        Delete an address for a company
+        """
+        try:
+            # First get the address to ensure it belongs to the company
+            address = Address.objects.filter(id=address_id, company_id=company_id).first()
+            
+            if not address:
+                return RepositoryResponse(False, "Address not found or does not belong to this company", None)
+            
+            # Store address details for response
+            address_type = address.type
+            address_city = address.city
+            
+            # Delete the address
+            address.delete()
+            
+            return RepositoryResponse(True, f"{address_type} address in {address_city} deleted successfully", None)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to delete address", None)
