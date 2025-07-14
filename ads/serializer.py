@@ -362,8 +362,8 @@ class AdStep8Serializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_description(self, value):
-        if not value or len(value.strip()) < 50:
-            raise serializers.ValidationError("Description must be at least 50 characters long.")
+        if not value or len(value.strip()) < 30:
+            raise serializers.ValidationError("Description must be at least 30 characters long.")
         return value.strip()
     
     def validate_material_image(self, value):
