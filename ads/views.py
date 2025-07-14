@@ -30,18 +30,31 @@ class AdStepView(APIView):
     """Handle step-by-step ad creation and updates"""
     permission_classes = [IsAuthenticated]
 
-    def get_serializer_class(self, step):
+    def get_serializer_class(self, step, ad=None):
         """Return the appropriate serializer for each step"""
-        serializers = {
-            1: AdStep1Serializer,
-            2: AdStep2Serializer,
-            3: AdStep3Serializer,
-            4: AdStep4Serializer,
-            5: AdStep5Serializer,
-            6: AdStep6Serializer,
-            7: AdStep7Serializer,
-            8: AdStep8Serializer,
-        }
+        # Check if this is a plastic material (category_id 1 is assumed to be plastic)
+        is_plastic = ad and ad.category and ad.category.id == 1
+        
+        if is_plastic:
+            # Full pathway for plastics
+            serializers = {
+                1: AdStep1Serializer,
+                2: AdStep2Serializer,
+                3: AdStep3Serializer,
+                4: AdStep4Serializer,
+                5: AdStep5Serializer,
+                6: AdStep6Serializer,
+                7: AdStep7Serializer,
+                8: AdStep8Serializer,
+            }
+        else:
+            # Shortened pathway for other materials
+            serializers = {
+                1: AdStep1Serializer,
+                2: AdStep6Serializer,  # Location & Logistics (was step 6)
+                3: AdStep7Serializer,  # Quantity & Price (was step 7)
+                4: AdStep8Serializer,  # Image & Description (was step 8)
+            }
         return serializers.get(step)
 
     def post(self, request, step, ad_id=None):
@@ -83,16 +96,20 @@ class AdStepView(APIView):
         try:
             if not ad_id:
                 return Response({"error": "Ad ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-                
-            if step < 1 or step > 8:
-                return Response({"error": "Invalid step. Must be between 1 and 8."}, 
-                              status=status.HTTP_400_BAD_REQUEST)
-
+            
             ad = ad_service.get_ad_by_id(ad_id, request.user)
             if not ad:
                 return Response({"error": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
+                
+            # Check if this is a plastic material (category_id 1 is assumed to be plastic)
+            is_plastic = ad.category and ad.category.id == 1
+            max_step = 8 if is_plastic else 4
+                
+            if step < 1 or step > max_step:
+                return Response({"error": f"Invalid step. Must be between 1 and {max_step}."}, 
+                              status=status.HTTP_400_BAD_REQUEST)
 
-            serializer_class = self.get_serializer_class(step)
+            serializer_class = self.get_serializer_class(step, ad)
             if not serializer_class:
                 return Response({"error": "Invalid step"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -112,13 +129,24 @@ class AdStepView(APIView):
     def put(self, request, ad_id, step):
         """Update specific step (for steps 1-8)"""
         try:
-            if step < 1 or step > 8:
-                return Response({"error": "Invalid step. Must be between 1 and 8."}, 
+            ad = ad_service.get_ad_by_id(ad_id, request.user)
+            if not ad:
+                return Response({"error": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
+                
+            # Check if this is a plastic material (category_id 1 is assumed to be plastic)
+            is_plastic = ad.category and ad.category.id == 1
+            max_step = 8 if is_plastic else 4
+                
+            if step < 1 or step > max_step:
+                return Response({"error": f"Invalid step. Must be between 1 and {max_step}."}, 
                               status=status.HTTP_400_BAD_REQUEST)
+
+            serializer_class = self.get_serializer_class(step, ad)
+            if not serializer_class:
+                return Response({"error": "Invalid step"}, status=status.HTTP_400_BAD_REQUEST)
 
             ad = ad_service.update_ad_step(ad_id, step, request.data, request.FILES, request.user)
             
-            serializer_class = self.get_serializer_class(step)
             serializer = serializer_class(ad)
             
             response_data = {
