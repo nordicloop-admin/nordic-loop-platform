@@ -268,12 +268,12 @@ class Ad(models.Model):
                 8: bool(self.title and self.description),
             }
         else:
-            # Shortened pathway for other materials
+            # Shortened pathway for other materials - keeping original step numbers
             return {
                 1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
-                2: bool(self.location and self.delivery_options),  # Location & Logistics (was step 6)
-                3: bool(self.available_quantity and self.starting_bid_price and self.currency),  # Quantity & Price (was step 7)
-                4: bool(self.title and self.description),  # Image & Description (was step 8)
+                6: bool(self.location and self.delivery_options),  # Location & Logistics
+                7: bool(self.available_quantity and self.starting_bid_price and self.currency),  # Quantity & Price
+                8: bool(self.title and self.description),  # Image & Description
             }
 
     def is_step_complete(self, step_number):
@@ -287,13 +287,13 @@ class Ad(models.Model):
         is_plastic = self.category and self.category.id == 1
         
         if is_plastic:
-            # Full pathway for plastics (8 steps)
-            max_step = 9
+            # Full pathway for plastics (steps 1-8)
+            steps_to_check = range(1, 9)
         else:
-            # Shortened pathway for other materials (4 steps)
-            max_step = 5
+            # Shortened pathway for other materials (steps 1, 6, 7, 8)
+            steps_to_check = [1, 6, 7, 8]
             
-        for step in range(1, max_step):
+        for step in steps_to_check:
             if not status.get(step, False):
                 return step
         return None
