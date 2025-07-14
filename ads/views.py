@@ -33,7 +33,7 @@ class AdStepView(APIView):
     def get_serializer_class(self, step, ad=None):
         """Return the appropriate serializer for each step"""
         # Check if this is a plastic material (category_id 1 is assumed to be plastic)
-        is_plastic = ad and ad.category and ad.category.id == 1
+        is_plastic = ad and ad.category and ad.category.name.lower() in ['plastic', 'plastics']
         
         if is_plastic:
             # Full pathway for plastics
@@ -59,12 +59,19 @@ class AdStepView(APIView):
         
     def validate_step(self, step, ad):
         """Validate step number based on material category"""
-        # Check if this is a plastic material (category_id 1 is assumed to be plastic)
-        is_plastic = ad and ad.category and ad.category.id == 1
-        
+        # Check if this is a plastic material by ID or name
+        is_plastic = False
+        if ad and ad.category:
+           
+            # Check by name (case-insensitive)
+            if ad.category.name.lower() in ['plastic', 'plastics']:
+                is_plastic = True
+       
         if is_plastic:
+            
             # For plastics, steps are 1-8
             if step < 1 or step > 8:
+                
                 return Response({
                     "error": "Invalid step. For plastics, must be between 1 and 8."
                 }, status=status.HTTP_400_BAD_REQUEST)
@@ -75,6 +82,7 @@ class AdStepView(APIView):
                 return Response({
                     "error": "Invalid step. For this material type, valid steps are 1, 6, 7, and 8."
                 }, status=status.HTTP_400_BAD_REQUEST)
+        
         
         return None  # No error
 
