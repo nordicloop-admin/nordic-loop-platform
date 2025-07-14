@@ -300,27 +300,23 @@ class Ad(models.Model):
 
 class Subscription(models.Model):
     PLAN_CHOICES = [
-        ("basic", "Basic"),
+        ("free", "Free"),
+        ("standard", "Standard"),
         ("premium", "Premium"),
-        ("enterprise", "Enterprise"),
     ]
     STATUS_CHOICES = [
         ("active", "Active"),
         ("expired", "Expired"),
         ("payment_failed", "Payment Failed"),
     ]
-    PAYMENT_METHOD_CHOICES = [
-        ("credit_card", "Credit Card"),
-        ("invoice", "Invoice"),
-        ("paypal", "PayPal"),
-    ]
+    # Payment method choices removed as per request
     company = models.ForeignKey('company.Company', on_delete=models.CASCADE, related_name='subscriptions')
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     start_date = models.DateField()
     end_date = models.DateField()
     auto_renew = models.BooleanField(default=True)
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    # payment_method field removed as per request
     last_payment = models.DateField()
     amount = models.CharField(max_length=50)
     contact_name = models.CharField(max_length=255)

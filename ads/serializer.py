@@ -886,7 +886,6 @@ class AdminSubscriptionListSerializer(serializers.ModelSerializer):
     startDate = serializers.DateField(source='start_date', read_only=True)
     endDate = serializers.DateField(source='end_date', read_only=True)
     autoRenew = serializers.BooleanField(source='auto_renew', read_only=True)
-    paymentMethod = serializers.CharField(source='payment_method', read_only=True)
     lastPayment = serializers.DateField(source='last_payment', read_only=True)
     contactName = serializers.CharField(source='contact_name', read_only=True)
     contactEmail = serializers.EmailField(source='contact_email', read_only=True)
@@ -902,7 +901,6 @@ class AdminSubscriptionListSerializer(serializers.ModelSerializer):
             'startDate',
             'endDate',
             'autoRenew',
-            'paymentMethod',
             'lastPayment',
             'amount',
             'contactName',
@@ -924,7 +922,6 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
     """
     plan_display = serializers.CharField(source='get_plan_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
     start_date = serializers.DateField(read_only=True)
     end_date = serializers.DateField(read_only=True)
     auto_renew = serializers.BooleanField(read_only=True)
@@ -941,8 +938,6 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
             'start_date',
             'end_date',
             'auto_renew',
-            'payment_method',
-            'payment_method_display',
             'last_payment',
             'amount',
             'contact_name',
@@ -959,7 +954,6 @@ class UpdateUserSubscriptionSerializer(serializers.ModelSerializer):
         fields = [
             'plan',
             'auto_renew',
-            'payment_method',
             'contact_name',
             'contact_email'
         ]
@@ -969,13 +963,6 @@ class UpdateUserSubscriptionSerializer(serializers.ModelSerializer):
         valid_plans = [choice[0] for choice in Subscription.PLAN_CHOICES]
         if value not in valid_plans:
             raise serializers.ValidationError(f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
-        return value
-        
-    def validate_payment_method(self, value):
-        """Ensure payment method is valid"""
-        valid_methods = [choice[0] for choice in Subscription.PAYMENT_METHOD_CHOICES]
-        if value not in valid_methods:
-            raise serializers.ValidationError(f"Invalid payment method. Must be one of: {', '.join(valid_methods)}")
         return value
 
 
