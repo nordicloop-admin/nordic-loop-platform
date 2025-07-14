@@ -69,14 +69,12 @@ class SubscriptionAdmin(admin.ModelAdmin):
         'start_date',
         'end_date',
         'auto_renew',
-        'payment_method',
         'amount'
     )
     
     list_filter = (
         'plan',
         'status',
-        'payment_method',
         'auto_renew',
         'start_date',
         'end_date'
@@ -99,7 +97,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
             'fields': ('plan', 'status', 'start_date', 'end_date', 'auto_renew')
         }),
         ('Payment Information', {
-            'fields': ('payment_method', 'last_payment', 'amount')
+            'fields': ('last_payment', 'amount')
         }),
         ('Contact Information', {
             'fields': ('contact_name', 'contact_email')
