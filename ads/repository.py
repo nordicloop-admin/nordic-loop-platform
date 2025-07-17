@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import Ad, Location, Address, Subscription
+from company.models import Company
 from .serializer import (
     AdCreateSerializer, AdStep1Serializer, AdStep2Serializer, AdStep3Serializer,
     AdStep4Serializer, AdStep5Serializer, AdStep6Serializer, AdStep7Serializer,
@@ -707,6 +708,28 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to retrieve company subscription", None)
+            
+    def create_subscription(self, company_id: int, subscription_data: dict) -> RepositoryResponse:
+        """
+        Create a new subscription for a company
+        """
+        try:
+            # Get the company
+            company = Company.objects.get(id=company_id)
+            
+            # Create the subscription with the company and provided data
+            subscription = Subscription.objects.create(
+                company=company,
+                **subscription_data
+            )
+            
+            return RepositoryResponse(True, "Subscription created successfully", subscription)
+
+        except Company.DoesNotExist:
+            return RepositoryResponse(False, "Company not found", None)
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to create subscription", None)
             
     def get_company_addresses(self, company_id: int) -> RepositoryResponse:
         """

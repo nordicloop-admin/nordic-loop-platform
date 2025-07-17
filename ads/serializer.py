@@ -966,6 +966,48 @@ class UpdateUserSubscriptionSerializer(serializers.ModelSerializer):
         return value
 
 
+class CreateSubscriptionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a new subscription
+    """
+    class Meta:
+        model = Subscription
+        fields = [
+            'plan',
+            'status',
+            'start_date',
+            'end_date',
+            'auto_renew',
+            'last_payment',
+            'amount',
+            'contact_name',
+            'contact_email'
+        ]
+        
+    def validate_plan(self, value):
+        """Ensure plan is valid"""
+        valid_plans = [choice[0] for choice in Subscription.PLAN_CHOICES]
+        if value not in valid_plans:
+            raise serializers.ValidationError(f"Invalid plan. Must be one of: {', '.join(valid_plans)}")
+        return value
+        
+    def validate_status(self, value):
+        """Ensure status is valid"""
+        valid_statuses = [choice[0] for choice in Subscription.STATUS_CHOICES]
+        if value not in valid_statuses:
+            raise serializers.ValidationError(f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+        return value
+        
+    def validate(self, data):
+        """Validate the data"""
+        # Ensure end_date is after start_date
+        if 'start_date' in data and 'end_date' in data:
+            if data['end_date'] <= data['start_date']:
+                raise serializers.ValidationError({"end_date": "End date must be after start date"})
+                
+        return data
+
+
 class UserAddressSerializer(serializers.ModelSerializer):
     """
     Serializer for retrieving the logged-in user's company addresses

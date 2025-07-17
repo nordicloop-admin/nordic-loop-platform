@@ -16,7 +16,7 @@ from .serializer import (
     AdminAuctionListSerializer, AdminAuctionDetailSerializer,
     AdminAddressListSerializer, AdminAddressDetailSerializer,
     AdminSubscriptionListSerializer, AdminSubscriptionDetailSerializer,
-    UserSubscriptionSerializer, UpdateUserSubscriptionSerializer,
+    UserSubscriptionSerializer, UpdateUserSubscriptionSerializer, CreateSubscriptionSerializer,
     UserAddressSerializer, CreateAddressSerializer, UpdateAddressSerializer
 )
 from users.models import User
@@ -768,8 +768,9 @@ class AdminSubscriptionDetailView(APIView):
 
 class UserSubscriptionView(APIView):
     """
-    Endpoint for retrieving the logged-in user's subscription
+    Endpoint for retrieving and creating the logged-in user's subscription
     GET /api/ads/user/subscription/
+    POST /api/ads/user/subscription/
     """
     permission_classes = [IsAuthenticated]
     
@@ -800,6 +801,56 @@ class UserSubscriptionView(APIView):
         except Exception as e:
             return Response({
                 'error': 'Failed to retrieve user subscription',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    def post(self, request):
+        try:
+            # Get the user's company
+            user = request.user
+            if not user.company:
+                return Response({
+                    'error': 'User is not associated with any company'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Check if the company already has a subscription
+            existing_subscription = ad_service.get_company_subscription(user.company.id)
+            if existing_subscription:
+                return Response({
+                    'error': 'Company already has an active subscription',
+                    'subscription_id': existing_subscription.id
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate and create the subscription
+            serializer = CreateSubscriptionSerializer(data=request.data)
+            
+            if serializer.is_valid():
+                # Create the subscription
+                subscription, error_message = ad_service.create_subscription(
+                    user.company.id, 
+                    serializer.validated_data
+                )
+                
+                if subscription:
+                    response_serializer = UserSubscriptionSerializer(subscription)
+                    return Response({
+                        'message': 'Subscription created successfully',
+                        'subscription': response_serializer.data
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    return Response({
+                        'error': 'Failed to create subscription',
+                        'detail': error_message
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    'error': 'Invalid data provided',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({
+                'error': 'Failed to create subscription',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

@@ -296,6 +296,22 @@ class AdService:
             logging_service.log_error(e)
             return None
             
+    def create_subscription(self, company_id: int, subscription_data: dict):
+        """
+        Create a new subscription for a company
+        Returns a tuple of (subscription, error_message)
+        If successful, subscription will be the Subscription object and error_message will be None
+        If failed, subscription will be None and error_message will contain the error
+        """
+        try:
+            result = self.repository.create_subscription(company_id, subscription_data)
+            if result.success:
+                return result.data, None
+            return None, result.message
+        except Exception as e:
+            logging_service.log_error(e)
+            return None, str(e)
+            
     def get_company_addresses(self, company_id: int) -> List:
         """
         Get all addresses for a company
