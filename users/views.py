@@ -6,9 +6,10 @@ from company.models import Company
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer, UserProfileSerializer, PasswordChangeSerializer
+from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer, UserProfileSerializer, PasswordChangeSerializer, UserCompanyNameSerializer
 from users.repository.user_repository import UserRepository
 from users.services.user_service import UserService
+from django.db.models import Q
 
 # Initialize repository and service
 repository = UserRepository()
@@ -256,5 +257,45 @@ class PasswordChangeView(APIView):
         except Exception as e:
             return Response({
                 'error': 'Failed to update password',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserCompanySearchView(APIView):
+    """
+    Endpoint for retrieving user names and their companies with search functionality
+    GET /api/users/search/
+    """
+    permission_classes = [AllowAny]  # Allow anyone to search users and companies
+    
+    def get(self, request):
+        try:
+            # Get search query parameter
+            search_query = request.query_params.get('query', None)
+            
+            # Initialize queryset
+            queryset = User.objects.select_related('company').all()
+            
+            if search_query:
+                # If search query exists, filter by user name or company name
+                queryset = queryset.filter(
+                    Q(name__icontains=search_query) | 
+                    Q(company__official_name__icontains=search_query)
+                )
+            else:
+                # If no query provided, return recent 10 users
+                queryset = queryset.order_by('-date_joined')[:10]
+            
+            # Serialize the data
+            serializer = UserCompanyNameSerializer(queryset, many=True)
+            
+            return Response({
+                'results': serializer.data,
+                'count': len(serializer.data)
+            }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            return Response({
+                'error': 'Failed to retrieve users and companies',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
