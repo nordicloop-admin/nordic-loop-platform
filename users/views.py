@@ -6,7 +6,7 @@ from company.models import Company
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer, UserProfileSerializer
+from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer, UserProfileSerializer, PasswordChangeSerializer
 from users.repository.user_repository import UserRepository
 from users.services.user_service import UserService
 
@@ -220,5 +220,41 @@ class UserProfileView(APIView):
         except Exception as e:
             return Response({
                 'error': 'Failed to update user profile',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PasswordChangeView(APIView):
+    """
+    Endpoint for changing the password of the logged-in user
+    POST /api/users/change-password/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            # Create serializer with request context
+            serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
+            
+            if serializer.is_valid():
+                # Get the current user
+                user = request.user
+                
+                # Set the new password
+                user.set_password(serializer.validated_data['new_password'])
+                user.save()
+                
+                return Response({
+                    'message': 'Password updated successfully'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Invalid data provided',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({
+                'error': 'Failed to update password',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

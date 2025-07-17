@@ -1,6 +1,7 @@
 # users/serializers.py
 from rest_framework import serializers
 from .models import User
+import re
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -91,3 +92,48 @@ class UserProfileSerializer(serializers.ModelSerializer):
             validated_data['name'] = f"{first_name} {last_name}".strip()
             
         return super().update(instance, validated_data)
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Serializer for password change endpoint
+    """
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+    
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+    
+    def validate_new_password(self, value):
+        # Check password length
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        
+        # Check for uppercase letter
+        if not any(char.isupper() for char in value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        
+        # Check for number
+        if not any(char.isdigit() for char in value):
+            raise serializers.ValidationError("Password must contain at least one number.")
+        
+        # Check for special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', value):
+            raise serializers.ValidationError("Password must contain at least one special character.")
+        
+        return value
+    
+    def validate(self, data):
+        # Check if new password and confirm password match
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "New password and confirm password do not match."})
+        
+        # Check if new password is different from current password
+        if data['new_password'] == data['current_password']:
+            raise serializers.ValidationError({"new_password": "New password must be different from current password."})
+        
+        return data
