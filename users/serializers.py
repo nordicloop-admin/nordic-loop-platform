@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from .models import User
 import re
+from django.utils import timezone
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -137,3 +138,25 @@ class PasswordChangeSerializer(serializers.Serializer):
             raise serializers.ValidationError({"new_password": "New password must be different from current password."})
         
         return data
+
+
+class UserCompanyNameSerializer(serializers.ModelSerializer):
+    """
+    Serializer for retrieving only user names and their company names
+    """
+    company_name = serializers.CharField(source='company.official_name', read_only=True)
+    registration_date = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'company_name', 'registration_date']
+    
+    def get_registration_date(self, obj):
+        """
+        Get registration date from user or company, whichever is available
+        """
+        if obj.date_joined:
+            return obj.date_joined
+        elif obj.company and obj.company.registration_date:
+            return obj.company.registration_date
+        return timezone.now()

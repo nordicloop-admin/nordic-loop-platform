@@ -78,7 +78,13 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """
         Create a new notification (admin only)
         """
-        serializer = CreateNotificationSerializer(data=request.data)
+        data = request.data.copy()
+        
+        # Handle userId parameter if present
+        if 'userId' in data and not 'user' in data:
+            data['user'] = data.pop('userId')
+            
+        serializer = CreateNotificationSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
