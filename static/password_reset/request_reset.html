@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password - Nordic Loop</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="logo-container">
+            <img src="/static/img/logo.png" alt="Nordic Loop Logo" class="logo" onerror="this.src='https://via.placeholder.com/150x50?text=Nordic+Loop'">
+        </div>
+
+        <div class="step-indicator">
+            <div class="step active">
+                1
+                <span class="step-text">Email</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                2
+                <span class="step-text">Verify</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                3
+                <span class="step-text">Reset</span>
+            </div>
+        </div>
+
+        <h1>Forgot Password</h1>
+        <p>Enter your email address and we'll send you an OTP to reset your password.</p>
+
+        <form id="requestResetForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+                <div id="emailError" class="error-message"></div>
+            </div>
+
+            <button type="submit" id="submitBtn">Send Reset OTP</button>
+            <div id="successMessage" class="success-message"></div>
+        </form>
+
+        <a href="/login" class="back-link">Back to Login</a>
+    </div>
+
+    <script src="request_reset.js"></script>
+</body>
+</html>

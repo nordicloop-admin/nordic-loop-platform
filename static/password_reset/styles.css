@@ -1,0 +1,240 @@
+/* Password Reset Styles */
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2980b9;
+  --error-color: #e74c3c;
+  --success-color: #2ecc71;
+  --text-color: #333;
+  --light-gray: #f5f5f5;
+  --border-color: #ddd;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--light-gray);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.container {
+  width: 100%;
+  max-width: 450px;
+  padding: 30px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.logo {
+  max-width: 150px;
+  height: auto;
+}
+
+h1 {
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 16px;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: var(--secondary-color);
+}
+
+button:disabled {
+  background-color: var(--border-color);
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: var(--error-color);
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.success-message {
+  color: var(--success-color);
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.back-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.otp-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.otp-input {
+  width: 50px;
+  height: 50px;
+  text-align: center;
+  font-size: 24px;
+}
+
+.timer {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.resend-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.resend-link:hover {
+  text-decoration: underline;
+}
+
+.resend-link.disabled {
+  color: var(--border-color);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.password-requirements {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.requirement-icon {
+  margin-right: 8px;
+  color: var(--border-color);
+}
+
+.requirement.valid .requirement-icon {
+  color: var(--success-color);
+}
+
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.step {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 15px;
+  position: relative;
+}
+
+.step.active {
+  background-color: var(--primary-color);
+}
+
+.step.completed {
+  background-color: var(--success-color);
+}
+
+.step-line {
+  height: 2px;
+  background-color: var(--border-color);
+  flex-grow: 1;
+  margin-top: 15px;
+}
+
+.step-line.active {
+  background-color: var(--primary-color);
+}
+
+.step-text {
+  position: absolute;
+  top: 35px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-color);
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 20px;
+    margin: 0 15px;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
+  
+  .otp-input {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+}
