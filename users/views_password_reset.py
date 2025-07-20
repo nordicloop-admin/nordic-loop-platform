@@ -3,14 +3,22 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
-from django.conf import settings
 from django.utils import timezone
+from django.conf import settings
+from mailjet_rest import Client
+import os
+import json
 from .models import PasswordResetOTP
 
 User = get_user_model()
 
 # OTP and token generation is now handled by the PasswordResetOTP model
+
+# Mailjet configuration
+MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY', '')
+MAILJET_SECRET_KEY = os.environ.get('MAILJET_SECRET_KEY', '')
+MAILJET_SENDER_EMAIL = os.environ.get('MAILJET_SENDER_EMAIL', settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@nordicloop.com')
+MAILJET_SENDER_NAME = os.environ.get('MAILJET_SENDER_NAME', 'Nordic Loop')
 
 class RequestPasswordResetView(APIView):
     """
@@ -41,24 +49,61 @@ class RequestPasswordResetView(APIView):
             # Generate OTP using our model
             otp_obj = PasswordResetOTP.generate_otp(email)
             
-            # Send email with OTP
-            subject = 'Nordic Loop - Password Reset OTP'
-            message = f'Your OTP for password reset is: {otp_obj.otp}\n\nThis OTP will expire in 30 minutes.'
-            from_email = settings.DEFAULT_FROM_EMAIL
-            recipient_list = [email]
-            
-            send_mail(subject, message, from_email, recipient_list)
-            
-            return Response({
-                'message': 'Password reset OTP has been sent to your email',
-                'success': True
-            }, status=status.HTTP_200_OK)
+            # Send email with OTP using Mailjet
+            try:
+                self.send_otp_email(email, otp_obj.otp)
+                return Response({
+                    'message': 'Password reset OTP has been sent to your email',
+                    'success': True
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                # Log the error but don't expose details to the client
+                print(f"Error sending email via Mailjet: {str(e)}")
+                return Response({
+                    'message': 'Failed to send OTP email. Please try again later.',
+                    'success': False
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
         except Exception as e:
             return Response({
                 'error': 'Failed to process password reset request',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    def send_otp_email(self, email, otp):
+        """Send OTP email using Mailjet"""
+        if not MAILJET_API_KEY or not MAILJET_SECRET_KEY:
+            raise Exception("Mailjet API credentials not configured")
+            
+        mailjet = Client(auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), version='v3.1')
+        
+        data = {
+            'Messages': [
+                {
+                    "From": {
+                        "Email": MAILJET_SENDER_EMAIL,
+                        "Name": MAILJET_SENDER_NAME
+                    },
+                    "To": [
+                        {
+                            "Email": email,
+                            "Name": email.split('@')[0]  # Use part before @ as name
+                        }
+                    ],
+                    "Subject": "Nordic Loop - Password Reset OTP",
+                    "TextPart": f"Your OTP for password reset is: {otp}\n\nThis OTP will expire in 30 minutes.",
+                    "HTMLPart": f"<h3>Password Reset OTP</h3><p>Your OTP for password reset is: <strong>{otp}</strong></p><p>This OTP will expire in 30 minutes.</p>"
+                }
+            ]
+        }
+        
+        result = mailjet.send.create(data=data)
+        
+        # Check if the email was sent successfully
+        if result.status_code != 200:
+            raise Exception(f"Failed to send email: {result.reason}")
+            
+        return result
 
 
 class VerifyOtpView(APIView):
