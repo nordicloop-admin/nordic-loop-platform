@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import ContactSignupView, ContactLoginView, ListUsersView, AdminUserListView, AdminUserDetailView, UserProfileView, PasswordChangeView, UserCompanySearchView
+from .views_password_reset import RequestPasswordResetView, VerifyOtpView, ResetPasswordView
 
 urlpatterns = [
     path("signup/", ContactSignupView.as_view(), name="contact-signup"),
@@ -8,6 +9,11 @@ urlpatterns = [
     path("profile/", UserProfileView.as_view(), name="user-profile"),
     path("change-password/", PasswordChangeView.as_view(), name="change-password"),
     path("search/", UserCompanySearchView.as_view(), name="user-company-search"),
+    
+    # Password reset endpoints
+    path("request-password-reset/", RequestPasswordResetView.as_view(), name="request-password-reset"),
+    path("verify-otp/", VerifyOtpView.as_view(), name="verify-otp"),
+    path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     
     # Admin endpoints
     path("admin/users/", AdminUserListView.as_view(), name="admin-user-list"),
