@@ -16,7 +16,6 @@ from ads.services import AdService
 from ads.repository import AdRepository
 from users.models import User
 
-    """Test the ad update functionality"""
     
     print("🧪 Testing Ad Update Functionality")
     print("=" * 50)
