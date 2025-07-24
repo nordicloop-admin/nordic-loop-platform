@@ -593,9 +593,9 @@ class AdminAuctionDetailView(APIView):
     """
     permission_classes = [IsAdminUser]
 
-    def get(self, request, ad_id):
+    def get(self, request, auction_id):
         try:
-            ad = ad_service.get_ad_by_id(ad_id)
+            ad = ad_service.get_ad_by_id(auction_id)
             if not ad:
                 return Response(
                     {"error": "Auction not found"}, 
