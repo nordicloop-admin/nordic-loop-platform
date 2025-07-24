@@ -165,9 +165,34 @@ class AdService:
         """Deactivate an ad"""
         try:
             response = self.repository.deactivate_ad(ad_id, user)
-            if not response.success or not response.data:
-                raise ValueError(response.message)
-            return response.data
+            if response.success:
+                return response.data
+            else:
+                raise Exception(response.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def admin_approve_ad(self, ad_id: int, admin_user: User) -> Ad:
+        """Admin approval for an ad"""
+        try:
+            response = self.repository.admin_approve_ad(ad_id, admin_user)
+            if response.success:
+                return response.data
+            else:
+                raise Exception(response.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
+
+    def admin_suspend_ad(self, ad_id: int, admin_user: User) -> Ad:
+        """Admin suspension for an ad"""
+        try:
+            response = self.repository.admin_suspend_ad(ad_id, admin_user)
+            if response.success:
+                return response.data
+            else:
+                raise Exception(response.message)
         except Exception as e:
             logging_service.log_error(e)
             raise e

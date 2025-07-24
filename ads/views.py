@@ -465,21 +465,62 @@ class AdDeactivateView(APIView):
         """Deactivate/unpublish an ad to make it invisible and stop bidding"""
         try:
             ad = ad_service.deactivate_ad(ad_id, request.user)
-            
+
             return Response({
                 "message": "Ad deactivated successfully and is no longer visible for bidding",
-                "ad": {
-                    "id": ad.id,
-                    "title": ad.title,
-                    "is_active": ad.is_active,
-                    "is_complete": ad.is_complete
-                }
+                "ad": AdSerializer(ad).data
             }, status=status.HTTP_200_OK)
 
-        except ValueError as ve:
-            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+
         except Exception as e:
+            logging_service.log_error(e)
             return Response({"error": "Failed to deactivate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminAdApproveView(APIView):
+    """Admin endpoint to approve an ad"""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, ad_id):
+        """Approve an ad as an administrator"""
+        try:
+            ad = ad_service.admin_approve_ad(ad_id, request.user)
+
+            return Response({
+                "message": "Ad approved successfully by administrator",
+                "ad": AdSerializer(ad).data
+            }, status=status.HTTP_200_OK)
+
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({"error": "Failed to approve ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminAdSuspendView(APIView):
+    """Admin endpoint to suspend an ad"""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, ad_id):
+        """Suspend an ad as an administrator"""
+        try:
+            ad = ad_service.admin_suspend_ad(ad_id, request.user)
+
+            return Response({
+                "message": "Ad suspended successfully by administrator",
+                "ad": AdSerializer(ad).data
+            }, status=status.HTTP_200_OK)
+
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return Response({"error": "Failed to suspend ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminAuctionListView(APIView):

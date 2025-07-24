@@ -6,7 +6,8 @@ from ads.views import (
     AdminAddressListView, AdminAddressDetailView, AdminAddressVerifyView,
     AdminSubscriptionListView, AdminSubscriptionDetailView,
     UserSubscriptionView, UpdateUserSubscriptionView,
-    UserAddressListView, UserAddressDetailView
+    UserAddressListView, UserAddressDetailView,
+    AdminAdApproveView, AdminAdSuspendView
 )
 
 urlpatterns = [
@@ -34,9 +35,11 @@ urlpatterns = [
     path("user/", UserAdsView.as_view(), name="user-ads"),
     path("user/count/", UserAdsCountView.as_view(), name="user-ads-count"),
     
-    # Admin auction endpoints
-    path("admin/auctions/", AdminAuctionListView.as_view(), name="admin-auction-list"),
-    path("admin/auctions/<int:ad_id>/", AdminAuctionDetailView.as_view(), name="admin-auction-detail"),
+    # Admin endpoints
+    path('admin/auctions/', AdminAuctionListView.as_view(), name='admin-auction-list'),
+    path('admin/auctions/<int:auction_id>/', AdminAuctionDetailView.as_view(), name='admin-auction-detail'),
+    path('admin/ads/<int:ad_id>/approve/', AdminAdApproveView.as_view(), name='admin-ad-approve'),
+    path('admin/ads/<int:ad_id>/suspend/', AdminAdSuspendView.as_view(), name='admin-ad-suspend'),
     
     # Admin address endpoints
     path("admin/addresses/", AdminAddressListView.as_view(), name="admin-address-list"),
