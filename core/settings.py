@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'ads',
     'bids',
     'notifications.apps.NotificationsConfig',
+    'category_subscriptions',
    
 ]
 AUTH_USER_MODEL = 'users.User'

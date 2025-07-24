@@ -342,6 +342,10 @@ class AdRepository:
 
             if not ad.is_complete:
                 return RepositoryResponse(False, "Ad must be complete before activation", None)
+            
+            # Check if the ad is suspended by admin
+            if ad.status == 'suspended':
+                return RepositoryResponse(False, "This ad has been suspended by an administrator and cannot be activated", None)
 
             ad.is_active = True
             ad.auction_start_date = timezone.now()
@@ -373,6 +377,53 @@ class AdRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to deactivate ad", None)
+
+    def admin_approve_ad(self, ad_id: int, admin_user: User) -> RepositoryResponse:
+        """Admin approval for an ad"""
+        try:
+            # Verify the user is an admin
+            if not admin_user.is_staff and not admin_user.is_superuser:
+                return RepositoryResponse(False, "Only administrators can approve ads", None)
+            
+            # Get the ad regardless of owner
+            ad = Ad.objects.filter(id=ad_id).first()
+            if not ad:
+                return RepositoryResponse(False, "Ad not found", None)
+            
+            # Update the ad status
+            ad.status = 'active'
+            ad.suspended_by_admin = False
+            ad.save()
+        
+            return RepositoryResponse(True, "Ad approved by administrator", ad)
+        
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to approve ad", None)
+
+    def admin_suspend_ad(self, ad_id: int, admin_user: User) -> RepositoryResponse:
+        """Admin suspension for an ad"""
+        try:
+            # Verify the user is an admin
+            if not admin_user.is_staff and not admin_user.is_superuser:
+                return RepositoryResponse(False, "Only administrators can suspend ads", None)
+            
+            # Get the ad regardless of owner
+            ad = Ad.objects.filter(id=ad_id).first()
+            if not ad:
+                return RepositoryResponse(False, "Ad not found", None)
+            
+            # Update the ad status
+            ad.status = 'suspended'
+            ad.suspended_by_admin = True
+            ad.is_active = False  # Also deactivate the ad
+            ad.save()
+        
+            return RepositoryResponse(True, "Ad suspended by administrator", ad)
+        
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, "Failed to suspend ad", None)
 
     def get_ads_by_category(self, category_id: int) -> RepositoryResponse:
         """Get all ads in a specific category"""
