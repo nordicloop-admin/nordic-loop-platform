@@ -568,3 +568,90 @@ class BidView(APIView):
     def delete(self, request, bid_id):
         """Legacy delete bid endpoint"""
         return BidDeleteView.as_view()(request, bid_id)
+
+
+class AdminBidApproveView(APIView):
+    """
+    Admin endpoint for approving a bid
+    POST /api/bids/admin/bids/{id}/approve/
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, bid_id):
+        try:
+            result = bid_service.admin_approve_bid(bid_id, request.user)
+            
+            if not result["success"]:
+                return Response(
+                    {"error": result["message"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            return Response(
+                {"message": result["message"]},
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            return Response(
+                {"error": "Failed to approve bid"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminBidRejectView(APIView):
+    """
+    Admin endpoint for rejecting a bid
+    POST /api/bids/admin/bids/{id}/reject/
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, bid_id):
+        try:
+            result = bid_service.admin_reject_bid(bid_id, request.user)
+            
+            if not result["success"]:
+                return Response(
+                    {"error": result["message"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            return Response(
+                {"message": result["message"]},
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            return Response(
+                {"error": "Failed to reject bid"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminBidMarkAsWonView(APIView):
+    """
+    Admin endpoint for marking a bid as won
+    POST /api/bids/admin/bids/{id}/mark-as-won/
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, bid_id):
+        try:
+            result = bid_service.admin_mark_bid_as_won(bid_id, request.user)
+            
+            if not result["success"]:
+                return Response(
+                    {"error": result["message"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            return Response(
+                {"message": result["message"]},
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            return Response(
+                {"error": "Failed to mark bid as won"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

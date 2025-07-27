@@ -344,8 +344,8 @@ class AdRepository:
                 return RepositoryResponse(False, "Ad must be complete before activation", None)
             
             # Check if the ad is suspended by admin
-            if ad.status == 'suspended':
-                return RepositoryResponse(False, "This ad has been suspended by an administrator and cannot be activated", None)
+            if ad.status == 'suspended' and ad.suspended_by_admin:
+                return RepositoryResponse(False, "This ad has been suspended by an administrator and cannot be activated. Please contact support for assistance.", None)
 
             ad.is_active = True
             ad.auction_start_date = timezone.now()

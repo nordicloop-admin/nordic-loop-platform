@@ -3,9 +3,12 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from ads.repository import AdRepository
 from ads.services import AdService
 from ads.models import Ad
@@ -21,9 +24,11 @@ from .serializer import (
 )
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
+from base.services.logging import LoggingService
 
 ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
+logging_service = LoggingService()
 
 
 class AdStepView(APIView):
@@ -480,47 +485,107 @@ class AdDeactivateView(APIView):
 
 
 class AdminAdApproveView(APIView):
-    """Admin endpoint to approve an ad"""
+    """
+    Admin endpoint to approve/reactivate an ad that was suspended
+    POST /api/ads/admin/ads/{ad_id}/approve/
+
+    This allows admins to:
+    - Approve ads that were suspended for violating regulations
+    - Reactivate ads that were suspended by admin action
+    - Override the suspended_by_admin flag to allow normal user activation
+    """
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request, ad_id):
-        """Approve an ad as an administrator"""
+        """Approve and reactivate an ad as an administrator"""
         try:
-            ad = ad_service.admin_approve_ad(ad_id, request.user)
+            # Get the ad (admin can access any ad)
+            try:
+                ad = Ad.objects.get(id=ad_id)
+            except Ad.DoesNotExist:
+                return Response({
+                    "error": "Ad not found"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Update the ad to approved/active status
+            ad.status = 'active'
+            ad.suspended_by_admin = False
+            # Note: We don't automatically set is_active=True because the user should control publication
+            ad.save()
+
+            # Log the admin action (using print since LoggingService doesn't have log_info)
+            print(f"[INFO] Admin {request.user.username} approved ad {ad_id}")
 
             return Response({
-                "message": "Ad approved successfully by administrator",
-                "ad": AdSerializer(ad).data
+                "success": True,
+                "message": "Ad approved successfully by administrator. User can now publish it.",
+                "ad": {
+                    "id": ad.id,
+                    "title": ad.title,
+                    "status": ad.status,
+                    "suspended_by_admin": ad.suspended_by_admin,
+                    "is_active": ad.is_active,
+                    "is_complete": ad.is_complete
+                }
             }, status=status.HTTP_200_OK)
 
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
-
         except Exception as e:
-            logging_service.log_error(e)
-            return Response({"error": "Failed to approve ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logging_service.log_error(f"Admin approve ad error: {str(e)}")
+            return Response({
+                "error": "Failed to approve ad"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminAdSuspendView(APIView):
-    """Admin endpoint to suspend an ad"""
+    """
+    Admin endpoint to suspend an ad that violates regulations
+    POST /api/ads/admin/ads/{ad_id}/suspend/
+
+    This allows admins to:
+    - Suspend ads that violate platform regulations
+    - Prevent users from reactivating suspended ads
+    - Immediately deactivate the ad from public view
+    """
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request, ad_id):
         """Suspend an ad as an administrator"""
         try:
-            ad = ad_service.admin_suspend_ad(ad_id, request.user)
+            # Get the ad (admin can access any ad)
+            try:
+                ad = Ad.objects.get(id=ad_id)
+            except Ad.DoesNotExist:
+                return Response({
+                    "error": "Ad not found"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Update the ad to suspended status
+            ad.status = 'suspended'
+            ad.suspended_by_admin = True
+            ad.is_active = False  # Immediately remove from public view
+            ad.save()
+
+            # Log the admin action (using print since LoggingService doesn't have log_info)
+            print(f"[INFO] Admin {request.user.username} suspended ad {ad_id}")
 
             return Response({
-                "message": "Ad suspended successfully by administrator",
-                "ad": AdSerializer(ad).data
+                "success": True,
+                "message": "Ad suspended successfully by administrator. User cannot reactivate until admin approval.",
+                "ad": {
+                    "id": ad.id,
+                    "title": ad.title,
+                    "status": ad.status,
+                    "suspended_by_admin": ad.suspended_by_admin,
+                    "is_active": ad.is_active,
+                    "is_complete": ad.is_complete
+                }
             }, status=status.HTTP_200_OK)
 
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
-
         except Exception as e:
-            logging_service.log_error(e)
-            return Response({"error": "Failed to suspend ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logging_service.log_error(f"Admin suspend ad error: {str(e)}")
+            return Response({
+                "error": "Failed to suspend ad"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminAuctionListView(APIView):
