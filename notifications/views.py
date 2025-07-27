@@ -1,11 +1,23 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from .models import Notification
 from .serializers import NotificationSerializer, CreateNotificationSerializer
 from .permissions import IsAdminUser
+from users.models import User
+from ads.models import Subscription
 import json
+
+
+class NotificationPagination(PageNumberPagination):
+    """
+    Custom pagination for notifications
+    """
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class NotificationViewSet(viewsets.ModelViewSet):
     """
@@ -13,7 +25,24 @@ class NotificationViewSet(viewsets.ModelViewSet):
     """
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = NotificationPagination
     http_method_names = ['get', 'post', 'put', 'delete']
+
+    def _get_users_by_subscription_target(self, subscription_target):
+        """
+        Helper method to get users based on subscription target
+        """
+        if subscription_target == 'all':
+            return User.objects.all()
+
+        # Get companies with the specified subscription plan
+        companies_with_plan = Subscription.objects.filter(
+            plan=subscription_target,
+            status='active'
+        ).values_list('company_id', flat=True)
+
+        # Get users from those companies
+        return User.objects.filter(company_id__in=companies_with_plan)
     
     def get_queryset(self):
         # Regular users can only see their own notifications
@@ -122,9 +151,32 @@ class NotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser], url_path='list-all')
     def list_all(self, request):
         """
-        Get all notifications (admin only)
+        Get all notifications with pagination (admin only)
         """
-        queryset = Notification.objects.all()
+        queryset = Notification.objects.all().order_by('-date')
+
+        # Apply filters if provided
+        notification_type = request.query_params.get('type')
+        priority = request.query_params.get('priority')
+        search = request.query_params.get('search')
+
+        if notification_type:
+            queryset = queryset.filter(type=notification_type)
+
+        if priority:
+            queryset = queryset.filter(priority=priority)
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(message__icontains=search)
+            )
+
+        # Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
@@ -148,16 +200,39 @@ class NotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAdminUser], url_path='broadcast')
     def broadcast(self, request):
         """
-        Create a notification for all users (admin only)
+        Create a notification for users based on subscription target (admin only)
         """
         serializer = CreateNotificationSerializer(data=request.data)
         if serializer.is_valid():
-            # Create a system notification with no specific user (broadcast)
-            notification = serializer.save(user=None)
-            return Response({
-                'success': True,
-                'notification_id': notification.id
-            }, status=status.HTTP_201_CREATED)
+            subscription_target = serializer.validated_data.get('subscription_target', 'all')
+
+            if subscription_target == 'all':
+                # Create a system notification with no specific user (broadcast to all)
+                notification = serializer.save(user=None)
+                return Response({
+                    'success': True,
+                    'notification_id': notification.id,
+                    'target': 'all_users'
+                }, status=status.HTTP_201_CREATED)
+            else:
+                # Create individual notifications for users with specific subscription
+                target_users = self._get_users_by_subscription_target(subscription_target)
+                notifications_created = []
+
+                for user in target_users:
+                    notification_data = serializer.validated_data.copy()
+                    notification = Notification.objects.create(
+                        user=user,
+                        **notification_data
+                    )
+                    notifications_created.append(notification.id)
+
+                return Response({
+                    'success': True,
+                    'notifications_created': len(notifications_created),
+                    'target': subscription_target,
+                    'notification_ids': notifications_created
+                }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['delete'], permission_classes=[IsAdminUser], url_path='delete-broadcast')

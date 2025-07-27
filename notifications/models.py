@@ -27,6 +27,13 @@ class Notification(models.Model):
         ('urgent', 'Urgent'),
     ]
 
+    SUBSCRIPTION_TARGET_CHOICES = [
+        ('all', 'All Users'),
+        ('free', 'Free Plan Users'),
+        ('standard', 'Standard Plan Users'),
+        ('premium', 'Premium Plan Users'),
+    ]
+
     title = models.CharField(max_length=255)
     message = models.TextField()
     date = models.DateTimeField(default=timezone.now)
@@ -41,6 +48,12 @@ class Notification(models.Model):
         related_name='notifications',
         null=True,
         blank=True
+    )
+    subscription_target = models.CharField(
+        max_length=20,
+        choices=SUBSCRIPTION_TARGET_CHOICES,
+        default='all',
+        help_text="Target users based on their subscription plan"
     )
     
     class Meta:
