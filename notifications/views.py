@@ -50,6 +50,53 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """
         count = self.get_queryset().filter(is_read=False).count()
         return Response({'count': count}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        """
+        Get notification statistics for the current user
+        """
+        queryset = self.get_queryset()
+        total_count = queryset.count()
+        unread_count = queryset.filter(is_read=False).count()
+
+        # Count by type
+        type_counts = {}
+        for notification_type, _ in Notification.NOTIFICATION_TYPES:
+            type_counts[notification_type] = queryset.filter(type=notification_type).count()
+
+        # Count by priority
+        priority_counts = {}
+        for priority, _ in Notification.PRIORITY_CHOICES:
+            priority_counts[priority] = queryset.filter(priority=priority).count()
+
+        return Response({
+            'total_count': total_count,
+            'unread_count': unread_count,
+            'read_count': total_count - unread_count,
+            'type_counts': type_counts,
+            'priority_counts': priority_counts
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='mark-type-as-read')
+    def mark_type_as_read(self, request):
+        """
+        Mark all notifications of a specific type as read
+        """
+        notification_type = request.data.get('type')
+        if not notification_type:
+            return Response({'error': 'Type is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated_count = self.get_queryset().filter(
+            type=notification_type,
+            is_read=False
+        ).update(is_read=True)
+
+        return Response({
+            'success': True,
+            'updated_count': updated_count,
+            'type': notification_type
+        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['put'], url_path='read')
     def read(self, request, pk=None):

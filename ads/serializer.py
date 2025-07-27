@@ -463,8 +463,8 @@ class AdCompleteSerializer(serializers.ModelSerializer):
             'title', 'description', 'keywords', 'material_image',
             
             # System fields
-            'is_active', 'current_step', 'is_complete', 'created_at', 'updated_at',
-            'auction_start_date', 'auction_end_date',
+            'is_active', 'current_step', 'is_complete', 'status', 'suspended_by_admin',
+            'created_at', 'updated_at', 'auction_start_date', 'auction_end_date',
             
             # Derived fields
             'step_completion_status', 'auction_status', 'time_remaining'
@@ -551,7 +551,8 @@ class AdListSerializer(serializers.ModelSerializer):
             'id', 'title', 'category_name', 'subcategory_name',
             'available_quantity', 'unit_of_measurement', 'starting_bid_price',
             'currency', 'location_summary', 'total_starting_value',
-            'material_image', 'created_at', 'is_active', 'is_complete'
+            'material_image', 'created_at', 'is_active', 'is_complete', 'status',
+            'suspended_by_admin'
         ]
 
     def get_location_summary(self, obj):
@@ -752,8 +753,13 @@ class AdminAuctionListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         """
-        Get status string based on ad state
+        Get status string based on ad state, prioritizing the actual status field
         """
+        # First check if the ad is suspended by admin
+        if obj.status == 'suspended':
+            return "suspended"
+
+        # Then check completion and activity status
         if obj.is_complete and obj.is_active:
             return "active"
         elif obj.is_complete and not obj.is_active:
