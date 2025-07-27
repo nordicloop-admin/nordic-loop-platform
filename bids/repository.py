@@ -263,38 +263,30 @@ class BidRepository:
             logging_service.log_error(e)
             return {}
 
-    def search_bids(self, filters: dict) -> List[Bid]:
-        """Advanced bid search with multiple filters"""
+    def search_bids(self, filters: dict) -> RepositoryResponse:
+        """Search bids with filters"""
         try:
             queryset = Bid.objects.select_related('user', 'ad').all()
             
-            # Filter by status
-            if filters.get('status'):
+            # Apply filters here
+            if 'status' in filters and filters['status']:
                 queryset = queryset.filter(status=filters['status'])
-            
-            # Filter by ad ID
-            if filters.get('ad_id'):
+                
+            if 'user_id' in filters and filters['user_id']:
+                queryset = queryset.filter(user_id=filters['user_id'])
+                
+            if 'ad_id' in filters and filters['ad_id']:
                 queryset = queryset.filter(ad_id=filters['ad_id'])
             
-            # Filter by user ID
-            if filters.get('user_id'):
-                queryset = queryset.filter(user_id=filters['user_id'])
+            # Sort by most recent
+            queryset = queryset.order_by('-created_at')
             
-            # Filter by price range
-            if filters.get('min_price'):
-                queryset = queryset.filter(bid_price_per_unit__gte=Decimal(str(filters['min_price'])))
-            if filters.get('max_price'):
-                queryset = queryset.filter(bid_price_per_unit__lte=Decimal(str(filters['max_price'])))
+            return RepositoryResponse(
+                success=True,
+                data=list(queryset),
+                message="Bids found"
+            )
             
-            # Filter by volume range
-            if filters.get('min_volume'):
-                queryset = queryset.filter(volume_requested__gte=Decimal(str(filters['min_volume'])))
-            if filters.get('max_volume'):
-                queryset = queryset.filter(volume_requested__lte=Decimal(str(filters['max_volume'])))
-            
-            # Filter by date range
-            if filters.get('date_from'):
-                queryset = queryset.filter(created_at__gte=filters['date_from'])
             if filters.get('date_to'):
                 queryset = queryset.filter(created_at__lte=filters['date_to'])
             
@@ -399,6 +391,81 @@ class BidRepository:
         except Exception as e:
             logging_service.log_error(e)
             return RepositoryResponse(success=False, data=None, message="Failed to retrieve bids")
+            
+    def admin_approve_bid(self, bid_id: int, admin_user: User) -> RepositoryResponse:
+        """
+        Admin approval for a bid
+        """
+        try:
+            # Verify the user is an admin
+            if not admin_user.is_staff and not admin_user.is_superuser:
+                return RepositoryResponse(False, "Only administrators can approve bids", None)
+                
+            # Get the bid regardless of owner
+            bid = Bid.objects.filter(id=bid_id).first()
+            if not bid:
+                return RepositoryResponse(False, "Bid not found", None)
+                
+            # Update the bid status
+            bid.status = "active"
+            bid.save()
+            
+            return RepositoryResponse(True, "Bid approved by administrator", bid)
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, f"Failed to approve bid: {str(e)}", None)
+            
+    def admin_reject_bid(self, bid_id: int, admin_user: User) -> RepositoryResponse:
+        """
+        Admin rejection for a bid
+        """
+        try:
+            # Verify the user is an admin
+            if not admin_user.is_staff and not admin_user.is_superuser:
+                return RepositoryResponse(False, "Only administrators can reject bids", None)
+                
+            # Get the bid regardless of owner
+            bid = Bid.objects.filter(id=bid_id).first()
+            if not bid:
+                return RepositoryResponse(False, "Bid not found", None)
+                
+            # Update the bid status
+            bid.status = "cancelled"
+            bid.save()
+            
+            return RepositoryResponse(True, "Bid rejected by administrator", bid)
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, f"Failed to reject bid: {str(e)}", None)
+            
+    def admin_mark_bid_as_won(self, bid_id: int, admin_user: User) -> RepositoryResponse:
+        """
+        Admin marks a bid as won
+        """
+        try:
+            # Verify the user is an admin
+            if not admin_user.is_staff and not admin_user.is_superuser:
+                return RepositoryResponse(False, "Only administrators can mark bids as won", None)
+                
+            # Get the bid regardless of owner
+            bid = Bid.objects.filter(id=bid_id).first()
+            if not bid:
+                return RepositoryResponse(False, "Bid not found", None)
+                
+            # Update the bid status
+            bid.status = "won"
+            bid.save()
+            
+            # Mark other bids for this ad as lost
+            Bid.objects.filter(ad=bid.ad).exclude(id=bid.id).update(status="lost")
+            
+            return RepositoryResponse(True, "Bid marked as won by administrator", bid)
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            return RepositoryResponse(False, f"Failed to mark bid as won: {str(e)}", None)
         
     
 

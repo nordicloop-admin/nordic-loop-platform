@@ -389,3 +389,69 @@ class BidService:
         except Exception as e:
             logging_service.log_error(e)
             return {"success": False, "message": "Error closing auction"}
+            
+    def admin_approve_bid(self, bid_id: int, admin_user: User) -> dict:
+        """
+        Admin approval for a bid
+        """
+        try:
+            response = self.repository.admin_approve_bid(bid_id, admin_user)
+            if not response.success:
+                raise ValueError(response.message)
+            
+            return {
+                "success": True,
+                "message": "Bid approved successfully",
+                "data": response.data
+            }
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            return {
+                "success": False,
+                "message": f"Failed to approve bid: {str(e)}"
+            }
+    
+    def admin_reject_bid(self, bid_id: int, admin_user: User) -> dict:
+        """
+        Admin rejection for a bid
+        """
+        try:
+            response = self.repository.admin_reject_bid(bid_id, admin_user)
+            if not response.success:
+                raise ValueError(response.message)
+            
+            return {
+                "success": True,
+                "message": "Bid rejected successfully",
+                "data": response.data
+            }
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            return {
+                "success": False,
+                "message": f"Failed to reject bid: {str(e)}"
+            }
+    
+    def admin_mark_bid_as_won(self, bid_id: int, admin_user: User) -> dict:
+        """
+        Admin marks a bid as won
+        """
+        try:
+            response = self.repository.admin_mark_bid_as_won(bid_id, admin_user)
+            if not response.success:
+                raise ValueError(response.message)
+            
+            return {
+                "success": True,
+                "message": "Bid marked as won successfully",
+                "data": response.data
+            }
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            return {
+                "success": False,
+                "message": f"Failed to mark bid as won: {str(e)}"
+            }

@@ -3,7 +3,8 @@ from bids.views import (
     BidCreateView, BidUpdateView, BidDeleteView, BidDetailView,
     AllBidsListView, AdBidsListView, UserBidsListView, BidHistoryView,
     AdBidStatsView, BidSearchView, WinningBidsView, CloseAuctionView,
-    AdminBidListView, AdminBidDetailView,
+    AdminBidListView, AdminBidDetailView, AdminBidApproveView,
+    AdminBidRejectView, AdminBidMarkAsWonView,
     BidView  # Legacy view
 )
 
@@ -47,6 +48,9 @@ urlpatterns = [
     # Admin endpoints
     path("admin/bids/", AdminBidListView.as_view(), name="admin-bid-list"),
     path("admin/bids/<int:bid_id>/", AdminBidDetailView.as_view(), name="admin-bid-detail"),
+    path("admin/bids/<int:bid_id>/approve/", AdminBidApproveView.as_view(), name="admin-bid-approve"),
+    path("admin/bids/<int:bid_id>/reject/", AdminBidRejectView.as_view(), name="admin-bid-reject"),
+    path("admin/bids/<int:bid_id>/mark-as-won/", AdminBidMarkAsWonView.as_view(), name="admin-bid-mark-as-won"),
     
     # Legacy endpoints for backward compatibility
     path("", BidView.as_view(), name="legacy-bid-create"),
