@@ -7,7 +7,7 @@ from company.repository.company_repository import CompanyRepository
 from company.services.company_service import CompanyService
 from rest_framework.permissions import IsAdminUser
 
-from users.models import User 
+from users.models import User
 
 repository = CompanyRepository()
 service = CompanyService(repository)
@@ -183,8 +183,37 @@ class AdminCompanyDetailView(APIView):
 
         except Exception as e:
             return Response(
-                {"error": "Failed to retrieve company"}, 
+                {"error": "Failed to retrieve company"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    
+    def put(self, request, company_id):
+        try:
+            company = service.get_company_by_id(company_id)
+            if not company:
+                return Response(
+                    {"error": "Company not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Update company status
+            new_status = request.data.get('status')
+            if new_status and new_status in ['pending', 'approved', 'rejected']:
+                company.status = new_status
+                company.save()
+
+                # If approving company, update user permissions
+                if new_status == 'approved':
+                    users = User.objects.filter(company=company)
+                    users.update(can_place_ads=True, can_place_bids=True)
+
+            serializer = AdminCompanyDetailSerializer(company)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Failed to update company"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
