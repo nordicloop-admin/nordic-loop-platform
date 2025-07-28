@@ -81,6 +81,6 @@ class AdminCompanyDetailSerializer(AdminCompanyListSerializer):
     """
     # Add any additional fields for detail view if needed
     website = serializers.URLField(read_only=True)
-    
+
     class Meta(AdminCompanyListSerializer.Meta):
         fields = AdminCompanyListSerializer.Meta.fields + ['website']
