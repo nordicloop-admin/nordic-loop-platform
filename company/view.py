@@ -139,6 +139,8 @@ class AdminCompanyListView(APIView):
             # Get query parameters
             search = request.query_params.get('search', None)
             status_filter = request.query_params.get('status', 'all')
+            sector_filter = request.query_params.get('sector', 'all')
+            country_filter = request.query_params.get('country', 'all')
             page = int(request.query_params.get('page', 1))
             page_size = int(request.query_params.get('page_size', 10))
 
@@ -150,10 +152,21 @@ class AdminCompanyListView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Validate sector parameter
+            from company.models import Company
+            valid_sectors = ['all'] + [choice[0] for choice in Company.SECTOR_CHOICES]
+            if sector_filter not in valid_sectors:
+                return Response(
+                    {"error": f"Invalid sector. Must be one of: {', '.join(valid_sectors)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Get filtered companies
             pagination_data = service.get_admin_companies_filtered(
                 search=search,
                 status=status_filter,
+                sector=sector_filter,
+                country=country_filter,
                 page=page,
                 page_size=page_size
             )
@@ -179,6 +192,40 @@ class AdminCompanyListView(APIView):
         except Exception as e:
             return Response(
                 {"error": "Failed to retrieve companies"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CompanyFiltersView(APIView):
+    """
+    Endpoint for getting available filter options for companies
+    GET /api/company/filters/
+    """
+    permission_classes = [AllowAny]  # Allow access for frontend to populate dropdowns
+
+    def get(self, request):
+        try:
+            from company.models import Company
+
+            # Get available sectors
+            sectors = [{'value': choice[0], 'label': choice[1]} for choice in Company.SECTOR_CHOICES]
+
+            # Get available countries (from existing companies)
+            countries = Company.objects.values_list('country', flat=True).distinct().order_by('country')
+            countries_list = [{'value': country, 'label': country} for country in countries if country]
+
+            # Get available statuses
+            statuses = [{'value': choice[0], 'label': choice[1]} for choice in Company.STATUS_CHOICES]
+
+            return Response({
+                'sectors': sectors,
+                'countries': countries_list,
+                'statuses': statuses
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve filter options"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
