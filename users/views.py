@@ -27,27 +27,33 @@ class ContactSignupView(APIView):
             return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            company = Company.objects.get(primary_email=email)
-        except Company.DoesNotExist:
-            return Response({"error": "No company found with this email."}, status=status.HTTP_404_NOT_FOUND)
+            # Find a contact user (primary or secondary) with this email
+            contact_user = User.objects.get(
+                email=email,
+                contact_type__in=['primary', 'secondary']
+            )
+        except User.DoesNotExist:
+            return Response({
+                "error": "No company contact found with this email. Please contact your company administrator."
+            }, status=status.HTTP_404_NOT_FOUND)
 
-        if User.objects.filter(email=email).exists():
-            return Response({"error": "User already registered with this email."}, status=status.HTTP_400_BAD_REQUEST)
+        # Check if this contact user already has a password set (already activated)
+        # We check for both has_usable_password and non-empty password field
+        if contact_user.has_usable_password() and contact_user.password:
+            return Response({
+                "error": "User account already activated. Please use the login page."
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        full_name = f"{company.primary_first_name or ''} {company.primary_last_name or ''}".strip()
-
-        user = User.objects.create_user(
-            username=full_name,
-            email=email,
-            name=full_name,
-            password=password,
-            company=company
-        )
+        # Set the password for the existing contact user
+        contact_user.set_password(password)
+        contact_user.is_active = True
+        contact_user.save()
 
         return Response({
-            "message": "User created successfully.",
-            "username": user.username,
-            "company": str(user.company)
+            "message": "Account activated successfully.",
+            "username": contact_user.username,
+            "email": contact_user.email,
+            "company": str(contact_user.company)
         }, status=status.HTTP_201_CREATED)
 
 
@@ -61,16 +67,17 @@ class ContactLoginView(APIView):
         if not email or not password:
             return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = None
-        company = Company.objects.filter(primary_email=email).first()
-
-        if company:
-            user = User.objects.filter(email=email, company=company).first()
-        else:
-            user = User.objects.filter(email=email, role="Admin").first()
+        # Try to find user by email - could be contact user or admin
+        user = User.objects.filter(email=email).first()
 
         if not user:
-            return Response({"error": "Unauthorized login. Not a company contact or admin."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "No user found with this email."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if user is either a company contact or admin
+        if not (user.contact_type in ['primary', 'secondary'] or user.role == "Admin"):
+            return Response({
+                "error": "Unauthorized login. Not a company contact or admin."
+            }, status=status.HTTP_403_FORBIDDEN)
 
         if not user.check_password(password):
             return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
