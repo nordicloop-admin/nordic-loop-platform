@@ -5,9 +5,11 @@ class NotificationSerializer(serializers.ModelSerializer):
     """
     Serializer for the Notification model
     """
+    company_name = serializers.CharField(source='user.company.official_name', read_only=True)
+
     class Meta:
         model = Notification
-        fields = ['id', 'title', 'message', 'date', 'is_read', 'type', 'priority', 'action_url', 'metadata', 'user', 'subscription_target']
+        fields = ['id', 'title', 'message', 'date', 'is_read', 'type', 'priority', 'action_url', 'metadata', 'user', 'company_name', 'subscription_target']
         read_only_fields = ['id', 'date']
 
 class CreateNotificationSerializer(serializers.ModelSerializer):
