@@ -6,6 +6,9 @@ from company.serializer import CompanySerializer, AdminCompanyListSerializer, Ad
 from company.repository.company_repository import CompanyRepository
 from company.services.company_service import CompanyService
 from rest_framework.permissions import IsAdminUser
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
 
 from users.models import User
 
@@ -13,19 +16,37 @@ repository = CompanyRepository()
 service = CompanyService(repository)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CompanyView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         # Create a company
         try:
-            company = service.create_company(request.data)
+            # Get data from request - handle both JSON and form data
+            if hasattr(request, 'data'):
+                data = request.data
+            else:
+                # For non-DRF requests
+                try:
+                    data = json.loads(request.body.decode('utf-8'))
+                except:
+                    data = request.POST
+
+            company = service.create_company(data)
             serializer = CompanySerializer(company)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            # Better error logging for debugging
+            import traceback
+            error_details = {
+                "error": "Something went wrong",
+                "details": str(e),
+                "traceback": traceback.format_exc()
+            }
+            return Response(error_details, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get(self, request, company_id=None, vat=None):
         # Retrieve a company by ID or VAT or list all
@@ -157,7 +178,7 @@ class AdminCompanyListView(APIView):
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response(
-                {"error": "Failed to retrieve companies"}, 
+                {"error": "Failed to retrieve companies"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

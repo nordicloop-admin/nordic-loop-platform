@@ -4,31 +4,32 @@ from company.models import Company
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
     list_display = (
-        'official_name', 'vat_number', 'email', 'country', 'status', 'registration_date'
+        'official_name', 'vat_number', 'email', 'country', 'status', 'registration_date', 'get_contacts_count'
     )
     list_filter = ('status', 'registration_date', 'sector')
     search_fields = (
-        'official_name', 'vat_number', 'email',
-        'primary_email', 'secondary_email'
+        'official_name', 'vat_number', 'email'
     )
 
     fieldsets = (
         ('Company Information', {
-            'fields': ('official_name', 'vat_number', 'sector', 'website', 'status')
+            'fields': ('official_name', 'vat_number', 'email', 'country', 'sector', 'website', 'status')
         }),
-        ('Primary Contact', {
-            'fields': (
-                'primary_first_name', 'primary_last_name',
-                'primary_email', 'primary_position'
-            )
-        }),
-        ('Secondary Contact (optional)', {
-            'fields': (
-                'secondary_first_name', 'secondary_last_name',
-                'secondary_email', 'secondary_position'
-            )
-        }),
-        ('Registration Credentials', {
-            'fields': ('email',)
+        ('Contact Information', {
+            'description': 'Contact persons are managed through the User model. Use the Users admin to manage company contacts.',
+            'fields': (),
         }),
     )
+
+    readonly_fields = ('registration_date',)
+
+    def get_contacts_count(self, obj):
+        """Display number of contact users for this company"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        count = User.objects.filter(
+            company=obj,
+            contact_type__in=['primary', 'secondary']
+        ).count()
+        return f"{count} contacts"
+    get_contacts_count.short_description = 'Contacts'

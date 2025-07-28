@@ -33,17 +33,8 @@ class Company(models.Model):
     country = models.CharField(max_length=255)
     website = models.URLField(default='http://example.com')
 
-    # Primary contact person
-    primary_first_name = models.CharField(max_length=255, null=True, blank=True)
-    primary_last_name = models.CharField(max_length=255, null=True, blank=True)
-    primary_email = models.EmailField(unique=True, null=True, blank=True)
-    primary_position = models.CharField(max_length=255, null=True, blank=True)
-
-    # Secondary contact person (optional)
-    secondary_first_name = models.CharField(max_length=255, blank=True, null=True)
-    secondary_last_name = models.CharField(max_length=255, blank=True, null=True)
-    secondary_email = models.EmailField(blank=True, null=True)
-    secondary_position = models.CharField(max_length=255, blank=True, null=True)
+    # Contact persons are now managed through User model with contact_type field
+    # This provides proper normalization and allows unlimited contacts per company
 
     registration_date = models.DateField(auto_now_add=True)
     status = models.CharField(

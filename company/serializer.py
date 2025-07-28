@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from .models import Company
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class ContactSerializer(serializers.Serializer):
     name = serializers.CharField()
@@ -50,28 +53,25 @@ class AdminCompanyListSerializer(serializers.ModelSerializer):
 
     def get_contacts(self, obj):
         """
-        Construct contacts array from primary and secondary contact fields
+        Construct contacts array from User model (normalized structure)
+        Data has been migrated from Company fields to User model
         """
         contacts = []
-        
-        # Primary contact
-        if obj.primary_first_name and obj.primary_last_name and obj.primary_email:
-            primary_contact = {
-                'name': f"{obj.primary_first_name} {obj.primary_last_name}",
-                'email': obj.primary_email,
-                'position': obj.primary_position or ""
+
+        # Get contacts from User model (normalized structure)
+        user_contacts = User.objects.filter(
+            company=obj,
+            contact_type__in=['primary', 'secondary']
+        ).order_by('contact_type')  # primary comes before secondary alphabetically
+
+        for user in user_contacts:
+            contact = {
+                'name': f"{user.first_name} {user.last_name}".strip(),
+                'email': user.email,
+                'position': user.position or ""
             }
-            contacts.append(primary_contact)
-        
-        # Secondary contact
-        if obj.secondary_first_name and obj.secondary_last_name and obj.secondary_email:
-            secondary_contact = {
-                'name': f"{obj.secondary_first_name} {obj.secondary_last_name}",
-                'email': obj.secondary_email,
-                'position': obj.secondary_position or ""
-            }
-            contacts.append(secondary_contact)
-        
+            contacts.append(contact)
+
         return contacts
 
 
