@@ -129,29 +129,41 @@ class CompanyRepository:
                 data=None,
             )
 
-    def get_admin_companies_filtered(self, search=None, status=None, page=1, page_size=10) -> RepositoryResponse:
+    def get_admin_companies_filtered(self, search=None, status=None, sector=None, country=None, page=1, page_size=10) -> RepositoryResponse:
         """
         Get companies for admin with filtering and pagination support
         """
         try:
-            queryset = Company.objects.all().order_by('-registration_date')
-            
+            from users.models import User
+
+            queryset = Company.objects.prefetch_related('user_set').all().order_by('-registration_date')
+
             # Apply search filter
             if search:
+                # Search in company fields and associated user names
                 queryset = queryset.filter(
                     Q(official_name__icontains=search) |
                     Q(vat_number__icontains=search) |
                     Q(email__icontains=search) |
                     Q(country__icontains=search) |
-                    Q(primary_first_name__icontains=search) |
-                    Q(primary_last_name__icontains=search) |
-                    Q(primary_email__icontains=search)
-                )
-            
+                    Q(user__first_name__icontains=search) |
+                    Q(user__last_name__icontains=search) |
+                    Q(user__email__icontains=search) |
+                    Q(user__name__icontains=search)
+                ).distinct()
+
             # Apply status filter
             if status and status != 'all':
                 if status in ['pending', 'approved', 'rejected']:
                     queryset = queryset.filter(status=status)
+
+            # Apply sector filter
+            if sector and sector != 'all':
+                queryset = queryset.filter(sector=sector)
+
+            # Apply country filter
+            if country and country != 'all':
+                queryset = queryset.filter(country__icontains=country)
             
             # Apply pagination
             paginator = Paginator(queryset, page_size)

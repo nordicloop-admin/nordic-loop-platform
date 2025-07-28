@@ -233,12 +233,12 @@ class  CompanyService:
             logging_service.log_error(e)
             raise e
 
-    def get_admin_companies_filtered(self, search=None, status=None, page=1, page_size=10) -> Dict[str, Any]:
+    def get_admin_companies_filtered(self, search=None, status=None, sector=None, country=None, page=1, page_size=10) -> Dict[str, Any]:
         """
         Get filtered companies for admin with pagination
         """
         try:
-            result = self.repository.get_admin_companies_filtered(search, status, page, page_size)
+            result = self.repository.get_admin_companies_filtered(search, status, sector, country, page, page_size)
             if result.success:
                 return result.data
             else:
