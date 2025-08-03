@@ -283,7 +283,7 @@ class AdminCompanyStatsView(APIView):
             active_ads_count = Ad.objects.filter(
                 user__in=company_users,
                 is_active=True,
-                is_complete=True
+                is_complete=True,
             ).count()
 
             # Get total bids count (bids made by users from this company)
