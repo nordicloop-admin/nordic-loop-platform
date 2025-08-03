@@ -224,7 +224,8 @@ class AdRepository:
     def list_ads(self, category_id: Optional[int] = None, subcategory_id: Optional[int] = None,
                 origin: Optional[str] = None, contamination: Optional[str] = None,
                 location_country: Optional[str] = None, location_city: Optional[str] = None,
-                only_complete: bool = True) -> RepositoryResponse:
+                only_complete: bool = True, exclude_brokers: Optional[bool] = None,
+                only_brokers: Optional[bool] = None) -> RepositoryResponse:
         """List ads with optional filtering"""
         try:
             query = Q()
@@ -246,8 +247,14 @@ class AdRepository:
             if location_city:
                 query &= Q(location__city__icontains=location_city)
 
+            # Broker filtering
+            if exclude_brokers:
+                query &= ~Q(user__company__sector='broker')
+            elif only_brokers:
+                query &= Q(user__company__sector='broker')
+
             ads = Ad.objects.filter(query).select_related(
-                'category', 'subcategory', 'location', 'user'
+                'category', 'subcategory', 'location', 'user', 'user__company'
             ).order_by('-created_at')
 
             return RepositoryResponse(True, "Ads retrieved successfully", list(ads))

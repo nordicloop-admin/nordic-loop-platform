@@ -323,6 +323,8 @@ class AdListView(ListAPIView):
         location_country = self.request.query_params.get('country')
         location_city = self.request.query_params.get('city')
         only_complete = self.request.query_params.get('complete', 'true').lower() == 'true'
+        exclude_brokers = self.request.query_params.get('exclude_brokers', 'false').lower() == 'true'
+        only_brokers = self.request.query_params.get('only_brokers', 'false').lower() == 'true'
 
         if only_complete:
             query &= Q(is_complete=True, is_active=True)
@@ -341,8 +343,14 @@ class AdListView(ListAPIView):
         if location_city:
             query &= Q(location__city__icontains=location_city)
 
+        # Broker filtering
+        if exclude_brokers:
+            query &= ~Q(user__company__sector='broker')
+        elif only_brokers:
+            query &= Q(user__company__sector='broker')
+
         return Ad.objects.filter(query).select_related(
-            'category', 'subcategory', 'location', 'user'
+            'category', 'subcategory', 'location', 'user', 'user__company'
         ).order_by('-created_at')
 
 

@@ -280,8 +280,8 @@ class AdStep7Serializer(serializers.ModelSerializer):
         model = Ad
         fields = [
             'id', 'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
-            'starting_bid_price', 'currency', 'auction_duration', 'custom_auction_duration', 
-            'reserve_price', 'total_starting_value', 'current_step'
+            'starting_bid_price', 'currency', 'auction_duration', 'custom_auction_duration',
+            'reserve_price', 'total_starting_value', 'current_step', 'allow_broker_bids'
         ]
 
     def validate_available_quantity(self, value):
@@ -464,7 +464,7 @@ class AdCompleteSerializer(serializers.ModelSerializer):
             
             # System fields
             'is_active', 'current_step', 'is_complete', 'status', 'suspended_by_admin',
-            'created_at', 'updated_at', 'auction_start_date', 'auction_end_date',
+            'created_at', 'updated_at', 'auction_start_date', 'auction_end_date', 'allow_broker_bids',
             
             # Derived fields
             'step_completion_status', 'auction_status', 'time_remaining'
@@ -552,7 +552,7 @@ class AdListSerializer(serializers.ModelSerializer):
             'available_quantity', 'unit_of_measurement', 'starting_bid_price',
             'currency', 'location_summary', 'total_starting_value',
             'material_image', 'created_at', 'is_active', 'is_complete', 'status',
-            'suspended_by_admin'
+            'suspended_by_admin', 'allow_broker_bids'
         ]
 
     def get_location_summary(self, obj):
@@ -583,13 +583,13 @@ class AdUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ad
         fields = [
-            'id', 'category', 'subcategory', 'specific_material', 'packaging', 
+            'id', 'category', 'subcategory', 'specific_material', 'packaging',
             'material_frequency', 'specification', 'additional_specifications',
             'origin', 'contamination', 'additives', 'storage_conditions',
             'processing_methods', 'location_data', 'pickup_available', 'delivery_options',
             'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
             'starting_bid_price', 'currency', 'auction_duration', 'custom_auction_duration', 'reserve_price',
-            'title', 'description', 'keywords', 'material_image'
+            'title', 'description', 'keywords', 'material_image', 'allow_broker_bids'
         ]
         read_only_fields = ['id']
     

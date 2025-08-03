@@ -215,6 +215,12 @@ class Ad(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     auction_start_date = models.DateTimeField(blank=True, null=True)
     auction_end_date = models.DateTimeField(blank=True, null=True)
+
+    # Broker permissions
+    allow_broker_bids = models.BooleanField(
+        default=True,
+        help_text="Allow brokers to place bids on this material"
+    )
     
     # Form step tracking
     current_step = models.IntegerField(default=1)

@@ -38,6 +38,22 @@ class BidCreateSerializer(serializers.ModelSerializer):
         if not value.is_active or not value.is_complete:
             raise serializers.ValidationError("Cannot bid on inactive or incomplete ads.")
         return value
+
+    def validate(self, attrs):
+        """Custom validation for broker permissions"""
+        user = self.context['request'].user if 'request' in self.context else None
+        ad = attrs.get('ad')
+
+        if user and ad:
+            # Check broker bid permissions
+            if (user.company and
+                user.company.sector == 'broker' and
+                not ad.allow_broker_bids):
+                raise serializers.ValidationError(
+                    "This company has chosen not to sell this material to brokers."
+                )
+
+        return super().validate(attrs)
     
     def validate_bid_price_per_unit(self, value):
         """Validate bid price"""

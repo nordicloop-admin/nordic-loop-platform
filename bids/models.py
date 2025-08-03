@@ -108,7 +108,13 @@ class Bid(models.Model):
             # Check if user is not the ad owner
             if self.user == self.ad.user:
                 raise ValidationError("You cannot bid on your own ad.")
-            
+
+            # Check broker bid permissions
+            if (self.user.company and
+                self.user.company.sector == 'broker' and
+                not self.ad.allow_broker_bids):
+                raise ValidationError("This company has chosen not to sell this material to brokers.")
+
             # Check minimum bid requirements
             if self.ad.starting_bid_price and self.bid_price_per_unit < self.ad.starting_bid_price:
                 raise ValidationError(
