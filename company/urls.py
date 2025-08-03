@@ -1,5 +1,5 @@
 from django.urls import path
-from .view import CompanyView, ApproveCompanyView, AdminCompanyListView, AdminCompanyDetailView, CompanyFiltersView
+from .view import CompanyView, ApproveCompanyView, AdminCompanyListView, AdminCompanyDetailView, CompanyFiltersView, AdminCompanyStatsView
 
 urlpatterns = [
     path("", CompanyView.as_view(), name="company-list-create"),
@@ -12,4 +12,5 @@ urlpatterns = [
     # Admin endpoints
     path("admin/companies/", AdminCompanyListView.as_view(), name="admin-company-list"),
     path("admin/companies/<int:company_id>/", AdminCompanyDetailView.as_view(), name="admin-company-detail"),
+    path("admin/companies/<int:company_id>/stats/", AdminCompanyStatsView.as_view(), name="admin-company-stats"),
 ]

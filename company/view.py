@@ -242,7 +242,7 @@ class AdminCompanyDetailView(APIView):
             company = service.get_company_by_id(company_id)
             if not company:
                 return Response(
-                    {"error": "Company not found"}, 
+                    {"error": "Company not found"},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -252,6 +252,102 @@ class AdminCompanyDetailView(APIView):
         except Exception as e:
             return Response(
                 {"error": "Failed to retrieve company"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminCompanyStatsView(APIView):
+    """
+    Admin endpoint for retrieving company statistics
+    GET /api/company/admin/companies/{id}/stats/
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, company_id):
+        try:
+            from ads.models import Ad
+            from bids.models import Bid
+            from users.models import User
+
+            company = service.get_company_by_id(company_id)
+            if not company:
+                return Response(
+                    {"error": "Company not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Get all users from this company
+            company_users = User.objects.filter(company=company)
+
+            # Get active ads count (ads created by users from this company)
+            active_ads_count = Ad.objects.filter(
+                user__in=company_users,
+                is_active=True,
+                is_complete=True
+            ).count()
+
+            # Get total bids count (bids made by users from this company)
+            total_bids_count = Bid.objects.filter(
+                user__in=company_users
+            ).count()
+
+            # Get completed deals count (bids with status 'won')
+            completed_deals_count = Bid.objects.filter(
+                user__in=company_users,
+                status='won'
+            ).count()
+
+            # Get additional statistics
+            total_ads_count = Ad.objects.filter(
+                user__in=company_users,
+                is_complete=True
+            ).count()
+
+            pending_ads_count = Ad.objects.filter(
+                user__in=company_users,
+                is_complete=False
+            ).count()
+
+            winning_bids_count = Bid.objects.filter(
+                user__in=company_users,
+                status='winning'
+            ).count()
+
+            # Get recent transaction activity (last 5 completed deals)
+            recent_transactions = Bid.objects.filter(
+                user__in=company_users,
+                status='won'
+            ).select_related('ad', 'user').order_by('-updated_at')[:5]
+
+            transaction_history = []
+            for bid in recent_transactions:
+                transaction_history.append({
+                    'id': bid.id,
+                    'ad_name': bid.ad.item_name if hasattr(bid.ad, 'item_name') else 'N/A',
+                    'bid_amount': float(bid.bid_price_per_unit),
+                    'volume': float(bid.volume_requested),
+                    'total_value': float(bid.bid_price_per_unit * bid.volume_requested),
+                    'date': bid.updated_at.isoformat(),
+                    'buyer_name': bid.user.get_full_name() if bid.user.get_full_name() else bid.user.username
+                })
+
+            stats = {
+                "active_ads": active_ads_count,
+                "total_bids": total_bids_count,
+                "completed_deals": completed_deals_count,
+                "total_ads": total_ads_count,
+                "pending_ads": pending_ads_count,
+                "winning_bids": winning_bids_count,
+                "company_id": company_id,
+                "company_name": company.official_name,
+                "recent_transactions": transaction_history
+            }
+
+            return Response(stats, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Failed to retrieve company statistics"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
