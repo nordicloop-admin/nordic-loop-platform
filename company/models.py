@@ -9,6 +9,7 @@ class Company(models.Model):
         ('packaging', 'Packaging & Printing'),
         ('recycling', 'Recycling & Waste Management'),
         ('Energy & Utilities', 'Energy & Utilities'),
+        ('broker', 'Broker'),
         ('Other', 'Other')
     ]
 

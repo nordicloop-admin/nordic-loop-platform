@@ -87,7 +87,8 @@ class AdService:
     def list_ads(self, category_id: Optional[int] = None, subcategory_id: Optional[int] = None,
                 origin: Optional[str] = None, contamination: Optional[str] = None,
                 location_country: Optional[str] = None, location_city: Optional[str] = None,
-                only_complete: bool = True) -> List[Ad]:
+                only_complete: bool = True, exclude_brokers: Optional[bool] = None,
+                only_brokers: Optional[bool] = None) -> List[Ad]:
         """List ads with optional filtering"""
         try:
             response = self.repository.list_ads(
@@ -97,7 +98,9 @@ class AdService:
                 contamination=contamination,
                 location_country=location_country,
                 location_city=location_city,
-                only_complete=only_complete
+                only_complete=only_complete,
+                exclude_brokers=exclude_brokers,
+                only_brokers=only_brokers
             )
             if not response.success:
                 raise ValueError(response.message)
