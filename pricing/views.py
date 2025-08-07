@@ -1,6 +1,6 @@
 from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, action
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from .models import PricingPlan, BaseFeature, PlanFeature, PricingPageContent
 from .serializers import (
@@ -108,6 +108,61 @@ class AdminPricingPlanViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminUser]
     ordering = ['order', 'price']
 
+    @action(detail=True, methods=['post'], url_path='features')
+    def configure_features(self, request, pk=None):
+        """
+        Configure features for a specific pricing plan
+        """
+        try:
+            plan = self.get_object()
+            features_data = request.data.get('features', [])
+
+            # Clear existing plan features
+            PlanFeature.objects.filter(plan=plan).delete()
+
+            # Create new plan features based on configuration
+            for feature_config in features_data:
+                if not feature_config.get('isIncluded', False):
+                    continue
+
+                base_feature_id = feature_config.get('baseFeatureId')
+                try:
+                    base_feature = BaseFeature.objects.get(id=base_feature_id)
+                except BaseFeature.DoesNotExist:
+                    continue
+
+                # Generate feature text
+                feature_text = base_feature.base_description
+                feature_value = feature_config.get('featureValue', '')
+
+                if feature_value and '{value}' in feature_text:
+                    feature_text = feature_text.replace('{value}', feature_value)
+
+                # Create plan feature
+                PlanFeature.objects.create(
+                    plan=plan,
+                    base_feature=base_feature,
+                    feature_text=feature_text,
+                    feature_name=base_feature.name,
+                    category=base_feature.category,
+                    is_included=True,
+                    feature_value=feature_value,
+                    order=feature_config.get('order', base_feature.order),
+                    is_highlighted=feature_config.get('isHighlighted', False)
+                )
+
+            return Response({
+                'success': True,
+                'message': f'Features configured successfully for {plan.name}',
+                'features_count': PlanFeature.objects.filter(plan=plan).count()
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
 
 class AdminPlanFeatureViewSet(viewsets.ModelViewSet):
     """
@@ -137,3 +192,66 @@ class AdminPricingPageContentView(generics.RetrieveUpdateAPIView):
             }
         )
         return content
+
+
+@api_view(['POST'])
+def configure_plan_features(request, plan_id):
+    """
+    Endpoint to configure features for a specific pricing plan
+    Requires authentication
+    """
+    # Check if user is authenticated
+    if not request.user.is_authenticated:
+        return Response({
+            'success': False,
+            'error': 'Authentication credentials were not provided.'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        plan = PricingPlan.objects.get(id=plan_id)
+        features_data = request.data.get('features', [])
+
+        # Clear existing plan features
+        PlanFeature.objects.filter(plan=plan).delete()
+
+        # Create new plan features based on configuration
+        for feature_config in features_data:
+            if not feature_config.get('isIncluded', False):
+                continue
+
+            base_feature_id = feature_config.get('baseFeatureId')
+            try:
+                base_feature = BaseFeature.objects.get(id=base_feature_id)
+            except BaseFeature.DoesNotExist:
+                continue
+
+            # Get feature configuration
+            feature_value = feature_config.get('featureValue', '')
+            custom_description = feature_config.get('customDescription', '')
+
+            # Create plan feature with correct field names
+            PlanFeature.objects.create(
+                plan=plan,
+                base_feature=base_feature,
+                is_included=True,
+                custom_description=custom_description if custom_description else None,
+                feature_value=feature_value if feature_value else None,
+                order=feature_config.get('order', base_feature.order),
+                is_highlighted=feature_config.get('isHighlighted', False)
+            )
+
+        return Response({
+            'success': True,
+            'message': f'Features configured successfully for {plan.name}',
+            'features_count': PlanFeature.objects.filter(plan=plan).count()
+        })
+
+    except PricingPlan.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': 'Plan not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
