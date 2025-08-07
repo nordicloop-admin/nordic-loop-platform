@@ -39,3 +39,40 @@ class PricingPageContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PricingPageContent
         fields = ['id', 'title', 'subtitle', 'section_label', 'cta_text', 'cta_url']
+
+
+# Admin serializers
+class BaseFeatureSerializer(serializers.ModelSerializer):
+    """
+    Serializer for base features (admin only)
+    """
+    class Meta:
+        model = BaseFeature
+        fields = ['id', 'name', 'category', 'base_description', 'is_active', 'order']
+
+
+class AdminPricingPlanSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for pricing plans with write capabilities
+    """
+    class Meta:
+        model = PricingPlan
+        fields = [
+            'id', 'name', 'plan_type', 'price', 'currency',
+            'color', 'is_popular', 'is_active', 'order'
+        ]
+
+
+class AdminPlanFeatureSerializer(serializers.ModelSerializer):
+    """
+    Admin serializer for plan features with write capabilities
+    """
+    base_feature_name = serializers.CharField(source='base_feature.name', read_only=True)
+
+    class Meta:
+        model = PlanFeature
+        fields = [
+            'id', 'plan', 'base_feature', 'base_feature_name',
+            'is_included', 'custom_description', 'feature_value',
+            'order', 'is_highlighted'
+        ]
