@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     PricingPlanListView, PricingPageContentView, pricing_data, BaseFeatureListView,
     AdminBaseFeatureViewSet, AdminPricingPlanViewSet, AdminPlanFeatureViewSet,
-    AdminPricingPageContentView
+    AdminPricingPageContentView, configure_plan_features
 )
 
 # Create router for admin viewsets
@@ -18,6 +18,7 @@ urlpatterns = [
     path('base-features/', BaseFeatureListView.as_view(), name='base-features'),
     path('content/', PricingPageContentView.as_view(), name='pricing-content'),
     path('data/', pricing_data, name='pricing-data'),
+    path('plans/<int:plan_id>/configure-features/', configure_plan_features, name='configure-plan-features'),
 
     # Admin endpoints
     path('admin/', include(admin_router.urls)),
