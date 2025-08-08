@@ -62,13 +62,19 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
-    def update_ad_step(self, ad_id: int, step: int, data: Dict[str, Any], 
+    def update_ad_step(self, ad_id: int, step: int, data: Dict[str, Any],
                       files: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Ad:
         """Update a specific step of the ad"""
         try:
             response = self.repository.update_ad_step(ad_id, step, data, files, user)
-            if not response.success or not response.data:
-                raise ValueError(response.message)
+            if not response.success:
+                if response.message == "Validation failed" and response.data:
+                    # Create a custom exception that includes validation details
+                    error = ValueError(response.message)
+                    error.validation_errors = response.data
+                    raise error
+                else:
+                    raise ValueError(response.message)
             return response.data
         except Exception as e:
             logging_service.log_error(e)
@@ -204,8 +210,13 @@ class AdService:
         """Update complete ad with all provided fields"""
         try:
             response = self.repository.update_complete_ad(ad_id, data, files, user)
-            if not response.success or not response.data:
-                raise ValueError(response.message)
+            if not response.success:
+                if response.message == "Validation failed" and response.data:
+                    error = ValueError(response.message)
+                    error.validation_errors = response.data
+                    raise error
+                else:
+                    raise ValueError(response.message)
             return response.data
         except Exception as e:
             logging_service.log_error(e)
@@ -215,8 +226,13 @@ class AdService:
         """Partially update ad with only provided fields"""
         try:
             response = self.repository.partial_update_ad(ad_id, data, files, user)
-            if not response.success or not response.data:
-                raise ValueError(response.message)
+            if not response.success:
+                if response.message == "Validation failed" and response.data:
+                    error = ValueError(response.message)
+                    error.validation_errors = response.data
+                    raise error
+                else:
+                    raise ValueError(response.message)
             return response.data
         except Exception as e:
             logging_service.log_error(e)
