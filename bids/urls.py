@@ -1,7 +1,7 @@
 from django.urls import path
 from bids.views import (
     BidCreateView, BidUpdateView, BidDeleteView, BidDetailView,
-    AllBidsListView, AdBidsListView, UserBidsListView, BidHistoryView,
+    AllBidsListView, AdBidsListView, AdBidHistoryView, UserBidsListView, BidHistoryView,
     AdBidStatsView, BidSearchView, WinningBidsView, CloseAuctionView,
     AdminBidListView, AdminBidDetailView, AdminBidApproveView,
     AdminBidRejectView, AdminBidMarkAsWonView,
@@ -26,7 +26,10 @@ urlpatterns = [
     
     # List bids for specific ad
     path("ad/<int:ad_id>/", AdBidsListView.as_view(), name="ad-bids"),
-    
+
+    # Get bid history for specific ad with company details
+    path("ad/<int:ad_id>/history/", AdBidHistoryView.as_view(), name="ad-bid-history"),
+
     # List current user's bids
     path("my/", UserBidsListView.as_view(), name="user-bids"),
     

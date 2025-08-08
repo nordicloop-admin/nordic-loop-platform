@@ -222,10 +222,10 @@ class AdBidsListView(APIView):
         try:
             # Verify ad exists
             ad = get_object_or_404(Ad, id=ad_id)
-            
+
             status_filter = request.query_params.get('status')
             bids = bid_service.get_bids_for_ad(ad_id, status_filter)
-            
+
             serializer = BidListSerializer(bids, many=True)
             return Response(
                 {
@@ -236,10 +236,67 @@ class AdBidsListView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-            
+
         except Exception as e:
             return Response(
                 {"error": f"Failed to retrieve bids: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdBidHistoryView(APIView):
+    """Get detailed bid history for an ad with company information"""
+    permission_classes = [AllowAny]
+
+    def get(self, request, ad_id):
+        """Get chronological bid history for an ad"""
+        try:
+            from ads.models import Ad
+            from company.models import Company
+
+            # Verify ad exists
+            ad = get_object_or_404(Ad, id=ad_id)
+
+            # Get all bids for this ad, ordered by creation time (newest first)
+            bids = Bid.objects.filter(ad_id=ad_id).select_related(
+                'user', 'user__company'
+            ).order_by('-created_at')
+
+            bid_history = []
+            for bid in bids:
+                # Get company name
+                company_name = "Unknown Company"
+                if bid.user and bid.user.company:
+                    company_name = bid.user.company.official_name or bid.user.company.trading_name
+                elif bid.user:
+                    company_name = f"{bid.user.first_name} {bid.user.last_name}".strip() or bid.user.email
+
+                bid_history.append({
+                    "id": bid.id,
+                    "company_name": company_name,
+                    "bid_amount": str(bid.bid_price_per_unit),
+                    "total_value": str(bid.total_bid_value) if bid.total_bid_value else str(bid.bid_price_per_unit * bid.volume_requested),
+                    "volume_requested": str(bid.volume_requested),
+                    "volume_type": bid.volume_type,
+                    "currency": ad.currency,
+                    "status": bid.status,
+                    "created_at": bid.created_at.isoformat(),
+                    "notes": bid.notes or ""
+                })
+
+            return Response(
+                {
+                    "ad_id": ad_id,
+                    "ad_title": ad.title,
+                    "total_bids": len(bid_history),
+                    "bid_history": bid_history
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve bid history: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
