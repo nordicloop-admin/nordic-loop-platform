@@ -347,8 +347,15 @@ class AdRepository:
             if not ad:
                 return RepositoryResponse(False, "Ad not found or access denied", None)
 
+            # Force recalculation of completion status using the serializer
+            from .serializer import AdUpdateSerializer
+            serializer = AdUpdateSerializer(ad, data={}, partial=True)
+            if serializer.is_valid():
+                ad = serializer.save()  # This will recalculate is_complete
+
             if not ad.is_complete:
-                return RepositoryResponse(False, "Ad must be complete before activation", None)
+                next_step = ad.get_next_incomplete_step()
+                return RepositoryResponse(False, f"Ad must be complete before activation. Next incomplete step: {next_step}", None)
             
             # Check if the ad is suspended by admin
             if ad.status == 'suspended' and ad.suspended_by_admin:

@@ -499,12 +499,16 @@ class AdDeactivateView(APIView):
 
             return Response({
                 "message": "Ad deactivated successfully and is no longer visible for bidding",
-                "ad": AdSerializer(ad).data
+                "ad": {
+                    "id": ad.id,
+                    "title": ad.title,
+                    "is_active": ad.is_active,
+                    "is_complete": ad.is_complete
+                }
             }, status=status.HTTP_200_OK)
 
-        except PermissionDenied as e:
-            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
-
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logging_service.log_error(e)
             return Response({"error": "Failed to deactivate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

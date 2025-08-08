@@ -668,15 +668,34 @@ class AdUpdateSerializer(serializers.ModelSerializer):
             return 1
     
     def _is_complete(self, instance):
-        """Check if ad is complete"""
-        required_fields = [
-            instance.category, instance.subcategory, instance.specific_material,
-            instance.packaging, instance.material_frequency, instance.origin,
-            instance.contamination, instance.additives, instance.storage_conditions,
-            instance.processing_methods, instance.delivery_options,
-            instance.available_quantity, instance.starting_bid_price,
-            instance.title, instance.description
-        ]
+        """Check if ad is complete based on material type pathway"""
+        # Check if this is a plastic material by name (case-insensitive)
+        is_plastic = False
+        if instance.category:
+            category_name = instance.category.name.lower()
+            is_plastic = category_name in ['plastic', 'plastics']
+
+        if is_plastic:
+            # Full pathway for plastics (8 steps) - all fields required
+            required_fields = [
+                instance.category, instance.subcategory, instance.packaging, instance.material_frequency,  # Step 1
+                (instance.specification or instance.additional_specifications),  # Step 2
+                instance.origin,  # Step 3
+                instance.contamination, instance.additives, instance.storage_conditions,  # Step 4
+                instance.processing_methods,  # Step 5
+                instance.location, instance.delivery_options,  # Step 6
+                instance.available_quantity, instance.starting_bid_price, instance.currency,  # Step 7
+                instance.title, instance.description  # Step 8
+            ]
+        else:
+            # Shortened pathway for other materials (4 steps: 1, 6, 7, 8)
+            required_fields = [
+                instance.category, instance.subcategory, instance.packaging, instance.material_frequency,  # Step 1
+                instance.location, instance.delivery_options,  # Step 6
+                instance.available_quantity, instance.starting_bid_price, instance.currency,  # Step 7
+                instance.title, instance.description  # Step 8
+            ]
+
         return all(field for field in required_fields)
     
     def _update_location(self, instance, location_data):
