@@ -116,6 +116,22 @@ class BidCreateSerializer(serializers.ModelSerializer):
                     'bid_price_per_unit': f"New bid amount ({new_bid_price}) cannot be lower than your previous bid ({existing_bid.bid_price_per_unit})"
                 })
 
+            # Store previous values for history tracking
+            previous_price = existing_bid.bid_price_per_unit
+            previous_volume = existing_bid.volume_requested
+
+            # Create bid history entry BEFORE updating the bid
+            # This preserves the current state before the change
+            from .models import BidHistory
+            BidHistory.objects.create(
+                bid=existing_bid,
+                previous_price=previous_price,
+                new_price=validated_data['bid_price_per_unit'],
+                previous_volume=previous_volume,
+                new_volume=validated_data['volume_requested'],
+                change_reason='bid_updated'
+            )
+
             # Update existing bid with new values
             for field, value in validated_data.items():
                 if field != 'user':  # Don't update user field
@@ -128,6 +144,7 @@ class BidCreateSerializer(serializers.ModelSerializer):
 
             # Save the updated bid
             existing_bid.save()
+
             return existing_bid
         else:
             # Calculate total bid value for new bid
@@ -136,7 +153,20 @@ class BidCreateSerializer(serializers.ModelSerializer):
             )
 
             # Create new bid
-            return super().create(validated_data)
+            new_bid = super().create(validated_data)
+
+            # Create bid history entry for the initial bid
+            from .models import BidHistory
+            BidHistory.objects.create(
+                bid=new_bid,
+                previous_price=None,  # No previous price for new bids
+                new_price=new_bid.bid_price_per_unit,
+                previous_volume=None,  # No previous volume for new bids
+                new_volume=new_bid.volume_requested,
+                change_reason='bid_placed'
+            )
+
+            return new_bid
 
 
 class AdBasicSerializer(serializers.ModelSerializer):
@@ -274,10 +304,10 @@ class BidUpdateSerializer(serializers.ModelSerializer):
 
 class BidHistorySerializer(serializers.ModelSerializer):
     """Serializer for bid history"""
-    
+
     class Meta:
         model = BidHistory
-        fields = ['id', 'bid', 'field_changed', 'old_value', 'new_value', 'timestamp', 'notes']
+        fields = ['id', 'bid', 'previous_price', 'new_price', 'previous_volume', 'new_volume', 'change_reason', 'timestamp']
 
 
 class BidStatsSerializer(serializers.Serializer):
