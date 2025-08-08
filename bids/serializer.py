@@ -96,18 +96,47 @@ class BidCreateSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """Create bid with automatic user assignment"""
+        """Create bid with automatic user assignment or update existing bid"""
         # Get user from request context
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             validated_data['user'] = request.user
-        
-        # Calculate total bid value
-        validated_data['total_bid_value'] = (
-            validated_data['bid_price_per_unit'] * validated_data['volume_requested']
-        )
-        
-        return super().create(validated_data)
+
+        user = validated_data['user']
+        ad = validated_data['ad']
+        new_bid_price = validated_data['bid_price_per_unit']
+
+        # Check if user already has a bid for this ad
+        existing_bid = Bid.objects.filter(user=user, ad=ad).first()
+
+        if existing_bid:
+            # Validate that new bid amount is not lower than previous bid
+            if new_bid_price < existing_bid.bid_price_per_unit:
+                raise serializers.ValidationError({
+                    'bid_price_per_unit': f"New bid amount ({new_bid_price}) cannot be lower than your previous bid ({existing_bid.bid_price_per_unit})"
+                })
+
+            # Update existing bid with new values
+            for field, value in validated_data.items():
+                if field != 'user':  # Don't update user field
+                    setattr(existing_bid, field, value)
+
+            # Calculate total bid value
+            existing_bid.total_bid_value = (
+                existing_bid.bid_price_per_unit * existing_bid.volume_requested
+            )
+
+            # Save the updated bid
+            existing_bid.save()
+            return existing_bid
+        else:
+            # Calculate total bid value for new bid
+            validated_data['total_bid_value'] = (
+                validated_data['bid_price_per_unit'] * validated_data['volume_requested']
+            )
+
+            # Create new bid
+            return super().create(validated_data)
 
 
 class AdBasicSerializer(serializers.ModelSerializer):
