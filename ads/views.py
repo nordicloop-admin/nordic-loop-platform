@@ -192,6 +192,12 @@ class AdStepView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
 
         except ValueError as ve:
+            # Check if this is a validation error with details
+            if hasattr(ve, 'validation_errors'):
+                return Response({
+                    "error": str(ve),
+                    "details": ve.validation_errors
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "Failed to update step"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -247,6 +253,12 @@ class AdDetailView(APIView):
             }, status=status.HTTP_200_OK)
 
         except ValueError as ve:
+            # Check if this is a validation error with details
+            if hasattr(ve, 'validation_errors'):
+                return Response({
+                    "error": str(ve),
+                    "details": ve.validation_errors
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "Failed to update ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -273,6 +285,12 @@ class AdDetailView(APIView):
             }, status=status.HTTP_200_OK)
 
         except ValueError as ve:
+            # Check if this is a validation error with details
+            if hasattr(ve, 'validation_errors'):
+                return Response({
+                    "error": str(ve),
+                    "details": ve.validation_errors
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "Failed to partially update ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
