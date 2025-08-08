@@ -258,11 +258,14 @@ class Ad(models.Model):
 
     def get_step_completion_status(self):
         """Return completion status for each step"""
-        # Check if this is a plastic material (category_id 1 is assumed to be plastic)
-        is_plastic = self.category and self.category.id == 1
-        
+        # Check if this is a plastic material by name (case-insensitive)
+        is_plastic = False
+        if self.category:
+            category_name = self.category.name.lower()
+            is_plastic = category_name in ['plastic', 'plastics']
+
         if is_plastic:
-            # Full pathway for plastics
+            # Full pathway for plastics (8 steps)
             return {
                 1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
                 2: bool(self.specification or self.additional_specifications),
@@ -274,7 +277,7 @@ class Ad(models.Model):
                 8: bool(self.title and self.description),
             }
         else:
-            # Shortened pathway for other materials - keeping original step numbers
+            # Shortened pathway for other materials (4 steps: 1, 6, 7, 8)
             return {
                 1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
                 6: bool(self.location and self.delivery_options),  # Location & Logistics
@@ -289,16 +292,19 @@ class Ad(models.Model):
     def get_next_incomplete_step(self):
         """Get the next incomplete step number"""
         status = self.get_step_completion_status()
-        # Check if this is a plastic material (category_id 1 is assumed to be plastic)
-        is_plastic = self.category and self.category.id == 1
-        
+        # Check if this is a plastic material by name (case-insensitive)
+        is_plastic = False
+        if self.category:
+            category_name = self.category.name.lower()
+            is_plastic = category_name in ['plastic', 'plastics']
+
         if is_plastic:
             # Full pathway for plastics (steps 1-8)
             steps_to_check = range(1, 9)
         else:
             # Shortened pathway for other materials (steps 1, 6, 7, 8)
             steps_to_check = [1, 6, 7, 8]
-            
+
         for step in steps_to_check:
             if not status.get(step, False):
                 return step
