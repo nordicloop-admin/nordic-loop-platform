@@ -16,8 +16,15 @@ def notify_category_subscribers(sender, instance, created, **kwargs):
     if created and instance.is_active:
         notify_subscribers_for_ad(instance)
     # Also handle when an ad becomes active after creation
-    elif not created and instance.is_active and instance.tracker.has_changed('is_active') and instance.tracker.previous('is_active') is False:
-        notify_subscribers_for_ad(instance)
+    elif not created and instance.is_active:
+        # Check if tracker is available and has changed
+        if hasattr(instance, 'tracker') and instance.tracker.has_changed('is_active') and instance.tracker.previous('is_active') is False:
+            notify_subscribers_for_ad(instance)
+        # Fallback: if no tracker, just check if it's currently active (less precise but works)
+        elif not hasattr(instance, 'tracker'):
+            # We can't track changes without the tracker, so we'll just notify for active ads
+            # This is less efficient but ensures the system works
+            notify_subscribers_for_ad(instance)
 
 def notify_subscribers_for_ad(ad):
     """
