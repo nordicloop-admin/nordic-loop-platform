@@ -52,6 +52,41 @@ class BidCreateView(APIView):
                 )
                 
         except Exception as e:
+            # Handle ValidationError from serializer more gracefully
+            from rest_framework import serializers
+            if isinstance(e, serializers.ValidationError):
+                # Extract clean error message from ValidationError
+                error_detail = e.detail
+                if isinstance(error_detail, dict):
+                    # Get the first error message from the validation errors
+                    for field, errors in error_detail.items():
+                        if isinstance(errors, list) and len(errors) > 0:
+                            clean_message = str(errors[0])
+                            return Response(
+                                {"error": clean_message},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        elif hasattr(errors, 'message'):
+                            return Response(
+                                {"error": errors.message},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        else:
+                            return Response(
+                                {"error": str(errors)},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                elif isinstance(error_detail, list) and len(error_detail) > 0:
+                    return Response(
+                        {"error": str(error_detail[0])},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                else:
+                    return Response(
+                        {"error": str(error_detail)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
             return Response(
                 {"error": f"Failed to place bid: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
