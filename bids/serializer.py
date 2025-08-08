@@ -292,13 +292,31 @@ class BidUpdateSerializer(serializers.ModelSerializer):
         return data
     
     def update(self, instance, validated_data):
-        """Update bid with total bid value recalculation"""
+        """Update bid with total bid value recalculation and history tracking"""
+
+        # Store previous values for history tracking
+        previous_price = instance.bid_price_per_unit
+        previous_volume = instance.volume_requested
+
         # Calculate new total bid value if price or volume changes
         if 'bid_price_per_unit' in validated_data or 'volume_requested' in validated_data:
             bid_price = validated_data.get('bid_price_per_unit', instance.bid_price_per_unit)
             volume = validated_data.get('volume_requested', instance.volume_requested)
             validated_data['total_bid_value'] = bid_price * volume
-        
+
+            # Create bid history entry BEFORE updating the bid
+            # Only create history if price or volume actually changed
+            if (bid_price != previous_price or volume != previous_volume):
+                from .models import BidHistory
+                BidHistory.objects.create(
+                    bid=instance,
+                    previous_price=previous_price,
+                    new_price=bid_price,
+                    previous_volume=previous_volume,
+                    new_volume=volume,
+                    change_reason='bid_updated'
+                )
+
         return super().update(instance, validated_data)
 
 
