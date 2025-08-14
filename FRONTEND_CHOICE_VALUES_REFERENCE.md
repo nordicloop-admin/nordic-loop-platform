@@ -324,9 +324,19 @@ export const AD_CHOICES = {
   
   UNIT_OF_MEASUREMENT: {
     KG: 'kg',
-    G: 'g',
-    LB: 'lb',
-    TONS: 'tons'
+    TONS: 'tons',
+    TONNES: 'tonnes',
+    LBS: 'lbs',
+    POUNDS: 'pounds',
+    PIECES: 'pieces',
+    UNITS: 'units',
+    BALES: 'bales',
+    CONTAINERS: 'containers',
+    CUBIC_METERS_SYMBOL: 'm³',
+    CUBIC_METERS: 'cubic_meters',
+    LITERS: 'liters',
+    GALLONS: 'gallons',
+    METERS: 'meters'
   },
   
   CURRENCY: {

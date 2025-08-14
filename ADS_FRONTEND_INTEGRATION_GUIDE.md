@@ -260,9 +260,19 @@ Content-Type: application/json
 
 **Unit of Measurement Options:**
 - `"kg"` - Kilogram
-- `"g"` - Gram
-- `"lb"` - Pound
 - `"tons"` - Tons
+- `"tonnes"` - Tonnes
+- `"lbs"` - Pounds
+- `"pounds"` - Pounds
+- `"pieces"` - Pieces
+- `"units"` - Units
+- `"bales"` - Bales
+- `"containers"` - Containers
+- `"m³"` - Cubic Meters
+- `"cubic_meters"` - Cubic Meters
+- `"liters"` - Liters
+- `"gallons"` - Gallons
+- `"meters"` - Meters
 
 **Currency Options:**
 - `"EUR"` - Euro
