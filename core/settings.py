@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'notifications.apps.NotificationsConfig',
     'category_subscriptions',
     'pricing.apps.PricingConfig',
+    'payments.apps.PaymentsConfig',
 
 ]
 AUTH_USER_MODEL = 'users.User'
@@ -219,3 +220,20 @@ FIREBASE_CREDENTIALS_PATH = env('FIREBASE_CREDENTIALS_PATH', default=None)
 # These should be set in your production environment:
 # GOOGLE_APPLICATION_CREDENTIALS (path to service account JSON)
 # Or individual Firebase config variables
+
+# Stripe settings
+STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+
+# Frontend URL for Stripe redirects
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')
+
+# Email settings (if not already configured)
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = env('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@nordicloop.com')

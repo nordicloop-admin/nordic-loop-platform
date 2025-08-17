@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),
     path('api/category-subscriptions/', include('category_subscriptions.urls')),
     path('api/pricing/', include('pricing.urls')),
+    path('api/payments/', include('payments.urls')),
 ]
 
 # Serve media files during development
