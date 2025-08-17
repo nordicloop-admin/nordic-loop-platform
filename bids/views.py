@@ -337,25 +337,61 @@ class AdBidHistoryView(APIView):
 
 
 class UserBidsListView(APIView):
-    """List current user's bids"""
+    """List current user's bids with pagination and filtering"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Get current user's bids"""
+        """Get current user's bids with pagination and filtering"""
         try:
+            # Get query parameters
             status_filter = request.query_params.get('status')
-            bids = bid_service.get_user_bids(request.user, status_filter)
-            
-            serializer = BidListSerializer(bids, many=True)
-            return Response(
-                {
-                    "user_id": request.user.id,
-                    "total_bids": len(bids),
-                    "bids": serializer.data
-                },
-                status=status.HTTP_200_OK
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+
+            # Validate status parameter
+            if status_filter and status_filter != 'all':
+                valid_statuses = ['active', 'outbid', 'winning', 'won', 'lost', 'cancelled']
+                if status_filter not in valid_statuses:
+                    return Response(
+                        {"error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Get user bids with pagination
+            pagination_data = bid_service.get_user_bids_paginated(
+                user=request.user,
+                status=status_filter,
+                page=page,
+                page_size=page_size
             )
-            
+
+            # Serialize the results
+            serializer = BidListSerializer(pagination_data['results'], many=True)
+
+            # Calculate statistics
+            total_bids = Bid.objects.filter(user=request.user).count()
+            active_bids = Bid.objects.filter(user=request.user, status='active').count()
+
+            # Format response
+            response_data = {
+                "bids": serializer.data,
+                "pagination": {
+                    "count": pagination_data['count'],
+                    "next": pagination_data['next'],
+                    "previous": pagination_data['previous'],
+                    "page_size": pagination_data['page_size'],
+                    "total_pages": pagination_data['total_pages'],
+                    "current_page": pagination_data['current_page']
+                },
+                "statistics": {
+                    "total_bids": total_bids,
+                    "active_bids": active_bids,
+                    "total_bidders": 1  # Current user
+                }
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response(
                 {"error": f"Failed to retrieve user bids: {str(e)}"},

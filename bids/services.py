@@ -222,14 +222,28 @@ class BidService:
         """Get all bids for a specific user"""
         try:
             queryset = Bid.objects.filter(user=user).select_related('ad').order_by('-created_at')
-            
+
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
-            
+
             return list(queryset)
         except Exception as e:
             logging_service.log_error(e)
             return []
+
+    def get_user_bids_paginated(self, user: User, status: Optional[str] = None, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
+        """
+        Get paginated user bids with filtering
+        """
+        try:
+            result = self.repository.get_user_bids_paginated(user, status, page, page_size)
+            if result.success:
+                return result.data
+            else:
+                raise Exception(result.message)
+        except Exception as e:
+            logging_service.log_error(e)
+            raise e
 
     def get_highest_bid_for_ad(self, ad_id: int) -> Optional[Bid]:
         """Get the highest bid for an ad"""
