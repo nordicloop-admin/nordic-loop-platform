@@ -400,27 +400,45 @@ class UserBidsListView(APIView):
 
 
 class WinningBidsView(APIView):
-    """Get user's winning bids"""
+    """Get user's winning bids with pagination"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Get current user's winning bids"""
+        """Get current user's winning bids with pagination"""
         try:
-            winning_bids = Bid.objects.filter(
+            from django.core.paginator import Paginator
+
+            # Get pagination parameters
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+
+            # Get winning bids queryset
+            winning_bids_queryset = Bid.objects.filter(
                 user=request.user,
                 status__in=['winning', 'won']
             ).select_related('ad').order_by('-created_at')
-            
-            serializer = BidListSerializer(winning_bids, many=True)
+
+            # Apply pagination
+            paginator = Paginator(winning_bids_queryset, page_size)
+            winning_bids_page = paginator.get_page(page)
+
+            # Serialize the bids
+            serializer = BidListSerializer(winning_bids_page, many=True)
+
+            # Return paginated response format consistent with other endpoints
             return Response(
                 {
-                    "user_id": request.user.id,
-                    "winning_bids_count": len(winning_bids),
-                    "winning_bids": serializer.data
+                    "count": paginator.count,
+                    "next": winning_bids_page.next_page_number() if winning_bids_page.has_next() else None,
+                    "previous": winning_bids_page.previous_page_number() if winning_bids_page.has_previous() else None,
+                    "page_size": page_size,
+                    "total_pages": paginator.num_pages,
+                    "current_page": page,
+                    "results": serializer.data
                 },
                 status=status.HTTP_200_OK
             )
-            
+
         except Exception as e:
             return Response(
                 {"error": f"Failed to retrieve winning bids: {str(e)}"},
