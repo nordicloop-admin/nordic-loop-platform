@@ -11,7 +11,12 @@ from .models import StripeAccount, PaymentIntent, Transaction, PayoutSchedule
 logger = logging.getLogger(__name__)
 
 # Initialize Stripe
-stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
+stripe_secret_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
+if stripe_secret_key:
+    stripe.api_key = stripe_secret_key
+    logger.info("Stripe API key configured successfully")
+else:
+    logger.warning("Stripe API key not found in settings")
 
 
 class StripeConnectService:
@@ -23,12 +28,21 @@ class StripeConnectService:
         self.stripe_api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
         if not self.stripe_api_key:
             logger.warning("Stripe API key not configured")
+        else:
+            # Ensure stripe module uses the API key
+            stripe.api_key = self.stripe_api_key
     
     def create_connect_account(self, user: User, bank_account_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a Stripe Connect Custom account for a seller
         """
         try:
+            # Ensure API key is set
+            if not self.stripe_api_key:
+                return {
+                    'success': False,
+                    'message': 'Stripe API key not configured'
+                }
             # Create Stripe Custom account
             account = stripe.Account.create(
                 type='custom',
@@ -46,7 +60,7 @@ class StripeConnectService:
                 },
                 business_profile={
                     'mcc': '5999',  # Miscellaneous retail stores
-                    'url': getattr(settings, 'FRONTEND_URL', 'https://nordicloop.com'),
+                    'url': getattr(settings, 'FRONTEND_URL', 'https://nordicloop.se'),
                 },
                 tos_acceptance={
                     'date': int(timezone.now().timestamp()),
@@ -94,11 +108,17 @@ class StripeConnectService:
                 'success': False,
                 'message': f'Stripe error: {str(e)}'
             }
-        except Exception as e:
-            logger.error(f"Error creating Stripe account for user {user.id}: {str(e)}")
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error creating account for user {user.id}: {str(e)}")
             return {
                 'success': False,
-                'message': f'Error creating account: {str(e)}'
+                'message': f'Stripe error: {str(e)}'
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error creating Stripe account for user {user.id}: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Unexpected error: {str(e)}'
             }
     
     def update_account_status(self, stripe_account_id: str) -> Dict[str, Any]:
