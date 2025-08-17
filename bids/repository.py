@@ -205,13 +205,57 @@ class BidRepository:
         """Get all bids for a specific user"""
         try:
             queryset = Bid.objects.filter(user=user).select_related('ad').order_by('-created_at')
-            
+
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
-            
+
             return list(queryset)
         except Exception:
             return []
+
+    def get_user_bids_paginated(self, user: User, status: Optional[str] = None, page: int = 1, page_size: int = 10) -> RepositoryResponse:
+        """Get paginated user bids with filtering"""
+        try:
+            # Base queryset
+            queryset = Bid.objects.filter(user=user).select_related('ad').order_by('-created_at')
+
+            # Apply status filter
+            if status and status != 'all':
+                valid_statuses = ['active', 'outbid', 'winning', 'won', 'lost', 'cancelled']
+                if status in valid_statuses:
+                    queryset = queryset.filter(status=status)
+
+            # Apply pagination
+            paginator = Paginator(queryset, page_size)
+
+            try:
+                bids_page = paginator.page(page)
+            except:
+                # If page number is out of range, return first page
+                bids_page = paginator.page(1)
+
+            pagination_data = {
+                'count': paginator.count,
+                'total_pages': paginator.num_pages,
+                'current_page': bids_page.number,
+                'page_size': page_size,
+                'next': f"?page={bids_page.next_page_number()}" if bids_page.has_next() else None,
+                'previous': f"?page={bids_page.previous_page_number()}" if bids_page.has_previous() else None,
+                'results': list(bids_page.object_list)
+            }
+
+            return RepositoryResponse(
+                success=True,
+                message="User bids retrieved successfully",
+                data=pagination_data,
+            )
+
+        except Exception as e:
+            return RepositoryResponse(
+                success=False,
+                message=f"Failed to retrieve user bids: {str(e)}",
+                data=None,
+            )
 
     def get_highest_bid_for_ad(self, ad_id: int) -> Optional[Bid]:
         """Get the highest active bid for an ad"""
