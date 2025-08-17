@@ -91,7 +91,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DEBUG:
+if DEBUG:
     print("DATABASE_URL", DATABASE_URL)
     print("production")
     DATABASES = {
@@ -174,6 +174,7 @@ CORS_ALLOWED_ORIGINS = (
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
     "https://nordicloop.se",
+    "https://hound-generous-personally.ngrok-free.app",
 
 )
 CORS_ALLOW_CREDENTIALS = True
