@@ -271,13 +271,14 @@ class AuctionCompletionService:
                 'auction_won'
             )
 
-            # Create the notification
+            # Create the notification with direct payment link
             Notification.objects.create(
                 user=winning_bid.user,
                 title=template['title'],
                 message=template['message'],
                 type='auction',
                 priority='high',
+                action_url=f'/dashboard/winning-bids?bid_id={winning_bid.id}',
                 metadata=metadata
             )
             
