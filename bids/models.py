@@ -11,6 +11,7 @@ class Bid(models.Model):
         ("outbid", "Outbid"),
         ("winning", "Winning"),
         ("won", "Won"),
+        ("paid", "Paid"),
         ("lost", "Lost"),
         ("cancelled", "Cancelled"),
     ]

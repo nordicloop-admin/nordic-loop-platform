@@ -56,7 +56,11 @@ def handle_bid_status_changes(sender, instance, created, **kwargs):
         # Handle winner notifications
         if current_status == 'won' and previous_status != 'won':
             _send_winner_notification_signal(instance)
-        
+
+        # Handle payment completion notifications
+        elif current_status == 'paid' and previous_status == 'won':
+            _send_payment_completion_notification_signal(instance)
+
         # Handle outbid notifications
         elif current_status in ['outbid', 'lost'] and previous_status in ['active', 'winning']:
             _send_outbid_notification_signal(instance, previous_status)
@@ -184,6 +188,74 @@ def _send_outbid_notification_signal(outbid_bid: Bid, previous_status: str):
         )
         
         logger.info(f"Outbid notification sent for bid {outbid_bid.id}")
-        
+
     except Exception as e:
         logger.error(f"Error sending outbid notification for bid {outbid_bid.id}: {str(e)}")
+
+
+def _send_payment_completion_notification_signal(paid_bid: Bid):
+    """
+    Send payment completion notification to both buyer and seller
+    """
+    try:
+        auction = paid_bid.ad
+
+        # Send buyer confirmation notification
+        buyer_title = "✅ Payment Confirmed!"
+        buyer_message = (
+            f"Your payment for {auction.title} has been successfully processed. "
+            f"The seller has been notified and will coordinate delivery/pickup with you. "
+            f"You can view your transaction history in your payments dashboard."
+        )
+
+        Notification.objects.create(
+            user=paid_bid.user,
+            title=buyer_title,
+            message=buyer_message,
+            type='payment',
+            priority='high',
+            action_url='/dashboard/payments',
+            metadata={
+                'auction_id': auction.id,
+                'bid_id': paid_bid.id,
+                'total_value': str(paid_bid.total_bid_value),
+                'currency': auction.currency,
+                'unit': auction.unit_of_measurement,
+                'volume': str(paid_bid.volume_requested),
+                'action_type': 'payment_confirmed'
+            }
+        )
+
+        # Send seller payment received notification
+        seller_title = "💰 Payment Received!"
+        seller_message = (
+            f"Payment has been received for your auction '{auction.title}'. "
+            f"The buyer ({paid_bid.user.email}) has completed their payment. "
+            f"Please coordinate delivery/pickup with the buyer. "
+            f"Your payout will be processed according to the payout schedule."
+        )
+
+        Notification.objects.create(
+            user=auction.user,
+            title=seller_title,
+            message=seller_message,
+            type='payment',
+            priority='high',
+            action_url='/dashboard/payments',
+            metadata={
+                'auction_id': auction.id,
+                'bid_id': paid_bid.id,
+                'buyer_id': paid_bid.user.id,
+                'buyer_email': paid_bid.user.email,
+                'total_value': str(paid_bid.total_bid_value),
+                'currency': auction.currency,
+                'unit': auction.unit_of_measurement,
+                'volume': str(paid_bid.volume_requested),
+                'action_type': 'payment_received'
+            }
+        )
+
+        logger.info(f"Payment completion notifications sent for bid {paid_bid.id}")
+
+    except Exception as e:
+        logger.error(f"Error sending payment completion notifications for bid {paid_bid.id}: {str(e)}")

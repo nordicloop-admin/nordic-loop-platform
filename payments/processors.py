@@ -7,6 +7,7 @@ from bids.models import Bid
 from users.models import User
 from .models import PaymentIntent, Transaction, PayoutSchedule, StripeAccount
 from .services import StripeConnectService, CommissionCalculatorService
+from .completion_services.payment_completion import PaymentCompletionService
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class BidPaymentProcessor:
     def __init__(self):
         self.stripe_service = StripeConnectService()
         self.commission_service = CommissionCalculatorService()
+        self.completion_service = PaymentCompletionService()
     
     def process_winning_bid(self, bid: Bid) -> Dict[str, Any]:
         """
@@ -103,22 +105,26 @@ class BidPaymentProcessor:
     
     def confirm_payment(self, payment_intent_id: str) -> Dict[str, Any]:
         """
-        Confirm a payment intent (called by webhook)
+        Confirm a payment intent (called by webhook) and process completion
         """
         try:
             payment_intent = PaymentIntent.objects.get(stripe_payment_intent_id=payment_intent_id)
-            
+
             # Update status
             payment_intent.status = 'succeeded'
             payment_intent.confirmed_at = timezone.now()
             payment_intent.save()
-            
+
+            # Process payment completion (status updates, notifications)
+            completion_result = self.completion_service.process_payment_completion(payment_intent)
+
             return {
                 'success': True,
                 'payment_intent': payment_intent,
-                'message': 'Payment confirmed successfully'
+                'message': 'Payment confirmed successfully',
+                'completion_result': completion_result
             }
-            
+
         except PaymentIntent.DoesNotExist:
             logger.error(f"Payment intent not found: {payment_intent_id}")
             return {
@@ -130,6 +136,40 @@ class BidPaymentProcessor:
             return {
                 'success': False,
                 'message': f'Error confirming payment: {str(e)}'
+            }
+
+    def handle_payment_failure(self, payment_intent_id: str, failure_reason: str) -> Dict[str, Any]:
+        """
+        Handle payment failure (called by webhook)
+        """
+        try:
+            payment_intent = PaymentIntent.objects.get(stripe_payment_intent_id=payment_intent_id)
+
+            # Update status
+            payment_intent.status = 'requires_payment_method'
+            payment_intent.save()
+
+            # Process payment failure (notifications)
+            failure_result = self.completion_service.handle_payment_failure(payment_intent, failure_reason)
+
+            return {
+                'success': True,
+                'payment_intent': payment_intent,
+                'message': 'Payment failure handled',
+                'failure_result': failure_result
+            }
+
+        except PaymentIntent.DoesNotExist:
+            logger.error(f"Payment intent not found: {payment_intent_id}")
+            return {
+                'success': False,
+                'message': 'Payment intent not found'
+            }
+        except Exception as e:
+            logger.error(f"Error handling payment failure {payment_intent_id}: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Error handling payment failure: {str(e)}'
             }
 
 
