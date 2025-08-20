@@ -15,6 +15,7 @@ from .serializers import (
 )
 from .services import StripeConnectService, CommissionCalculatorService
 from .processors import BidPaymentProcessor, PayoutProcessor, PaymentStatsProcessor
+from .verification_service import VerificationService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,50 @@ class BankAccountSetupView(APIView):
             return Response({
                 'message': 'No payment account found'
             }, status=status.HTTP_404_NOT_FOUND)
+
+
+class VerificationStatusView(APIView):
+    """
+    API view for checking bank account verification status
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get detailed verification status for current user"""
+        verification_service = VerificationService()
+        result = verification_service.get_verification_status(request.user)
+
+        if result['success']:
+            return Response(result)
+        else:
+            return Response({
+                'message': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
+        """Refresh verification status from Stripe"""
+        verification_service = VerificationService()
+        result = verification_service.refresh_account_status(request.user)
+
+        if result['success']:
+            return Response(result)
+        else:
+            return Response({
+                'message': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerificationFAQView(APIView):
+    """
+    API view for verification FAQ
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get verification FAQ"""
+        verification_service = VerificationService()
+        faq = verification_service.get_verification_faq()
+        return Response(faq)
 
 
 class PaymentIntentView(APIView):

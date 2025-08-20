@@ -174,29 +174,50 @@ class StripeConnectService:
         try:
             # Get seller's Stripe account
             seller_stripe_account = StripeAccount.objects.get(user=payment_intent_obj.seller)
-            
+
             # Calculate amounts in cents (Stripe uses smallest currency unit)
             total_amount_cents = int(payment_intent_obj.total_amount * 100)
             commission_amount_cents = int(payment_intent_obj.commission_amount * 100)
-            
-            # Create Payment Intent with application fee
-            intent = stripe.PaymentIntent.create(
-                amount=total_amount_cents,
-                currency=payment_intent_obj.currency.lower(),
-                application_fee_amount=commission_amount_cents,
-                transfer_data={
-                    'destination': seller_stripe_account.stripe_account_id,
-                },
-                metadata={
-                    'bid_id': payment_intent_obj.bid.id,
-                    'buyer_id': payment_intent_obj.buyer.id,
-                    'seller_id': payment_intent_obj.seller.id,
-                    'commission_rate': str(payment_intent_obj.commission_rate),
-                },
-                automatic_payment_methods={
-                    'enabled': True,
-                },
-            )
+
+            # Check if this is a test account
+            is_test_account = seller_stripe_account.stripe_account_id.startswith('acct_test_')
+
+            if is_test_account:
+                # For test accounts, create a simple payment intent without transfers
+                intent = stripe.PaymentIntent.create(
+                    amount=total_amount_cents,
+                    currency=payment_intent_obj.currency.lower(),
+                    metadata={
+                        'bid_id': payment_intent_obj.bid.id,
+                        'buyer_id': payment_intent_obj.buyer.id,
+                        'seller_id': payment_intent_obj.seller.id,
+                        'commission_rate': str(payment_intent_obj.commission_rate),
+                        'test_account': 'true',
+                        'seller_account': seller_stripe_account.stripe_account_id,
+                    },
+                    automatic_payment_methods={
+                        'enabled': True,
+                    },
+                )
+            else:
+                # For real accounts, create Payment Intent with application fee and transfer
+                intent = stripe.PaymentIntent.create(
+                    amount=total_amount_cents,
+                    currency=payment_intent_obj.currency.lower(),
+                    application_fee_amount=commission_amount_cents,
+                    transfer_data={
+                        'destination': seller_stripe_account.stripe_account_id,
+                    },
+                    metadata={
+                        'bid_id': payment_intent_obj.bid.id,
+                        'buyer_id': payment_intent_obj.buyer.id,
+                        'seller_id': payment_intent_obj.seller.id,
+                        'commission_rate': str(payment_intent_obj.commission_rate),
+                    },
+                    automatic_payment_methods={
+                        'enabled': True,
+                    },
+                )
             
             # Update payment intent with Stripe ID
             payment_intent_obj.stripe_payment_intent_id = intent.id
