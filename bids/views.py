@@ -350,7 +350,7 @@ class UserBidsListView(APIView):
 
             # Validate status parameter
             if status_filter and status_filter != 'all':
-                valid_statuses = ['active', 'outbid', 'winning', 'won', 'lost', 'cancelled']
+                valid_statuses = ['active', 'outbid', 'winning', 'won', 'paid', 'lost', 'cancelled']
                 if status_filter not in valid_statuses:
                     return Response(
                         {"error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"},
@@ -412,18 +412,19 @@ class WinningBidsView(APIView):
             page = int(request.query_params.get('page', 1))
             page_size = int(request.query_params.get('page_size', 10))
 
-            # Get winning bids queryset
+            # Get winning bids queryset (including paid bids for complete history)
             winning_bids_queryset = Bid.objects.filter(
                 user=request.user,
-                status__in=['winning', 'won']
+                status__in=['winning', 'won', 'paid']
             ).select_related('ad').order_by('-created_at')
 
             # Apply pagination
             paginator = Paginator(winning_bids_queryset, page_size)
             winning_bids_page = paginator.get_page(page)
 
-            # Serialize the bids
-            serializer = BidListSerializer(winning_bids_page, many=True)
+            # Serialize the bids with enhanced serializer for winning bids
+            from .serializer import WinningBidSerializer
+            serializer = WinningBidSerializer(winning_bids_page, many=True)
 
             # Return paginated response format consistent with other endpoints
             return Response(
@@ -595,7 +596,7 @@ class AdminBidListView(APIView):
 
             # Validate status parameter
             if status_filter and status_filter != 'all':
-                valid_statuses = ['active', 'outbid', 'winning', 'won', 'lost', 'cancelled']
+                valid_statuses = ['active', 'outbid', 'winning', 'won', 'paid', 'lost', 'cancelled']
                 if status_filter not in valid_statuses:
                     return Response(
                         {"error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"},

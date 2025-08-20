@@ -187,7 +187,7 @@ class BidListSerializer(serializers.ModelSerializer):
     ad_id = serializers.IntegerField(source='ad.id', read_only=True)
     bidder_name = serializers.CharField(source='user.username', read_only=True)
     company_name = serializers.CharField(source='user.company.official_name', read_only=True)
-    
+
     class Meta:
         model = Bid
         fields = [
@@ -195,6 +195,42 @@ class BidListSerializer(serializers.ModelSerializer):
             'bid_price_per_unit', 'volume_requested', 'total_bid_value',
             'status', 'created_at', 'updated_at'
         ]
+
+
+class WinningBidSerializer(serializers.ModelSerializer):
+    """Enhanced serializer for winning bids with additional auction and seller details"""
+    ad_title = serializers.CharField(source='ad.title', read_only=True)
+    ad_id = serializers.IntegerField(source='ad.id', read_only=True)
+    bidder_name = serializers.CharField(source='user.username', read_only=True)
+    company_name = serializers.CharField(source='user.company.official_name', read_only=True)
+
+    # Additional fields for winning bids
+    ad_category = serializers.CharField(source='ad.category.name', read_only=True)
+    ad_user_email = serializers.CharField(source='ad.user.email', read_only=True)
+    ad_location = serializers.SerializerMethodField()
+    currency = serializers.CharField(source='ad.currency', read_only=True)
+    unit = serializers.CharField(source='ad.unit_of_measurement', read_only=True)
+
+    class Meta:
+        model = Bid
+        fields = [
+            'id', 'ad_id', 'ad_title', 'bidder_name', 'company_name',
+            'bid_price_per_unit', 'volume_requested', 'total_bid_value',
+            'status', 'created_at', 'updated_at',
+            # Additional fields for winning bids
+            'ad_category', 'ad_user_email', 'ad_location', 'currency', 'unit'
+        ]
+
+    def get_ad_location(self, obj):
+        """Get formatted location string"""
+        if obj.ad.location:
+            location_parts = []
+            if obj.ad.location.city:
+                location_parts.append(obj.ad.location.city)
+            if obj.ad.location.country:
+                location_parts.append(obj.ad.location.country)
+            return ', '.join(location_parts) if location_parts else None
+        return None
 
 
 class BidDetailSerializer(serializers.ModelSerializer):
