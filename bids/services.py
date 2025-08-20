@@ -450,19 +450,40 @@ class BidService:
     
     def admin_mark_bid_as_won(self, bid_id: int, admin_user: User) -> dict:
         """
-        Admin marks a bid as won
+        Admin marks a bid as won and sends winner notification
         """
         try:
+            # First mark the bid as won using existing repository method
             response = self.repository.admin_mark_bid_as_won(bid_id, admin_user)
             if not response.success:
                 raise ValueError(response.message)
-            
+
+            # Get the winning bid and auction for notification
+            winning_bid = response.data
+            auction = winning_bid.ad
+
+            # Use AuctionCompletionService to handle manual closure with notifications
+            from ads.auction_services.auction_completion import AuctionCompletionService
+            auction_service = AuctionCompletionService()
+
+            # Send winner notification for manual closure
+            notification_sent = auction_service._send_winner_notification(
+                auction, winning_bid, closure_type='manual'
+            )
+
+            # Update auction status to completed if not already
+            if auction.status != 'completed':
+                auction.status = 'completed'
+                auction.is_active = False
+                auction.save()
+
             return {
                 "success": True,
-                "message": "Bid marked as won successfully",
-                "data": response.data
+                "message": "Bid marked as won successfully and winner notified",
+                "data": response.data,
+                "notification_sent": notification_sent
             }
-            
+
         except Exception as e:
             logging_service.log_error(e)
             return {
