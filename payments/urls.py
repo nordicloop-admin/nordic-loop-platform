@@ -6,6 +6,8 @@ app_name = 'payments'
 urlpatterns = [
     # User payment endpoints
     path('bank-account/', views.BankAccountSetupView.as_view(), name='bank_account_setup'),
+    path('verification-status/', views.VerificationStatusView.as_view(), name='verification_status'),
+    path('verification-faq/', views.VerificationFAQView.as_view(), name='verification_faq'),
     path('payment-intent/', views.PaymentIntentView.as_view(), name='payment_intent'),
     path('transactions/', views.TransactionHistoryView.as_view(), name='transaction_history'),
     path('payouts/', views.UserPayoutScheduleView.as_view(), name='user_payouts'),
