@@ -47,17 +47,29 @@ class PaymentCompletionService:
                 winning_bid.status = 'paid'
                 winning_bid.save()
                 
-                # Create transaction record
-                transaction_record = Transaction.objects.create(
+                # Create commission transaction (platform receives commission)
+                commission_transaction = Transaction.objects.create(
                     payment_intent=payment_intent,
-                    buyer=buyer,
-                    seller=seller,
-                    total_amount=payment_intent.total_amount,
-                    commission_amount=payment_intent.commission_amount,
-                    seller_amount=payment_intent.seller_amount,
+                    transaction_type='commission',
+                    amount=payment_intent.commission_amount,
                     currency=payment_intent.currency,
                     status='completed',
+                    from_user=buyer,
+                    to_user=None,  # Platform commission
+                    description=f"Commission from payment {payment_intent.stripe_payment_intent_id}",
                     processed_at=timezone.now()
+                )
+
+                # Create seller payout transaction (seller receives payment minus commission)
+                payout_transaction = Transaction.objects.create(
+                    payment_intent=payment_intent,
+                    transaction_type='payout',
+                    amount=payment_intent.seller_amount,
+                    currency=payment_intent.currency,
+                    status='pending',  # Pending until payout is processed
+                    from_user=None,  # Platform
+                    to_user=seller,
+                    description=f"Seller payout from payment {payment_intent.stripe_payment_intent_id}",
                 )
                 
                 # Send notifications
@@ -72,12 +84,15 @@ class PaymentCompletionService:
                 result = {
                     'success': True,
                     'message': 'Payment completion processed successfully',
-                    'transaction_id': transaction_record.id,
+                    'commission_transaction_id': commission_transaction.id,
+                    'payout_transaction_id': payout_transaction.id,
                     'bid_id': winning_bid.id,
                     'auction_id': auction.id,
                     'buyer_notification_sent': buyer_notification_sent,
                     'seller_notification_sent': seller_notification_sent,
                     'total_amount': str(payment_intent.total_amount),
+                    'commission_amount': str(payment_intent.commission_amount),
+                    'seller_amount': str(payment_intent.seller_amount),
                     'currency': payment_intent.currency
                 }
                 

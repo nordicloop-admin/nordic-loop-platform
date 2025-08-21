@@ -72,14 +72,15 @@ def handle_payment_intent_succeeded(payment_intent_data):
         payment_intent.status = 'succeeded'
         payment_intent.save()
         
-        # Process the payment confirmation
-        processor = BidPaymentProcessor()
-        result = processor.confirm_payment(payment_intent_id)
-        
+        # Process the payment completion
+        from .completion_services.payment_completion import PaymentCompletionService
+        completion_service = PaymentCompletionService()
+        result = completion_service.process_payment_completion(payment_intent)
+
         if result['success']:
-            logger.info(f"Payment confirmed successfully: {payment_intent_id}")
+            logger.info(f"Payment completion processed successfully: {payment_intent_id}")
         else:
-            logger.error(f"Error confirming payment: {result['message']}")
+            logger.error(f"Error processing payment completion: {result['message']}")
             
     except PaymentIntent.DoesNotExist:
         logger.error(f"Payment intent not found: {payment_intent_data['id']}")
