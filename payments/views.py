@@ -11,7 +11,7 @@ from .serializers import (
     StripeAccountSerializer, BankAccountSetupSerializer, PaymentIntentSerializer,
     PaymentIntentCreateSerializer, TransactionSerializer, PayoutScheduleSerializer,
     PayoutScheduleCreateSerializer, PayoutProcessSerializer, PaymentStatsSerializer,
-    UserPaymentHistorySerializer
+    UserPaymentHistorySerializer, PendingPayoutsResponseSerializer
 )
 from .services import StripeConnectService, CommissionCalculatorService
 from .processors import BidPaymentProcessor, PayoutProcessor, PaymentStatsProcessor
@@ -224,9 +224,11 @@ class AdminPendingPayoutsView(APIView):
         """Get pending payouts"""
         processor = PayoutProcessor()
         result = processor.get_pending_payouts()
-        
+
         if result['success']:
-            return Response(result)
+            # Serialize the response to handle User objects properly
+            serializer = PendingPayoutsResponseSerializer(result)
+            return Response(serializer.data)
         else:
             return Response({
                 'message': result['message']

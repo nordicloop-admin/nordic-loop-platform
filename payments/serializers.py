@@ -132,3 +132,39 @@ class UserPaymentHistorySerializer(serializers.Serializer):
     pending_payouts = serializers.DecimalField(max_digits=12, decimal_places=2)
     last_payment_date = serializers.DateTimeField()
     last_payout_date = serializers.DateField()
+
+
+class SellerInfoSerializer(serializers.Serializer):
+    """Serializer for seller information in pending payouts"""
+    id = serializers.IntegerField()
+    email = serializers.CharField()
+    name = serializers.CharField()
+
+
+class PendingPayoutSerializer(serializers.Serializer):
+    """Serializer for pending payout data"""
+    seller = SellerInfoSerializer()
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    transaction_count = serializers.IntegerField()
+    oldest_transaction = serializers.DateTimeField()
+
+    def to_representation(self, instance):
+        # Transform the data to match the expected format
+        return {
+            'seller': {
+                'id': instance['seller'].id,
+                'email': instance['seller'].email,
+                'name': instance['seller'].get_full_name() or instance['seller'].email,
+            },
+            'total_amount': str(instance['total_amount']),
+            'transaction_count': instance['transaction_count'],
+            'oldest_transaction': instance['oldest_transaction'].isoformat(),
+        }
+
+
+class PendingPayoutsResponseSerializer(serializers.Serializer):
+    """Serializer for pending payouts response"""
+    success = serializers.BooleanField()
+    pending_payouts = PendingPayoutSerializer(many=True)
+    total_sellers = serializers.IntegerField()
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
