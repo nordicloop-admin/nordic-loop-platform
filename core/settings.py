@@ -24,7 +24,7 @@ print("Production: ", ENV)
 # Security settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 print("SECRET_KEY", SECRET_KEY)
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1','hound-generous-personally.ngrok-free.app'])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:3000'])
 
 # Application definition
