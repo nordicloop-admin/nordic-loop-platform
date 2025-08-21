@@ -43,9 +43,9 @@ class PaymentCompletionService:
                 buyer = payment_intent.buyer
                 seller = payment_intent.seller
                 
-                # Update bid status to 'paid'
-                winning_bid.status = 'paid'
-                winning_bid.save()
+                # Update bid status to 'paid' (bypass validation for payment completion)
+                from django.db import models
+                Bid.objects.filter(id=winning_bid.id).update(status='paid')
                 
                 # Create commission transaction (platform receives commission)
                 commission_transaction = Transaction.objects.create(

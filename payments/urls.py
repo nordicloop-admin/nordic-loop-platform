@@ -9,6 +9,7 @@ urlpatterns = [
     path('verification-status/', views.VerificationStatusView.as_view(), name='verification_status'),
     path('verification-faq/', views.VerificationFAQView.as_view(), name='verification_faq'),
     path('payment-intent/', views.PaymentIntentView.as_view(), name='payment_intent'),
+    path('payment-intent/<uuid:payment_intent_id>/confirm/', views.PaymentConfirmationView.as_view(), name='payment_confirmation'),
     path('transactions/', views.TransactionHistoryView.as_view(), name='transaction_history'),
     path('payouts/', views.UserPayoutScheduleView.as_view(), name='user_payouts'),
     path('summary/', views.user_payment_summary, name='payment_summary'),
