@@ -16,7 +16,9 @@ from .serializers import (
 from .services import StripeConnectService, CommissionCalculatorService
 from .processors import BidPaymentProcessor, PayoutProcessor, PaymentStatsProcessor
 from .verification_service import VerificationService
+from .completion_services.payment_completion import PaymentCompletionService
 import logging
+import stripe
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +158,82 @@ class PaymentIntentView(APIView):
         
         serializer = PaymentIntentSerializer(payment_intents, many=True)
         return Response(serializer.data)
+
+
+class PaymentConfirmationView(APIView):
+    """
+    API view for confirming payment completion from frontend
+    This serves as a fallback when webhooks fail
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, payment_intent_id):
+        """Confirm payment completion from frontend"""
+        try:
+            # Get the payment intent
+            payment_intent = PaymentIntent.objects.get(
+                id=payment_intent_id,
+                buyer=request.user  # Ensure user owns this payment
+            )
+
+            # Check if already processed
+            if payment_intent.status == 'succeeded':
+                return Response({
+                    'success': True,
+                    'message': 'Payment already confirmed',
+                    'already_processed': True
+                })
+
+            # Verify with Stripe that payment actually succeeded
+            stripe_payment_intent = stripe.PaymentIntent.retrieve(
+                payment_intent.stripe_payment_intent_id
+            )
+
+            if stripe_payment_intent.status != 'succeeded':
+                return Response({
+                    'success': False,
+                    'message': 'Payment not confirmed by Stripe'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update payment intent status
+            payment_intent.status = 'succeeded'
+            payment_intent.save()
+
+            # Process payment completion
+            completion_service = PaymentCompletionService()
+            result = completion_service.process_payment_completion(payment_intent)
+
+            if result['success']:
+                logger.info(f"Payment completion processed via frontend confirmation: {payment_intent_id}")
+                return Response({
+                    'success': True,
+                    'message': 'Payment confirmed and processed successfully',
+                    'completion_result': result
+                })
+            else:
+                logger.error(f"Error processing payment completion via frontend: {result['message']}")
+                return Response({
+                    'success': False,
+                    'message': f"Payment confirmed but completion failed: {result['message']}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except PaymentIntent.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Payment intent not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error during payment confirmation: {str(e)}")
+            return Response({
+                'success': False,
+                'message': 'Error verifying payment with Stripe'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Error confirming payment: {str(e)}")
+            return Response({
+                'success': False,
+                'message': 'An error occurred while confirming payment'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class TransactionHistoryView(APIView):
