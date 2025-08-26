@@ -89,7 +89,6 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DEBUG:
-if DEBUG:
     print("DATABASE_URL", DATABASE_URL)
     print("production")
     DATABASES = {
