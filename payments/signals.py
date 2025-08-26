@@ -12,28 +12,14 @@ logger = logging.getLogger(__name__)
 def handle_bid_won(sender, instance, created, **kwargs):
     """
     Signal handler for when a bid status changes to 'won'
-    Triggers payment processing automatically
+    
+    Note: Payment intent creation is now handled manually when user clicks 'Initialize Payment'
+    This ensures payment intents are only created when the user is ready to pay.
     """
     if not created and instance.status == 'won':
-        # Check if payment intent already exists
-        if hasattr(instance, 'payment_intent'):
-            logger.info(f"Payment intent already exists for bid {instance.id}")
-            return
-        
-        try:
-            # Import here to avoid circular imports
-            from .processors import BidPaymentProcessor
-            
-            processor = BidPaymentProcessor()
-            result = processor.process_winning_bid(instance)
-            
-            if result['success']:
-                logger.info(f"Payment processing initiated for winning bid {instance.id}")
-            else:
-                logger.error(f"Failed to initiate payment for winning bid {instance.id}: {result['message']}")
-                
-        except Exception as e:
-            logger.error(f"Error processing payment for winning bid {instance.id}: {str(e)}")
+        logger.info(f"Bid {instance.id} marked as won. Payment intent will be created when user initiates payment.")
+        # Payment intent creation is now handled manually in the frontend
+        # when user clicks "Initialize Payment" button
 
 
 @receiver(post_save, sender=PaymentIntent)

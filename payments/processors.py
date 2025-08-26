@@ -35,10 +35,55 @@ class BidPaymentProcessor:
             
             # Check if payment intent already exists
             if hasattr(bid, 'payment_intent'):
-                return {
-                    'success': False,
-                    'message': 'Payment intent already exists for this bid'
-                }
+                existing_payment_intent = bid.payment_intent
+                
+                # If payment intent exists and has a Stripe ID, retrieve the client secret
+                if existing_payment_intent.stripe_payment_intent_id:
+                    try:
+                        import stripe
+                        stripe.api_key = self.stripe_service.stripe_api_key
+                        
+                        # Retrieve existing Stripe payment intent
+                        stripe_intent = stripe.PaymentIntent.retrieve(existing_payment_intent.stripe_payment_intent_id)
+                        
+                        # Update local status if needed
+                        if existing_payment_intent.status != stripe_intent.status:
+                            existing_payment_intent.status = stripe_intent.status
+                            existing_payment_intent.save()
+                        
+                        return {
+                            'success': True,
+                            'payment_intent': existing_payment_intent,
+                            'client_secret': stripe_intent.client_secret,
+                            'message': 'Using existing payment intent'
+                        }
+                    except Exception as e:
+                        logger.error(f"Error retrieving existing Stripe intent {existing_payment_intent.stripe_payment_intent_id}: {str(e)}")
+                        # If we can't retrieve it, we'll create a new one by continuing the flow
+                        logger.info(f"Creating new payment intent to replace failed one for bid {bid.id}")
+                else:
+                    # Payment intent exists but no Stripe ID - create Stripe intent
+                    try:
+                        stripe_result = self.stripe_service.create_payment_intent(existing_payment_intent)
+                        if stripe_result['success']:
+                            return {
+                                'success': True,
+                                'payment_intent': existing_payment_intent,
+                                'client_secret': stripe_result['client_secret'],
+                                'message': 'Stripe intent created for existing payment intent'
+                            }
+                        else:
+                            logger.error(f"Failed to create Stripe intent for existing payment intent {existing_payment_intent.id}")
+                            return {
+                                'success': False,
+                                'message': 'Failed to initialize existing payment intent'
+                            }
+                    except Exception as e:
+                        logger.error(f"Error creating Stripe intent for existing payment intent {existing_payment_intent.id}: {str(e)}")
+                        return {
+                            'success': False,
+                            'message': 'Error with existing payment intent'
+                        }
             
             # Get buyer and seller
             buyer = bid.user
