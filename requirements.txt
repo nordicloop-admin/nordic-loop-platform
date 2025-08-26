@@ -60,3 +60,4 @@ uritemplate==4.2.0
 urllib3==2.4.0
 whitenoise==6.9.0
 mailjet-rest==1.3.4
+stripe==11.1.0

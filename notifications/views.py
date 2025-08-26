@@ -57,10 +57,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     def list(self, request):
         """
-        Get all notifications for the current user with pagination
+        Get all notifications for the current user with pagination and filtering
         """
         queryset = self.get_queryset().order_by('-date')
-        
+
         # Apply filters if provided
         notification_type = request.query_params.get('type')
         priority = request.query_params.get('priority')
@@ -77,9 +77,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(
                 Q(title__icontains=search) | Q(message__icontains=search)
             )
-            
+
         if is_read is not None:
-            is_read_bool = is_read.lower() == 'true'
+            # Convert string to boolean
+            is_read_bool = is_read.lower() in ('true', '1', 'yes')
             queryset = queryset.filter(is_read=is_read_bool)
 
         # Apply pagination
@@ -94,10 +95,10 @@ class NotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='unread')
     def unread(self, request):
         """
-        Get all unread notifications for the current user with pagination
+        Get all unread notifications for the current user with pagination and filtering
         """
         queryset = self.get_queryset().filter(is_read=False).order_by('-date')
-        
+
         # Apply filters if provided
         notification_type = request.query_params.get('type')
         priority = request.query_params.get('priority')
