@@ -4,21 +4,10 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from django.conf import settings
-from mailjet_rest import Client
-import os
-import json
 from .models import PasswordResetOTP
+from .services.email_service import email_service
 
 User = get_user_model()
-
-# OTP and token generation is now handled by the PasswordResetOTP model
-
-# Mailjet configuration
-MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY', '')
-MAILJET_SECRET_KEY = os.environ.get('MAILJET_SECRET_KEY', '')
-MAILJET_SENDER_EMAIL = os.environ.get('MAILJET_SENDER_EMAIL', settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@nordicloop.com')
-MAILJET_SENDER_NAME = os.environ.get('MAILJET_SENDER_NAME', 'Nordic Loop')
 
 class RequestPasswordResetView(APIView):
     """
@@ -51,7 +40,9 @@ class RequestPasswordResetView(APIView):
             
             # Send email with OTP using Mailjet
             try:
-                self.send_otp_email(email, otp_obj.otp)
+                # Get user name for personalization
+                recipient_name = user.first_name or user.username or email.split('@')[0]
+                email_service.send_password_reset_otp(email, otp_obj.otp, recipient_name)
                 return Response({
                     'message': 'Password reset OTP has been sent to your email',
                     'success': True
@@ -69,41 +60,7 @@ class RequestPasswordResetView(APIView):
                 'error': 'Failed to process password reset request',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-    def send_otp_email(self, email, otp):
-        """Send OTP email using Mailjet"""
-        if not MAILJET_API_KEY or not MAILJET_SECRET_KEY:
-            raise Exception("Mailjet API credentials not configured")
-            
-        mailjet = Client(auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY), version='v3.1')
-        
-        data = {
-            'Messages': [
-                {
-                    "From": {
-                        "Email": MAILJET_SENDER_EMAIL,
-                        "Name": MAILJET_SENDER_NAME
-                    },
-                    "To": [
-                        {
-                            "Email": email,
-                            "Name": email.split('@')[0]  # Use part before @ as name
-                        }
-                    ],
-                    "Subject": "Nordic Loop - Password Reset OTP",
-                    "TextPart": f"Your OTP for password reset is: {otp}\n\nThis OTP will expire in 30 minutes.",
-                    "HTMLPart": f"<h3>Password Reset OTP</h3><p>Your OTP for password reset is: <strong>{otp}</strong></p><p>This OTP will expire in 30 minutes.</p>"
-                }
-            ]
-        }
-        
-        result = mailjet.send.create(data=data)
-        
-        # Check if the email was sent successfully
-        if result.status_code != 200:
-            raise Exception(f"Failed to send email: {result.reason}")
-            
-        return result
+
 
 
 class VerifyOtpView(APIView):
@@ -196,6 +153,14 @@ class ResetPasswordView(APIView):
                 
                 # Mark OTP as used
                 otp_obj.mark_as_used()
+                
+                # Send success notification email
+                try:
+                    recipient_name = user.first_name or user.username or email.split('@')[0]
+                    email_service.send_password_reset_success(email, recipient_name)
+                except Exception as e:
+                    # Log email error but don't fail the password reset
+                    print(f"Warning: Failed to send success email: {str(e)}")
                 
                 return Response({
                     'message': 'Password has been reset successfully',
