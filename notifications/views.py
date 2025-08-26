@@ -57,18 +57,69 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     def list(self, request):
         """
-        Get all notifications for the current user
+        Get all notifications for the current user with pagination
         """
-        queryset = self.get_queryset()
+        queryset = self.get_queryset().order_by('-date')
+        
+        # Apply filters if provided
+        notification_type = request.query_params.get('type')
+        priority = request.query_params.get('priority')
+        search = request.query_params.get('search')
+        is_read = request.query_params.get('is_read')
+
+        if notification_type:
+            queryset = queryset.filter(type=notification_type)
+
+        if priority:
+            queryset = queryset.filter(priority=priority)
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(message__icontains=search)
+            )
+            
+        if is_read is not None:
+            is_read_bool = is_read.lower() == 'true'
+            queryset = queryset.filter(is_read=is_read_bool)
+
+        # Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'], url_path='unread')
     def unread(self, request):
         """
-        Get all unread notifications for the current user
+        Get all unread notifications for the current user with pagination
         """
-        queryset = self.get_queryset().filter(is_read=False)
+        queryset = self.get_queryset().filter(is_read=False).order_by('-date')
+        
+        # Apply filters if provided
+        notification_type = request.query_params.get('type')
+        priority = request.query_params.get('priority')
+        search = request.query_params.get('search')
+
+        if notification_type:
+            queryset = queryset.filter(type=notification_type)
+
+        if priority:
+            queryset = queryset.filter(priority=priority)
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(message__icontains=search)
+            )
+
+        # Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
         
