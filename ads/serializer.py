@@ -478,14 +478,27 @@ class AdCompleteSerializer(serializers.ModelSerializer):
         from django.utils import timezone
         now = timezone.now()
         
+        # First check the actual status field from the model
+        if obj.status == 'completed':
+            return "Completed"
+        elif obj.status == 'suspended':
+            return "Suspended"
+        
+        # For active status, check date-based conditions
+        if obj.status == 'active':
+            if not obj.is_complete:
+                return "Draft"
+            if not obj.auction_start_date:
+                return "Not Started"
+            if obj.auction_start_date > now:
+                return "Scheduled"
+            if obj.auction_end_date and obj.auction_end_date <= now:
+                return "Ended"
+            return "Active"
+        
+        # Fallback to legacy behavior for any other cases
         if not obj.is_complete:
             return "Draft"
-        if not obj.auction_start_date:
-            return "Not Started"
-        if obj.auction_start_date > now:
-            return "Scheduled"
-        if obj.auction_end_date and obj.auction_end_date <= now:
-            return "Ended"
         return "Active"
     
     def get_time_remaining(self, obj):
