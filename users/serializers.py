@@ -80,11 +80,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'company', 'company_name', 'role', 'role_display',
             'can_place_ads', 'can_place_bids', 'date_joined'
         ]
-        read_only_fields = ['id', 'email', 'company', 'company_name', 'date_joined']
+        read_only_fields = ['id', 'company', 'company_name', 'date_joined']
+        
+    def validate_email(self, value):
+        """
+        Validate email field for uniqueness (excluding current user)
+        """
+        # Check if email already exists for another user
+        if self.instance and self.instance.email == value:
+            # Email hasn't changed, so it's valid
+            return value
+            
+        if User.objects.filter(email=value).exclude(id=self.instance.id if self.instance else None).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+            
+        return value
         
     def update(self, instance, validated_data):
         """
-        Custom update method to handle name field
+        Custom update method to handle name field and email updates
         """
         # Update the name field if first_name or last_name is updated
         if 'first_name' in validated_data or 'last_name' in validated_data:
