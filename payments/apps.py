@@ -1,9 +1,9 @@
 from django.apps import AppConfig
 
 
-class BidsConfig(AppConfig):
+class PaymentsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'bids'
-
+    name = 'payments'
+    
     def ready(self):
-        import bids.signals
+        import payments.signals
