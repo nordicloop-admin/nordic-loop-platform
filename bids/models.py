@@ -84,6 +84,49 @@ class Bid(models.Model):
         null=True,
         help_text="Additional notes or requirements from the bidder"
     )
+    
+    # Pre-authorization fields for payment
+    stripe_payment_method_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe payment method ID for pre-authorization"
+    )
+    stripe_payment_intent_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe payment intent ID for authorization hold"
+    )
+    authorization_status = models.CharField(
+        max_length=30,
+        choices=[
+            ('pending', 'Pending Authorization'),
+            ('authorized', 'Authorized'),
+            ('captured', 'Captured'),
+            ('canceled', 'Canceled'),
+            ('failed', 'Failed'),
+        ],
+        default='pending',
+        help_text="Status of payment authorization"
+    )
+    authorization_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Amount authorized for this bid"
+    )
+    authorization_created_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When authorization was created"
+    )
+    authorization_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When authorization expires (typically 7 days)"
+    )
 
     class Meta:
         ordering = ['-created_at']

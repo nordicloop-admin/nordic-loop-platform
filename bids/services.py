@@ -462,20 +462,24 @@ class BidService:
             winning_bid = response.data
             auction = winning_bid.ad
 
-            # Use AuctionCompletionService to handle manual closure with notifications
+            # Use AuctionCompletionService to handle manual closure with payment capture and notifications
             from ads.auction_services.auction_completion import AuctionCompletionService
             auction_service = AuctionCompletionService()
 
-            # Send winner notification for manual closure
-            notification_sent = auction_service._send_winner_notification(
-                auction, winning_bid, closure_type='manual'
-            )
-
-            # Update auction status to completed if not already
-            if auction.status != 'completed':
-                auction.status = 'completed'
-                auction.is_active = False
-                auction.save()
+            # Close auction manually - this will handle payment capture and notifications
+            completion_result = auction_service.close_auction_manually(auction, winning_bid)
+            
+            if not completion_result['success']:
+                logger.error(f"Failed to complete auction closure: {completion_result['message']}")
+                # Still return success since bid was marked as won, but note the issue
+                return {
+                    "success": True,
+                    "message": f"Bid marked as won but auction closure had issues: {completion_result['message']}",
+                    "data": response.data,
+                    "notification_sent": False
+                }
+            
+            notification_sent = completion_result.get('notification_sent', False)
 
             return {
                 "success": True,
