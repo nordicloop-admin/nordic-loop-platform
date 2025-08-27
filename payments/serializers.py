@@ -31,15 +31,21 @@ class BankAccountSetupSerializer(serializers.Serializer):
 class PaymentIntentSerializer(serializers.ModelSerializer):
     buyer_email = serializers.CharField(source='buyer.email', read_only=True)
     seller_email = serializers.CharField(source='seller.email', read_only=True)
+    buyer_company_name = serializers.CharField(source='buyer.company_name', read_only=True)
+    seller_company_name = serializers.CharField(source='seller.company_name', read_only=True)
+    auction_title = serializers.CharField(source='bid.ad.title', read_only=True)
+    auction_id = serializers.IntegerField(source='bid.ad.id', read_only=True)
+    bid_id = serializers.IntegerField(source='bid.id', read_only=True)
     bid_details = BidSerializer(source='bid', read_only=True)
     
     class Meta:
         model = PaymentIntent
         fields = [
             'id', 'stripe_payment_intent_id', 'bid', 'bid_details',
-            'buyer', 'buyer_email', 'seller', 'seller_email',
+            'buyer', 'buyer_email', 'buyer_company_name', 'seller', 'seller_email', 'seller_company_name',
             'total_amount', 'commission_amount', 'seller_amount', 'commission_rate',
-            'status', 'currency', 'created_at', 'updated_at', 'confirmed_at'
+            'status', 'currency', 'created_at', 'updated_at', 'confirmed_at',
+            'auction_title', 'auction_id', 'bid_id'
         ]
         read_only_fields = ['id', 'stripe_payment_intent_id', 'created_at', 'updated_at', 'confirmed_at']
 
@@ -53,15 +59,20 @@ class PaymentIntentCreateSerializer(serializers.Serializer):
 class TransactionSerializer(serializers.ModelSerializer):
     from_user_email = serializers.CharField(source='from_user.email', read_only=True)
     to_user_email = serializers.CharField(source='to_user.email', read_only=True)
+    buyer_company_name = serializers.CharField(source='from_user.company_name', read_only=True)
+    seller_company_name = serializers.CharField(source='to_user.company_name', read_only=True)
+    auction_title = serializers.CharField(source='payment_intent.bid.ad.title', read_only=True)
+    auction_id = serializers.IntegerField(source='payment_intent.bid.ad.id', read_only=True)
     payment_intent_details = PaymentIntentSerializer(source='payment_intent', read_only=True)
     
     class Meta:
         model = Transaction
         fields = [
             'id', 'payment_intent', 'payment_intent_details', 'transaction_type',
-            'amount', 'currency', 'status', 'from_user', 'from_user_email',
-            'to_user', 'to_user_email', 'stripe_transfer_id', 'stripe_charge_id',
-            'description', 'metadata', 'created_at', 'updated_at', 'processed_at'
+            'amount', 'currency', 'status', 'from_user', 'from_user_email', 'buyer_company_name',
+            'to_user', 'to_user_email', 'seller_company_name', 'stripe_transfer_id', 'stripe_charge_id',
+            'description', 'metadata', 'created_at', 'updated_at', 'processed_at',
+            'auction_title', 'auction_id'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'processed_at']
 
