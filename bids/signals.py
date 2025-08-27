@@ -88,7 +88,7 @@ def _send_winner_notification_signal(winning_bid: Bid):
         ).first()
         
         if existing_notification:
-            logger.info(f"Winner notification already exists for bid {winning_bid.id}")
+            logger.info(f"Winner notification already exists for bid {winning_bid.id}, skipping signal notification")
             return
         
         # Create winner notification using template

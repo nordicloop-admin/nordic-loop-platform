@@ -200,40 +200,89 @@ class AuctionCompletionService:
     def _close_auction_without_winner(self, auction: Ad) -> bool:
         """Close auction without a winner (no bids or reserve not met)"""
         try:
-            # Mark all bids as lost
-            Bid.objects.filter(ad=auction, status__in=['active', 'winning']).update(status='lost')
+            from payments.preauth_service import PreAuthorizationService
+            
+            with transaction.atomic():
+                # Get all bids for this auction
+                all_bids = Bid.objects.filter(ad=auction, status__in=['active', 'winning'])
+                
+                # Cancel authorization holds for all bids
+                preauth_service = PreAuthorizationService()
+                for bid in all_bids:
+                    if bid.stripe_payment_intent_id and bid.authorization_status in ['requires_capture', 'authorized']:
+                        cancel_result = preauth_service.cancel_authorization(bid)
+                        if cancel_result['success']:
+                            logger.info(f"Authorization canceled for bid {bid.id} (auction closed without winner)")
+                        else:
+                            logger.error(f"Failed to cancel authorization for bid {bid.id}: {cancel_result['message']}")
+                
+                # Mark all bids as lost
+                all_bids.update(status='lost')
 
-            # Update auction status
-            auction.is_active = False
-            auction.status = 'completed'
-            auction.save()
+                # Update auction status
+                auction.is_active = False
+                auction.status = 'completed'
+                auction.save()
 
             return True
         except Exception as e:
             logging_service.log_error(e)
+            logger.error(f"Error closing auction {auction.id} without winner: {str(e)}")
             return False
     
     def _close_auction_with_winner(self, auction: Ad, winning_bid: Bid) -> bool:
-        """Close auction with a winner"""
+        """Close auction with a winner and handle payment authorization"""
         try:
-            # Mark winning bid as won
-            winning_bid.status = 'won'
-            winning_bid.save()
+            from payments.preauth_service import PreAuthorizationService
+            
+            with transaction.atomic():
+                # Capture payment for winning bid if pre-authorized
+                if winning_bid.stripe_payment_intent_id and winning_bid.authorization_status == 'authorized':
+                    preauth_service = PreAuthorizationService()
+                    capture_result = preauth_service.capture_authorization(winning_bid)
+                    
+                    if capture_result['success']:
+                        logger.info(f"Payment captured for winning bid {winning_bid.id}: {capture_result['captured_amount']}")
+                        # Status will be set to 'paid' by the capture_authorization method
+                    else:
+                        logger.error(f"Failed to capture payment for winning bid {winning_bid.id}: {capture_result['message']}")
+                        # Still mark as won even if capture fails - manual intervention may be needed
+                        winning_bid.status = 'won'
+                        winning_bid.save()
+                else:
+                    # Mark winning bid as won (for legacy bids without pre-authorization)
+                    winning_bid.status = 'won'
+                    winning_bid.save()
 
-            # Mark all other bids as lost
-            Bid.objects.filter(
-                ad=auction,
-                status__in=['active', 'winning', 'outbid']
-            ).exclude(id=winning_bid.id).update(status='lost')
+                # Get all losing bids to cancel their authorizations
+                losing_bids = Bid.objects.filter(
+                    ad=auction,
+                    status__in=['active', 'winning', 'outbid']
+                ).exclude(id=winning_bid.id)
 
-            # Update auction status
-            auction.is_active = False
-            auction.status = 'completed'
-            auction.save()
+                # Cancel authorization holds for losing bids
+                preauth_service = PreAuthorizationService()
+                for losing_bid in losing_bids:
+                    if losing_bid.stripe_payment_intent_id and losing_bid.authorization_status in ['authorized', 'pending']:
+                        cancel_result = preauth_service.cancel_authorization(losing_bid)
+                        if cancel_result['success']:
+                            logger.info(f"Authorization canceled for losing bid {losing_bid.id}")
+                        else:
+                            logger.error(f"Failed to cancel authorization for losing bid {losing_bid.id}: {cancel_result['message']}")
+                    
+                    # Mark losing bid as lost
+                    losing_bid.status = 'lost'
+                    losing_bid.save()
+
+                # Update auction status
+                auction.is_active = False
+                auction.status = 'completed'
+                auction.save()
 
             return True
         except Exception as e:
             logging_service.log_error(e)
+            logger.error(f"Error closing auction {auction.id} with winner: {str(e)}")
             return False
     
     def _send_winner_notification(self, auction: Ad, winning_bid: Bid, closure_type: str = 'automatic') -> bool:

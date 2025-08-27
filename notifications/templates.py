@@ -18,12 +18,12 @@ class AuctionNotificationTemplates:
                                 total_value: Decimal) -> Dict[str, str]:
         """Template for automatic auction closure winner notification"""
         return {
-            'title': '🎉 Auction Won! Payment Required',
+            'title': '🎉 Auction Won! Payment Complete',
             'message': (
                 f"Congratulations! The auction for {auction_title} has ended and you are the winner! "
                 f"Your winning bid: {winning_price} {currency} per {unit} for {volume} {unit}. "
                 f"Total amount: {total_value} {currency}. "
-                f"Please proceed with payment to secure your purchase."
+                f"Payment has been automatically processed and your purchase is complete!"
             )
         }
     
@@ -36,7 +36,7 @@ class AuctionNotificationTemplates:
             'message': (
                 f"Great news! You have won the auction for {auction_title}. "
                 f"Your winning bid of {winning_price} {currency} per {unit} for {volume} {unit} "
-                f"has been accepted. Please proceed with payment to complete your purchase."
+                f"has been accepted. Payment has been automatically processed and your purchase is complete!"
             )
         }
     

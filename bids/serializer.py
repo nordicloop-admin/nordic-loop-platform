@@ -24,13 +24,21 @@ class BidSerializer(serializers.ModelSerializer):
 
 
 class BidCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new bids"""
+    """Serializer for creating new bids with pre-authorization"""
+    
+    # Add payment method field for pre-authorization
+    payment_method_id = serializers.CharField(
+        max_length=255,
+        required=True,
+        help_text="Stripe payment method ID for pre-authorization"
+    )
     
     class Meta:
         model = Bid
         fields = [
             'ad', 'bid_price_per_unit', 'volume_requested', 
-            'volume_type', 'notes', 'max_auto_bid_price', 'is_auto_bid'
+            'volume_type', 'notes', 'max_auto_bid_price', 'is_auto_bid',
+            'payment_method_id'
         ]
         
     def validate_ad(self, value):
@@ -96,7 +104,10 @@ class BidCreateSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        """Create bid with automatic user assignment or update existing bid"""
+        """Create bid with pre-authorization payment hold"""
+        from payments.preauth_service import PreAuthorizationService
+        from django.db import transaction
+        
         # Get user from request context
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
@@ -105,11 +116,21 @@ class BidCreateSerializer(serializers.ModelSerializer):
         user = validated_data['user']
         ad = validated_data['ad']
         new_bid_price = validated_data['bid_price_per_unit']
+        payment_method_id = validated_data.pop('payment_method_id')  # Remove from validated_data
 
         # Check if user already has a bid for this ad
         existing_bid = Bid.objects.filter(user=user, ad=ad).first()
 
         if existing_bid:
+            # Cancel existing authorization if it exists
+            if existing_bid.stripe_payment_intent_id:
+                preauth_service = PreAuthorizationService()
+                cancel_result = preauth_service.cancel_authorization(existing_bid)
+                if not cancel_result['success']:
+                    raise serializers.ValidationError({
+                        'payment_method_id': f"Failed to cancel previous authorization: {cancel_result['message']}"
+                    })
+
             # Validate that new bid amount is not lower than previous bid
             if new_bid_price < existing_bid.bid_price_per_unit:
                 raise serializers.ValidationError({
@@ -120,21 +141,9 @@ class BidCreateSerializer(serializers.ModelSerializer):
             previous_price = existing_bid.bid_price_per_unit
             previous_volume = existing_bid.volume_requested
 
-            # Create bid history entry BEFORE updating the bid
-            # This preserves the current state before the change
-            from .models import BidHistory
-            BidHistory.objects.create(
-                bid=existing_bid,
-                previous_price=previous_price,
-                new_price=validated_data['bid_price_per_unit'],
-                previous_volume=previous_volume,
-                new_volume=validated_data['volume_requested'],
-                change_reason='bid_updated'
-            )
-
             # Update existing bid with new values
             for field, value in validated_data.items():
-                if field != 'user':  # Don't update user field
+                if field not in ['user', 'payment_method_id']:  # Don't update user field
                     setattr(existing_bid, field, value)
 
             # Calculate total bid value
@@ -145,6 +154,26 @@ class BidCreateSerializer(serializers.ModelSerializer):
             # Save the updated bid
             existing_bid.save()
 
+            # Create new authorization for updated bid
+            preauth_service = PreAuthorizationService()
+            auth_result = preauth_service.create_authorization_hold(existing_bid, payment_method_id)
+            
+            if not auth_result['success']:
+                raise serializers.ValidationError({
+                    'payment_method_id': f"Payment authorization failed: {auth_result['message']}"
+                })
+
+            # Create bid history entry AFTER successful authorization
+            from .models import BidHistory
+            BidHistory.objects.create(
+                bid=existing_bid,
+                previous_price=previous_price,
+                new_price=validated_data['bid_price_per_unit'],
+                previous_volume=previous_volume,
+                new_volume=validated_data['volume_requested'],
+                change_reason='bid_updated'
+            )
+
             return existing_bid
         else:
             # Calculate total bid value for new bid
@@ -152,21 +181,34 @@ class BidCreateSerializer(serializers.ModelSerializer):
                 validated_data['bid_price_per_unit'] * validated_data['volume_requested']
             )
 
-            # Create new bid
-            new_bid = super().create(validated_data)
+            # Create new bid with atomic transaction
+            with transaction.atomic():
+                # Create new bid
+                new_bid = super().create(validated_data)
 
-            # Create bid history entry for the initial bid
-            from .models import BidHistory
-            BidHistory.objects.create(
-                bid=new_bid,
-                previous_price=None,  # No previous price for new bids
-                new_price=new_bid.bid_price_per_unit,
-                previous_volume=None,  # No previous volume for new bids
-                new_volume=new_bid.volume_requested,
-                change_reason='bid_placed'
-            )
+                # Create authorization hold
+                preauth_service = PreAuthorizationService()
+                auth_result = preauth_service.create_authorization_hold(new_bid, payment_method_id)
+                
+                if not auth_result['success']:
+                    # If authorization fails, delete the bid and raise error
+                    new_bid.delete()
+                    raise serializers.ValidationError({
+                        'payment_method_id': f"Payment authorization failed: {auth_result['message']}"
+                    })
 
-            return new_bid
+                # Create bid history entry for the initial bid
+                from .models import BidHistory
+                BidHistory.objects.create(
+                    bid=new_bid,
+                    previous_price=None,  # No previous price for new bids
+                    new_price=new_bid.bid_price_per_unit,
+                    previous_volume=None,  # No previous volume for new bids
+                    new_volume=new_bid.volume_requested,
+                    change_reason='bid_placed'
+                )
+
+                return new_bid
 
 
 class AdBasicSerializer(serializers.ModelSerializer):
