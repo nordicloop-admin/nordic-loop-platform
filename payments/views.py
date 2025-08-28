@@ -243,13 +243,18 @@ class TransactionHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
-        """Get user's transaction history"""
-        # Get transactions where user is involved
+        """Get user's transaction history with minimal data"""
+        # Get transactions where user is involved with optimized queries
         transactions = Transaction.objects.filter(
             models.Q(from_user=request.user) | models.Q(to_user=request.user)
+        ).select_related(
+            'payment_intent__bid__ad',  # For auction title
+            'from_user__company',       # For company names
+            'to_user__company'          # For company names
         ).order_by('-created_at')
         
-        serializer = TransactionSerializer(transactions, many=True)
+        from .serializers import UserTransactionSerializer
+        serializer = UserTransactionSerializer(transactions, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -386,6 +391,66 @@ class AdminProcessPayoutsView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminPaymentIntentsView(APIView):
+    """
+    Admin API view for getting all payment intents
+    """
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+    
+    def get(self, request):
+        """Get all payment intents for admin dashboard"""
+        try:
+            payment_intents = PaymentIntent.objects.select_related(
+                'bid__user', 
+                'bid__ad__user',
+                'bid__ad',
+                'buyer',
+                'buyer__company',
+                'seller',
+                'seller__company'
+            ).order_by('-created_at')
+            
+            serializer = PaymentIntentSerializer(payment_intents, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error fetching admin payment intents: {str(e)}")
+            return Response({
+                'error': 'Failed to fetch payment intents'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminTransactionsView(APIView):
+    """
+    Admin API view for getting all transactions
+    """
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+    
+    def get(self, request):
+        """Get all transactions for admin dashboard"""
+        try:
+            transactions = Transaction.objects.select_related(
+                'payment_intent__bid__user', 
+                'payment_intent__bid__ad__user',
+                'payment_intent__bid__ad',
+                'payment_intent__buyer',
+                'payment_intent__buyer__company',
+                'payment_intent__seller',
+                'payment_intent__seller__company',
+                'from_user',
+                'from_user__company',
+                'to_user',
+                'to_user__company'
+            ).order_by('-created_at')
+            
+            serializer = TransactionSerializer(transactions, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error fetching admin transactions: {str(e)}")
+            return Response({
+                'error': 'Failed to fetch transactions'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Function-based views for simple operations

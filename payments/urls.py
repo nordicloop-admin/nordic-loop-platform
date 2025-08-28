@@ -19,6 +19,8 @@ urlpatterns = [
     path('admin/pending-payouts/', views.AdminPendingPayoutsView.as_view(), name='admin_pending_payouts'),
     path('admin/payout-schedules/', views.AdminPayoutScheduleView.as_view(), name='admin_payout_schedules'),
     path('admin/process-payouts/', views.AdminProcessPayoutsView.as_view(), name='admin_process_payouts'),
+    path('admin/payment-intents/', views.AdminPaymentIntentsView.as_view(), name='admin_payment_intents'),
+    path('admin/transactions/', views.AdminTransactionsView.as_view(), name='admin_transactions'),
     
     # Stripe webhooks
     path('webhooks/stripe/', webhooks.stripe_webhook, name='stripe_webhook'),

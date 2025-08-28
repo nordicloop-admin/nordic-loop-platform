@@ -31,8 +31,8 @@ class BankAccountSetupSerializer(serializers.Serializer):
 class PaymentIntentSerializer(serializers.ModelSerializer):
     buyer_email = serializers.CharField(source='buyer.email', read_only=True)
     seller_email = serializers.CharField(source='seller.email', read_only=True)
-    buyer_company_name = serializers.CharField(source='buyer.company_name', read_only=True)
-    seller_company_name = serializers.CharField(source='seller.company_name', read_only=True)
+    buyer_company_name = serializers.CharField(source='buyer.company.official_name', read_only=True)
+    seller_company_name = serializers.CharField(source='seller.company.official_name', read_only=True)
     auction_title = serializers.CharField(source='bid.ad.title', read_only=True)
     auction_id = serializers.IntegerField(source='bid.ad.id', read_only=True)
     bid_id = serializers.IntegerField(source='bid.id', read_only=True)
@@ -59,8 +59,8 @@ class PaymentIntentCreateSerializer(serializers.Serializer):
 class TransactionSerializer(serializers.ModelSerializer):
     from_user_email = serializers.CharField(source='from_user.email', read_only=True)
     to_user_email = serializers.CharField(source='to_user.email', read_only=True)
-    buyer_company_name = serializers.CharField(source='from_user.company_name', read_only=True)
-    seller_company_name = serializers.CharField(source='to_user.company_name', read_only=True)
+    buyer_company_name = serializers.CharField(source='from_user.company.official_name', read_only=True)
+    seller_company_name = serializers.CharField(source='to_user.company.official_name', read_only=True)
     auction_title = serializers.CharField(source='payment_intent.bid.ad.title', read_only=True)
     auction_id = serializers.IntegerField(source='payment_intent.bid.ad.id', read_only=True)
     payment_intent_details = PaymentIntentSerializer(source='payment_intent', read_only=True)
@@ -93,6 +93,72 @@ class PayoutScheduleSerializer(serializers.ModelSerializer):
             'processed_by_email', 'notes', 'metadata', 'created_at', 'updated_at', 'is_overdue'
         ]
         read_only_fields = ['id', 'stripe_payout_id', 'created_at', 'updated_at', 'is_overdue']
+
+
+class UserTransactionSerializer(serializers.ModelSerializer):
+    """Simplified transaction serializer for user dashboard - only essential fields"""
+    auction_title = serializers.CharField(source='payment_intent.bid.ad.title', read_only=True)
+    transaction_date = serializers.DateTimeField(source='created_at', read_only=True)
+    
+    # Determine user role in this transaction
+    user_role = serializers.SerializerMethodField()
+    other_party_email = serializers.SerializerMethodField()
+    other_party_company = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Transaction
+        fields = [
+            'id',
+            'transaction_type',
+            'amount',
+            'currency',
+            'status',
+            'description',
+            'transaction_date',
+            'auction_title',
+            'user_role',
+            'other_party_email',
+            'other_party_company'
+        ]
+    
+    def get_user_role(self, obj):
+        """Determine if current user is buyer or seller"""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return 'unknown'
+        
+        if obj.from_user == request.user:
+            return 'buyer'  # User paid money
+        elif obj.to_user == request.user:
+            return 'seller'  # User received money
+        else:
+            return 'unknown'
+    
+    def get_other_party_email(self, obj):
+        """Get the email of the other party in the transaction"""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return None
+        
+        if obj.from_user == request.user:
+            return obj.to_user.email if obj.to_user else None
+        elif obj.to_user == request.user:
+            return obj.from_user.email if obj.from_user else None
+        else:
+            return None
+    
+    def get_other_party_company(self, obj):
+        """Get the company name of the other party in the transaction"""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return None
+        
+        if obj.from_user == request.user:
+            return obj.to_user.company.official_name if obj.to_user and obj.to_user.company else None
+        elif obj.to_user == request.user:
+            return obj.from_user.company.official_name if obj.from_user and obj.from_user.company else None
+        else:
+            return None
 
 
 class PayoutScheduleCreateSerializer(serializers.Serializer):
