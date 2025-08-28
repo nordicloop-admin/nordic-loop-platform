@@ -181,7 +181,7 @@ class MailjetEmailService:
                     <p>Best regards,<br>The Nordic Loop Team</p>
                 </div>
                 <div class="footer">
-                    <p>© 2024 Nordic Loop. All rights reserved.</p>
+                    <p>© 2025 Nordic Loop. All rights reserved.</p>
                     <p>If you need help, contact us at support@nordicloop.com</p>
                 </div>
             </div>
@@ -211,7 +211,7 @@ class MailjetEmailService:
         Best regards,
         The Nordic Loop Team
         
-        © 2024 Nordic Loop. All rights reserved.
+        © 2025 Nordic Loop. All rights reserved.
         """
         
         data = {
@@ -227,7 +227,7 @@ class MailjetEmailService:
                             "Name": recipient_name
                         }
                     ],
-                    "Subject": "🔐 Nordic Loop - Password Reset Verification Code",
+                    "Subject": "Nordic Loop - Password Reset Verification Code",
                     "TextPart": text_content,
                     "HTMLPart": html_content
                 }
@@ -337,7 +337,7 @@ class MailjetEmailService:
                     <p>Best regards,<br>The Nordic Loop Team</p>
                 </div>
                 <div class="footer">
-                    <p>© 2024 Nordic Loop. All rights reserved.</p>
+                    <p>© 2025 Nordic Loop. All rights reserved.</p>
                     <p>If you need help, contact us at support@nordicloop.com</p>
                 </div>
             </div>
@@ -362,7 +362,7 @@ class MailjetEmailService:
         Best regards,
         The Nordic Loop Team
         
-        © 2024 Nordic Loop. All rights reserved.
+        © 2025 Nordic Loop. All rights reserved.
         """
         
         data = {
