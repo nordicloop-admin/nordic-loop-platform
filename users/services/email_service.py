@@ -154,7 +154,7 @@ class MailjetEmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>🔐 Password Reset</h1>
+                    <h1>Password Reset</h1>
                 </div>
                 <div class="content">
                     <h2>Hello {recipient_name},</h2>
@@ -167,7 +167,7 @@ class MailjetEmailService:
                     
                     <div class="warning-box">
                         <p class="warning-text">
-                            <strong>⚠️ Important:</strong> This code will expire in 30 minutes. If you didn't request this password reset, please ignore this email or contact our support team.
+                            <strong>Important:</strong> This code will expire in 30 minutes. If you didn't request this password reset, please ignore this email or contact our support team.
                         </p>
                     </div>
                     
@@ -321,10 +321,10 @@ class MailjetEmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>✅ Password Reset Successful</h1>
+                    <h1>Password Reset Successful</h1>
                 </div>
                 <div class="content">
-                    <div class="success-icon">🎉</div>
+                    <div class="success-icon"></div>
                     <h2>Hello {recipient_name},</h2>
                     <p>Your password has been successfully reset for your Nordic Loop account.</p>
                     <p>You can now log in with your new password. If this wasn't you, please contact our support team immediately.</p>
@@ -378,7 +378,7 @@ class MailjetEmailService:
                             "Name": recipient_name
                         }
                     ],
-                    "Subject": "✅ Nordic Loop - Password Reset Successful",
+                    "Subject": "Nordic Loop - Password Reset Successful",
                     "TextPart": text_content,
                     "HTMLPart": html_content
                 }
