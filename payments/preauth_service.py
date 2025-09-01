@@ -213,7 +213,18 @@ class PreAuthorizationService:
                     }
                 )
                 
-                # Create Transaction record for the payment
+                # Calculate commission and seller amounts
+                commission_rate = Decimal('5.00')  # 5% commission
+                commission_amount = (bid.authorization_amount * commission_rate / Decimal('100')).quantize(Decimal('0.01'))
+                seller_amount = bid.authorization_amount - commission_amount
+                
+                # Update payment intent record with correct amounts
+                payment_intent_record.commission_amount = commission_amount
+                payment_intent_record.seller_amount = seller_amount
+                payment_intent_record.commission_rate = commission_rate
+                payment_intent_record.save()
+                
+                # Create Transaction record for the payment (buyer -> platform)
                 Transaction.objects.create(
                     payment_intent=payment_intent_record,
                     transaction_type='payment',
@@ -221,7 +232,7 @@ class PreAuthorizationService:
                     currency=bid.ad.currency,
                     status='completed',
                     from_user=bid.user,  # Buyer
-                    to_user=bid.ad.user,  # Seller
+                    to_user=None,  # Platform receives the payment first
                     stripe_charge_id=payment_intent.id,
                     description=f'Payment for auction: {bid.ad.title}',
                     metadata={
@@ -230,6 +241,26 @@ class PreAuthorizationService:
                         'payment_type': 'bid_payment'
                     },
                     processed_at=timezone.now()
+                )
+                
+                # Create pending payout transaction for the seller (platform -> seller)
+                Transaction.objects.create(
+                    payment_intent=payment_intent_record,
+                    transaction_type='payout',
+                    amount=seller_amount,
+                    currency=bid.ad.currency,
+                    status='pending',
+                    from_user=None,  # Platform
+                    to_user=bid.ad.user,  # Seller
+                    description=f'Payout for auction: {bid.ad.title}',
+                    metadata={
+                        'bid_id': bid.id,
+                        'auction_id': bid.ad.id,
+                        'payment_type': 'seller_payout',
+                        'commission_amount': str(commission_amount),
+                        'original_payment_amount': str(bid.authorization_amount)
+                    },
+                    processed_at=None  # Will be set when payout is processed
                 )
             
             logger.info(f"Authorization captured for winning bid {bid.id}: {payment_intent.id}")
