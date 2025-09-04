@@ -25,6 +25,10 @@ from .serializer import (
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
 from base.services.logging import LoggingService
+from .utils import (
+    parse_multiple_ids, build_subcategory_filter,
+    parse_multiple_values, build_multiple_choice_filter
+)
 
 ad_repository = AdRepository()
 ad_service = AdService(ad_repository)
@@ -335,9 +339,9 @@ class AdListView(ListAPIView):
         
         # Get query parameters for filtering
         category_id = self.request.query_params.get('category')
-        subcategory_id = self.request.query_params.get('subcategory')
-        origin = self.request.query_params.get('origin')
-        contamination = self.request.query_params.get('contamination')
+        subcategory_param = self.request.query_params.get('subcategory')
+        origin_param = self.request.query_params.get('origin')
+        contamination_param = self.request.query_params.get('contamination')
         location_country = self.request.query_params.get('country')
         location_city = self.request.query_params.get('city')
         only_complete = self.request.query_params.get('complete', 'true').lower() == 'true'
@@ -347,21 +351,38 @@ class AdListView(ListAPIView):
         if only_complete:
             query &= Q(is_complete=True, is_active=True)
         
-        # Apply filters
+        # Apply filters using utility functions
         if category_id:
-            query &= Q(category_id=category_id)
-        if subcategory_id:
-            query &= Q(subcategory_id=subcategory_id)
-        if origin:
-            query &= Q(origin=origin)
-        if contamination:
-            query &= Q(contamination=contamination)
+            try:
+                query &= Q(category_id=int(category_id))
+            except ValueError:
+                pass  # Skip invalid category_id
+                
+        # Handle multiple subcategories
+        subcategory_ids = parse_multiple_ids(subcategory_param)
+        subcategory_filter = build_subcategory_filter(subcategory_ids)
+        if subcategory_filter:
+            query &= subcategory_filter
+            
+        # Handle multiple origins
+        origins = parse_multiple_values(origin_param)
+        origin_filter = build_multiple_choice_filter('origin', origins)
+        if origin_filter:
+            query &= origin_filter
+            
+        # Handle multiple contamination levels
+        contaminations = parse_multiple_values(contamination_param)
+        contamination_filter = build_multiple_choice_filter('contamination', contaminations)
+        if contamination_filter:
+            query &= contamination_filter
+            
+        # Location filters (keep existing logic)
         if location_country:
             query &= Q(location__country__icontains=location_country)
         if location_city:
             query &= Q(location__city__icontains=location_city)
 
-        # Broker filtering
+        # Broker filtering (keep existing logic)
         if exclude_brokers:
             query &= ~Q(user__company__sector='broker')
         elif only_brokers:
