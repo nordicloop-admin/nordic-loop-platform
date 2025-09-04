@@ -22,7 +22,7 @@ class BankAccountSetupSerializer(serializers.Serializer):
     """Serializer for bank account setup data"""
     account_holder_name = serializers.CharField(max_length=255)
     account_number = serializers.CharField(max_length=50)
-    routing_number = serializers.CharField(max_length=50, required=False)
+    routing_number = serializers.CharField(max_length=50, required=False, allow_blank=True)
     bank_name = serializers.CharField(max_length=255)
     bank_country = serializers.CharField(max_length=2, default='SE')
     currency = serializers.CharField(max_length=3, default='SEK')

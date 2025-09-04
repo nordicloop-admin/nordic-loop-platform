@@ -69,16 +69,22 @@ class StripeConnectService:
             )
             
             # Add bank account
+            external_account_data = {
+                'object': 'bank_account',
+                'country': bank_account_data.get('bank_country', 'SE'),
+                'currency': bank_account_data.get('currency', 'sek').lower(),
+                'account_holder_name': bank_account_data['account_holder_name'],
+                'account_number': bank_account_data['account_number'],
+            }
+            
+            # Only add routing_number if it's provided and not empty
+            routing_number = bank_account_data.get('routing_number', '').strip()
+            if routing_number:
+                external_account_data['routing_number'] = routing_number
+            
             bank_account = stripe.Account.create_external_account(
                 account.id,
-                external_account={
-                    'object': 'bank_account',
-                    'country': bank_account_data.get('bank_country', 'SE'),
-                    'currency': bank_account_data.get('currency', 'sek').lower(),
-                    'account_holder_name': bank_account_data['account_holder_name'],
-                    'account_number': bank_account_data['account_number'],
-                    'routing_number': bank_account_data.get('routing_number', ''),
-                }
+                external_account=external_account_data
             )
             
             # Create or update StripeAccount record
