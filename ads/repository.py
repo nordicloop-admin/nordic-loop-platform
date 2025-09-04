@@ -1,5 +1,9 @@
 from base.utils.responses import RepositoryResponse
 from base.services.logging import LoggingService
+from .utils import (
+    parse_multiple_ids, build_subcategory_filter,
+    parse_multiple_values, build_multiple_choice_filter
+)
 from django.db.models import Q, Count, Max
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -221,12 +225,13 @@ class AdRepository:
             logging_service.log_error(e)
             return RepositoryResponse(False, "Failed to delete ad", None)
 
-    def list_ads(self, category_id: Optional[int] = None, subcategory_id: Optional[int] = None,
-                origin: Optional[str] = None, contamination: Optional[str] = None,
-                location_country: Optional[str] = None, location_city: Optional[str] = None,
-                only_complete: bool = True, exclude_brokers: Optional[bool] = None,
-                only_brokers: Optional[bool] = None) -> RepositoryResponse:
-        """List ads with optional filtering"""
+    def list_ads(self, category_id: Optional[int] = None, subcategory_ids: Optional[List[int]] = None,
+                subcategory_param: Optional[str] = None, origins: Optional[List[str]] = None,
+                origin_param: Optional[str] = None, contaminations: Optional[List[str]] = None,
+                contamination_param: Optional[str] = None, location_country: Optional[str] = None,
+                location_city: Optional[str] = None, only_complete: bool = True,
+                exclude_brokers: Optional[bool] = None, only_brokers: Optional[bool] = None) -> RepositoryResponse:
+        """List ads with optional filtering - supports multiple subcategories, origins, and contamination levels"""
         try:
             query = Q()
             
@@ -236,18 +241,41 @@ class AdRepository:
             # Apply filters
             if category_id:
                 query &= Q(category_id=category_id)
-            if subcategory_id:
-                query &= Q(subcategory_id=subcategory_id)
-            if origin:
-                query &= Q(origin=origin)
-            if contamination:
-                query &= Q(contamination=contamination)
+                
+            # Handle multiple subcategories - prioritize subcategory_ids list over param string
+            final_subcategory_ids = subcategory_ids
+            if not final_subcategory_ids and subcategory_param:
+                final_subcategory_ids = parse_multiple_ids(subcategory_param)
+            
+            subcategory_filter = build_subcategory_filter(final_subcategory_ids)
+            if subcategory_filter:
+                query &= subcategory_filter
+                
+            # Handle multiple origins - prioritize origins list over param string
+            final_origins = origins
+            if not final_origins and origin_param:
+                final_origins = parse_multiple_values(origin_param)
+                
+            origin_filter = build_multiple_choice_filter('origin', final_origins)
+            if origin_filter:
+                query &= origin_filter
+                
+            # Handle multiple contamination levels - prioritize contaminations list over param string
+            final_contaminations = contaminations
+            if not final_contaminations and contamination_param:
+                final_contaminations = parse_multiple_values(contamination_param)
+                
+            contamination_filter = build_multiple_choice_filter('contamination', final_contaminations)
+            if contamination_filter:
+                query &= contamination_filter
+                
+            # Location filters (keep existing logic)
             if location_country:
                 query &= Q(location__country__icontains=location_country)
             if location_city:
                 query &= Q(location__city__icontains=location_city)
 
-            # Broker filtering
+            # Broker filtering (keep existing logic)
             if exclude_brokers:
                 query &= ~Q(user__company__sector='broker')
             elif only_brokers:

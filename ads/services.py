@@ -90,18 +90,22 @@ class AdService:
             logging_service.log_error(e)
             raise e
 
-    def list_ads(self, category_id: Optional[int] = None, subcategory_id: Optional[int] = None,
-                origin: Optional[str] = None, contamination: Optional[str] = None,
-                location_country: Optional[str] = None, location_city: Optional[str] = None,
-                only_complete: bool = True, exclude_brokers: Optional[bool] = None,
-                only_brokers: Optional[bool] = None) -> List[Ad]:
-        """List ads with optional filtering"""
+    def list_ads(self, category_id: Optional[int] = None, subcategory_ids: Optional[List[int]] = None,
+                subcategory_param: Optional[str] = None, origins: Optional[List[str]] = None,
+                origin_param: Optional[str] = None, contaminations: Optional[List[str]] = None,
+                contamination_param: Optional[str] = None, location_country: Optional[str] = None,
+                location_city: Optional[str] = None, only_complete: bool = True,
+                exclude_brokers: Optional[bool] = None, only_brokers: Optional[bool] = None) -> List[Ad]:
+        """List ads with optional filtering - supports multiple subcategories, origins, and contamination levels"""
         try:
             response = self.repository.list_ads(
                 category_id=category_id,
-                subcategory_id=subcategory_id,
-                origin=origin,
-                contamination=contamination,
+                subcategory_ids=subcategory_ids,
+                subcategory_param=subcategory_param,
+                origins=origins,
+                origin_param=origin_param,
+                contaminations=contaminations,
+                contamination_param=contamination_param,
                 location_country=location_country,
                 location_city=location_city,
                 only_complete=only_complete,
