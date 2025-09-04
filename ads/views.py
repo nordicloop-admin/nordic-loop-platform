@@ -350,6 +350,12 @@ class AdListView(ListAPIView):
 
         if only_complete:
             query &= Q(is_complete=True, is_active=True)
+            
+        # Exclude expired auctions from marketplace view
+        # Only show auctions that haven't ended yet or don't have an end date set
+        from django.utils import timezone
+        now = timezone.now()
+        query &= (Q(auction_end_date__isnull=True) | Q(auction_end_date__gt=now))
         
         # Apply filters using utility functions
         if category_id:

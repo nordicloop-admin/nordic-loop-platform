@@ -557,6 +557,7 @@ class AdListSerializer(serializers.ModelSerializer):
     subcategory_name = serializers.CharField(source='subcategory.name', read_only=True)
     location_summary = serializers.SerializerMethodField()
     total_starting_value = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    time_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = Ad
@@ -565,13 +566,34 @@ class AdListSerializer(serializers.ModelSerializer):
             'available_quantity', 'unit_of_measurement', 'starting_bid_price',
             'currency', 'location_summary', 'total_starting_value',
             'material_image', 'created_at', 'is_active', 'is_complete', 'status',
-            'suspended_by_admin', 'allow_broker_bids'
+            'suspended_by_admin', 'allow_broker_bids', 'auction_start_date', 
+            'auction_end_date', 'time_remaining'
         ]
 
     def get_location_summary(self, obj):
         if obj.location:
             return f"{obj.location.city}, {obj.location.country}"
         return None
+
+    def get_time_remaining(self, obj):
+        """Get time remaining in auction"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        if not obj.auction_end_date or obj.auction_end_date <= now:
+            return None
+            
+        time_diff = obj.auction_end_date - now
+        days = time_diff.days
+        hours, remainder = divmod(time_diff.seconds, 3600)
+        minutes, _ = divmod(remainder, 60)
+        
+        if days > 0:
+            return f"{days} days, {hours} hours"
+        elif hours > 0:
+            return f"{hours} hours, {minutes} minutes"
+        else:
+            return f"{minutes} minutes"
 
 
 class AdCreateSerializer(serializers.ModelSerializer):
