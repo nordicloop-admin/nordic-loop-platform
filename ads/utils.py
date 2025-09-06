@@ -114,3 +114,4 @@ def build_multiple_choice_filter(field_name: str, values: List[str]) -> Optional
     else:
         # Multiple values - use __in lookup
         return Q(**{f"{field_name}__in": values})
+
