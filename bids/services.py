@@ -58,6 +58,18 @@ class BidService:
             if ad.starting_bid_price and bid_price_per_unit < float(ad.starting_bid_price):
                 raise ValueError(f"Bid price must be at least {ad.starting_bid_price}")
 
+            # CRITICAL FIX: Check if bid is higher than existing bids from other users
+            highest_other_bid = Bid.objects.filter(
+                ad=ad,
+                status__in=['active', 'winning', 'outbid']
+            ).exclude(user=user).order_by('-bid_price_per_unit').first()
+            
+            if highest_other_bid:
+                if bid_price_per_unit <= float(highest_other_bid.bid_price_per_unit):
+                    raise ValueError(
+                        f"Your bid ({bid_price_per_unit}) must be higher than the current highest bid ({highest_other_bid.bid_price_per_unit}) from other bidders."
+                    )
+
             if ad.minimum_order_quantity and volume_requested < float(ad.minimum_order_quantity):
                 raise ValueError(f"Volume must be at least {ad.minimum_order_quantity}")
 
@@ -129,6 +141,31 @@ class BidService:
                     raise ValueError("Bid price must be greater than zero")
                 if bid.ad.starting_bid_price and bid_price_per_unit < float(bid.ad.starting_bid_price):
                     raise ValueError(f"Bid price must be at least {bid.ad.starting_bid_price}")
+                
+                # CRITICAL FIX: Check if updated bid is higher than existing bids from other users
+                highest_other_bid = Bid.objects.filter(
+                    ad=bid.ad,
+                    status__in=['active', 'winning', 'outbid']
+                ).exclude(user=user).order_by('-bid_price_per_unit').first()
+                
+                if highest_other_bid:
+                    if bid_price_per_unit <= float(highest_other_bid.bid_price_per_unit):
+                        raise ValueError(
+                            f"Your updated bid ({bid_price_per_unit}) must be higher than the current highest bid ({highest_other_bid.bid_price_per_unit}) from other bidders."
+                        )
+                
+                # Prevent users from lowering their own bid if there are other bids
+                if bid_price_per_unit < float(bid.bid_price_per_unit):
+                    other_bids_exist = Bid.objects.filter(
+                        ad=bid.ad,
+                        status__in=['active', 'winning', 'outbid']
+                    ).exclude(id=bid.id).exists()
+                    
+                    if other_bids_exist:
+                        raise ValueError(
+                            f"You cannot lower your bid from ({bid.bid_price_per_unit}) to ({bid_price_per_unit}) when other bids exist."
+                        )
+                
                 data['bid_price_per_unit'] = bid_price_per_unit
 
             if volume_requested is not None:
@@ -470,7 +507,7 @@ class BidService:
             completion_result = auction_service.close_auction_manually(auction, winning_bid)
             
             if not completion_result['success']:
-                logger.error(f"Failed to complete auction closure: {completion_result['message']}")
+                logging_service.log_error(f"Failed to complete auction closure: {completion_result['message']}")
                 # Still return success since bid was marked as won, but note the issue
                 return {
                     "success": True,

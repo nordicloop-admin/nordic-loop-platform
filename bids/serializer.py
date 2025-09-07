@@ -80,6 +80,7 @@ class BidCreateSerializer(serializers.ModelSerializer):
         ad = data.get('ad')
         volume_requested = data.get('volume_requested')
         bid_price = data.get('bid_price_per_unit')
+        user = self.context['request'].user if 'request' in self.context else None
         
         if ad and volume_requested:
             # Check if volume requested doesn't exceed available quantity
@@ -100,6 +101,20 @@ class BidCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"Bid price ({bid_price}) must be at least the starting bid price ({ad.starting_bid_price})."
                 )
+            
+            # CRITICAL FIX: Check if bid is higher than existing bids from other users
+            if user and ad:
+                # Get the highest bid from other users (excluding current user's bid)
+                highest_other_bid = Bid.objects.filter(
+                    ad=ad,
+                    status__in=['active', 'winning', 'outbid']
+                ).exclude(user=user).order_by('-bid_price_per_unit').first()
+                
+                if highest_other_bid:
+                    if bid_price <= highest_other_bid.bid_price_per_unit:
+                        raise serializers.ValidationError(
+                            f"Your bid ({bid_price}) must be higher than the current highest bid ({highest_other_bid.bid_price_per_unit}) from other bidders."
+                        )
         
         return data
     
@@ -345,6 +360,7 @@ class BidUpdateSerializer(serializers.ModelSerializer):
         """Cross-field validation"""
         instance = self.instance
         ad = instance.ad
+        user = instance.user
         
         volume_requested = data.get('volume_requested', instance.volume_requested)
         bid_price = data.get('bid_price_per_unit', instance.bid_price_per_unit)
@@ -366,6 +382,36 @@ class BidUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f"Bid price ({bid_price}) must be at least the starting bid price ({ad.starting_bid_price})."
             )
+        
+        # CRITICAL FIX: Check if updated bid is higher than existing bids from other users
+        # Get the highest bid from other users (excluding current user's bid)
+        highest_other_bid = Bid.objects.filter(
+            ad=ad,
+            status__in=['active', 'winning', 'outbid']
+        ).exclude(user=user).order_by('-bid_price_per_unit').first()
+        
+        if highest_other_bid:
+            if bid_price <= highest_other_bid.bid_price_per_unit:
+                raise serializers.ValidationError(
+                    f"Your updated bid ({bid_price}) must be higher than the current highest bid ({highest_other_bid.bid_price_per_unit}) from other bidders."
+                )
+        
+        # Prevent users from lowering their own bid if there are other bids
+        if 'bid_price_per_unit' in data:
+            current_price = instance.bid_price_per_unit
+            new_price = data['bid_price_per_unit']
+            
+            # If trying to lower the bid and there are other active bids, prevent it
+            if new_price < current_price:
+                other_bids_exist = Bid.objects.filter(
+                    ad=ad,
+                    status__in=['active', 'winning', 'outbid']
+                ).exclude(id=instance.id).exists()
+                
+                if other_bids_exist:
+                    raise serializers.ValidationError(
+                        f"You cannot lower your bid from ({current_price}) to ({new_price}) when other bids exist."
+                    )
         
         return data
     
