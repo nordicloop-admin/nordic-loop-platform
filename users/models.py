@@ -29,6 +29,15 @@ class User(AbstractUser):
     contact_type = models.CharField(max_length=20, choices=CONTACT_TYPE_CHOICES, default='regular', help_text="Type of contact this user represents")
     position = models.CharField(max_length=255, blank=True, null=True, help_text="Job position/title of the user")
     
+    # Payment-related fields (for backward compatibility with existing database schema)
+    bank_country = models.CharField(max_length=2, default='SE', help_text="Bank country code for payment processing")
+    bank_currency = models.CharField(max_length=3, default='SEK', help_text="Bank currency for payment processing")
+    bank_account_holder = models.CharField(max_length=255, blank=True, null=True, help_text="Bank account holder name")
+    bank_account_number = models.CharField(max_length=255, blank=True, null=True, help_text="Bank account number")
+    bank_routing_number = models.CharField(max_length=255, blank=True, null=True, help_text="Bank routing number")
+    payout_frequency = models.CharField(max_length=20, default='weekly', help_text="Frequency of payouts")
+    payout_method = models.CharField(max_length=20, default='bank_transfer', help_text="Method of payout")
+    
 
 class PasswordResetOTP(models.Model):
     """Model for storing password reset OTPs"""
