@@ -18,12 +18,11 @@ class AuctionNotificationTemplates:
                                 total_value: Decimal) -> Dict[str, str]:
         """Template for automatic auction closure winner notification"""
         return {
-            'title': '🎉 Auction Won! Payment Complete',
+            'title': '🎉 Congratulations! You Won the Auction',
             'message': (
-                f"Congratulations! The auction for {auction_title} has ended and you are the winner! "
-                f"Your winning bid: {winning_price} {currency} per {unit} for {volume} {unit}. "
-                f"Total amount: {total_value} {currency}. "
-                f"Payment has been automatically processed and your purchase is complete!"
+                f"Great news! You have won the auction for {auction_title}. "
+                f"Your winning bid of {winning_price:.2f} {currency} per {unit} for {volume:.2f} {unit} "
+                f"has been accepted. Payment has been automatically processed and your purchase is complete!"
             )
         }
     
@@ -31,11 +30,12 @@ class AuctionNotificationTemplates:
     def winner_manual_closure(auction_title: str, winning_price: Decimal, 
                              currency: str, volume: Decimal, unit: str) -> Dict[str, str]:
         """Template for manual admin closure winner notification"""
+        total_value = winning_price * volume
         return {
             'title': '🎉 Congratulations! You Won the Auction',
             'message': (
                 f"Great news! You have won the auction for {auction_title}. "
-                f"Your winning bid of {winning_price} {currency} per {unit} for {volume} {unit} "
+                f"Your winning bid of {winning_price:.2f} {currency} per {unit} for {volume:.2f} {unit} "
                 f"has been accepted. Payment has been automatically processed and your purchase is complete!"
             )
         }
@@ -49,9 +49,8 @@ class AuctionNotificationTemplates:
             'title': '🎉 Congratulations! You Won the Auction',
             'message': (
                 f"Great news! You have won the auction for {auction_title}. "
-                f"Your winning bid of {winning_price} {currency} per {unit} for {volume} {unit} "
-                f"has been accepted. Total amount: {total_value} {currency}. "
-                f"Please proceed with payment to complete your purchase."
+                f"Your winning bid of {winning_price:.2f} {currency} per {unit} for {volume:.2f} {unit} "
+                f"has been accepted. Payment has been automatically processed and your purchase is complete!"
             )
         }
     

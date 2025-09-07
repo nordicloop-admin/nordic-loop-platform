@@ -8,6 +8,7 @@ and manual auction closure scenarios.
 
 import logging
 from django.db.models.signals import post_save, pre_save
+from django.db.models import Q
 from django.dispatch import receiver
 from .models import Bid
 from notifications.models import Notification
@@ -59,7 +60,19 @@ def handle_bid_status_changes(sender, instance, created, **kwargs):
 
         # Handle payment completion notifications
         elif current_status == 'paid' and previous_status == 'won':
-            _send_payment_completion_notification_signal(instance)
+            # Skip sending payment completion notification if winner notification already mentions automatic payment processing
+            existing_winner_notification = Notification.objects.filter(
+                user=instance.user,
+                type='auction',
+                title__icontains='Congratulations',
+                message__icontains='Payment has been automatically processed'
+            ).filter(
+                Q(metadata__bid_id=instance.id) | 
+                Q(metadata__auction_id=instance.ad.id)
+            ).first()
+            
+            if not existing_winner_notification:
+                _send_payment_completion_notification_signal(instance)
 
         # Handle outbid notifications
         elif current_status in ['outbid', 'lost'] and previous_status in ['active', 'winning']:
@@ -79,19 +92,21 @@ def _send_winner_notification_signal(winning_bid: Bid):
     try:
         auction = winning_bid.ad
         
-        # Check if notification already exists to avoid duplicates
+        # Check if ANY auction-related notification already exists for this user and bid to avoid duplicates
         existing_notification = Notification.objects.filter(
             user=winning_bid.user,
             type='auction',
-            metadata__bid_id=winning_bid.id,
-            metadata__action_type='auction_won'
+            title__icontains='Congratulations'
+        ).filter(
+            Q(metadata__bid_id=winning_bid.id) | 
+            Q(metadata__auction_id=auction.id)
         ).first()
         
         if existing_notification:
             logger.info(f"Winner notification already exists for bid {winning_bid.id}, skipping signal notification")
             return
         
-        # Create winner notification using template
+        # Create winner notification using template with automatic payment message
         template = AuctionNotificationTemplates.winner_signal_backup(
             auction.title,
             winning_bid.bid_price_per_unit,

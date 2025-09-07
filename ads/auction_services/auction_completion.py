@@ -288,6 +288,20 @@ class AuctionCompletionService:
     def _send_winner_notification(self, auction: Ad, winning_bid: Bid, closure_type: str = 'automatic') -> bool:
         """Send notification to the winning bidder"""
         try:
+            # Check if notification already exists to avoid duplicates
+            existing_notification = Notification.objects.filter(
+                user=winning_bid.user,
+                type='auction',
+                title__icontains='Congratulations'
+            ).filter(
+                Q(metadata__bid_id=winning_bid.id) | 
+                Q(metadata__auction_id=auction.id)
+            ).first()
+            
+            if existing_notification:
+                logger.info(f"Winner notification already exists for bid {winning_bid.id}, skipping service notification")
+                return True
+            
             # Get notification template based on closure type
             if closure_type == 'manual':
                 template = AuctionNotificationTemplates.winner_manual_closure(

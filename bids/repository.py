@@ -57,9 +57,11 @@ class BidRepository:
             previous_price = bid.bid_price_per_unit
             previous_volume = bid.volume_requested
             
-            # Update bid fields
-            bid.bid_price_per_unit = Decimal(str(data['bid_price_per_unit']))
-            bid.volume_requested = Decimal(str(data['volume_requested']))
+            # Update bid fields only if provided in data
+            if 'bid_price_per_unit' in data:
+                bid.bid_price_per_unit = Decimal(str(data['bid_price_per_unit']))
+            if 'volume_requested' in data:
+                bid.volume_requested = Decimal(str(data['volume_requested']))
             bid.volume_type = data.get('volume_type', bid.volume_type)
             bid.notes = data.get('notes', bid.notes)
             
