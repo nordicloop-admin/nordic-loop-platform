@@ -477,8 +477,8 @@ class AdminBidListSerializer(serializers.ModelSerializer):
     itemName = serializers.CharField(source='ad.title', read_only=True)
     bidderName = serializers.SerializerMethodField()
     bidderEmail = serializers.CharField(source='user.email', read_only=True)
-    bidAmount = serializers.DecimalField(source='bid_price_per_unit', max_digits=12, decimal_places=3, read_only=True)
-    volume = serializers.DecimalField(source='volume_requested', max_digits=10, decimal_places=3, read_only=True)
+    bidAmount = serializers.SerializerMethodField()
+    volume = serializers.SerializerMethodField()
     unit = serializers.CharField(source='ad.unit_of_measurement', read_only=True)
     bidDate = serializers.DateTimeField(source='created_at', read_only=True)
 
@@ -507,6 +507,18 @@ class AdminBidListSerializer(serializers.ModelSerializer):
             return obj.user.name
         else:
             return obj.user.username
+    
+    def get_bidAmount(self, obj):
+        """
+        Get bid amount as integer (no decimals)
+        """
+        return str(int(obj.bid_price_per_unit)) if obj.bid_price_per_unit else "0"
+    
+    def get_volume(self, obj):
+        """
+        Get volume as integer (no decimals)
+        """
+        return str(int(obj.volume_requested)) if obj.volume_requested else "0"
 
 
 class AdminBidDetailSerializer(AdminBidListSerializer):
@@ -514,9 +526,15 @@ class AdminBidDetailSerializer(AdminBidListSerializer):
     Admin serializer for bid detail view - extends list serializer
     """
     # Add any additional fields for detail view if needed
-    totalValue = serializers.DecimalField(source='total_bid_value', max_digits=15, decimal_places=2, read_only=True)
+    totalValue = serializers.SerializerMethodField()
     notes = serializers.CharField(read_only=True)
     companyName = serializers.CharField(source='user.company.official_name', read_only=True)
     
     class Meta(AdminBidListSerializer.Meta):
         fields = AdminBidListSerializer.Meta.fields + ['totalValue', 'notes', 'companyName']
+    
+    def get_totalValue(self, obj):
+        """
+        Get total value as integer (no decimals)
+        """
+        return str(int(obj.total_bid_value)) if obj.total_bid_value else "0"
