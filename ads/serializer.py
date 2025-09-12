@@ -3,6 +3,7 @@ from .models import Ad, Location, Subscription, Address
 from category.serializers import CategorySpecificationSerializer
 from category.models import Category, SubCategory, CategorySpecification
 from decimal import Decimal
+import decimal
 from django.contrib.auth import get_user_model
 from django.db.models import Max
 from users.serializers import UserSerializer
@@ -556,7 +557,7 @@ class AdListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     subcategory_name = serializers.CharField(source='subcategory.name', read_only=True)
     location_summary = serializers.SerializerMethodField()
-    total_starting_value = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    total_starting_value = serializers.SerializerMethodField()
     time_remaining = serializers.SerializerMethodField()
 
     class Meta:
@@ -569,6 +570,15 @@ class AdListSerializer(serializers.ModelSerializer):
             'suspended_by_admin', 'allow_broker_bids', 'auction_start_date', 
             'auction_end_date', 'time_remaining'
         ]
+
+    def get_total_starting_value(self, obj):
+        """Calculate total starting value, handling null values"""
+        try:
+            if obj.starting_bid_price and obj.available_quantity:
+                return float(obj.starting_bid_price * obj.available_quantity)
+            return 0.00
+        except (TypeError, ValueError, decimal.InvalidOperation):
+            return 0.00
 
     def get_location_summary(self, obj):
         if obj.location:
