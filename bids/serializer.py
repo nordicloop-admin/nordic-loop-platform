@@ -64,16 +64,40 @@ class BidCreateSerializer(serializers.ModelSerializer):
         return super().validate(attrs)
     
     def validate_bid_price_per_unit(self, value):
-        """Validate bid price"""
+        """Validate bid price - must be positive integer only"""
         if value <= 0:
             raise serializers.ValidationError("Bid price must be greater than zero.")
-        return value
+        
+        # Check if value is an integer (no decimal places)
+        if value != int(value):
+            raise serializers.ValidationError("Bid price must be a whole number (no decimals allowed).")
+        
+        return int(value)
     
     def validate_volume_requested(self, value):
-        """Validate volume requested"""
+        """Validate volume requested - must be positive integer only"""
         if value <= 0:
             raise serializers.ValidationError("Volume requested must be greater than zero.")
-        return value
+        
+        # Check if value is an integer (no decimal places)
+        if value != int(value):
+            raise serializers.ValidationError("Volume requested must be a whole number (no decimals allowed).")
+        
+        return int(value)
+    
+    def validate_max_auto_bid_price(self, value):
+        """Validate max auto bid price - must be positive integer only"""
+        if value is None:
+            return value
+        
+        if value <= 0:
+            raise serializers.ValidationError("Maximum auto-bid price must be greater than zero.")
+        
+        # Check if value is an integer (no decimal places)
+        if value != int(value):
+            raise serializers.ValidationError("Maximum auto-bid price must be a whole number (no decimals allowed).")
+        
+        return int(value)
     
     def validate(self, data):
         """Cross-field validation"""
@@ -345,16 +369,40 @@ class BidUpdateSerializer(serializers.ModelSerializer):
         ]
     
     def validate_bid_price_per_unit(self, value):
-        """Validate bid price"""
+        """Validate bid price - must be positive integer only"""
         if value <= 0:
             raise serializers.ValidationError("Bid price must be greater than zero.")
-        return value
+        
+        # Check if value is an integer (no decimal places)
+        if value != int(value):
+            raise serializers.ValidationError("Bid price must be a whole number (no decimals allowed).")
+        
+        return int(value)
     
     def validate_volume_requested(self, value):
-        """Validate volume requested"""
+        """Validate volume requested - must be positive integer only"""
         if value <= 0:
             raise serializers.ValidationError("Volume requested must be greater than zero.")
-        return value
+        
+        # Check if value is an integer (no decimal places)
+        if value != int(value):
+            raise serializers.ValidationError("Volume requested must be a whole number (no decimals allowed).")
+        
+        return int(value)
+    
+    def validate_max_auto_bid_price(self, value):
+        """Validate max auto bid price - must be positive integer only"""
+        if value is None:
+            return value
+        
+        if value <= 0:
+            raise serializers.ValidationError("Maximum auto-bid price must be greater than zero.")
+        
+        # Check if value is an integer (no decimal places)
+        if value != int(value):
+            raise serializers.ValidationError("Maximum auto-bid price must be a whole number (no decimals allowed).")
+        
+        return int(value)
     
     def validate(self, data):
         """Cross-field validation"""
