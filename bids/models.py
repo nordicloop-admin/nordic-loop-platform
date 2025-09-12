@@ -26,19 +26,15 @@ class Bid(models.Model):
     ad = models.ForeignKey(Ad, on_delete=models.CASCADE, related_name="bids")
     
     # Pricing
-    bid_price_per_unit = models.DecimalField(
-        max_digits=12, 
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        help_text="Bid price per unit of material"
+    bid_price_per_unit = models.IntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Bid price per unit of material (integer only)"
     )
     
     # Volume and quantity
-    volume_requested = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        help_text="Quantity of material requested"
+    volume_requested = models.IntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Quantity of material requested (integer only)"
     )
     volume_type = models.CharField(
         max_length=10, 
@@ -65,13 +61,11 @@ class Bid(models.Model):
         default=False,
         help_text="Whether this bid was placed automatically"
     )
-    max_auto_bid_price = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
+    max_auto_bid_price = models.IntegerField(
         blank=True,
         null=True,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        help_text="Maximum price for auto-bidding"
+        validators=[MinValueValidator(1)],
+        help_text="Maximum price for auto-bidding (integer only)"
     )
     
     # Timestamps
@@ -115,7 +109,7 @@ class Bid(models.Model):
         decimal_places=2,
         blank=True,
         null=True,
-        help_text="Amount authorized for this bid"
+        help_text="Amount authorized for this bid (calculated from integer fields)"
     )
     authorization_created_at = models.DateTimeField(
         blank=True,
@@ -160,26 +154,27 @@ class Bid(models.Model):
                 raise ValidationError("This company has chosen not to sell this material to brokers.")
 
             # Check minimum bid requirements
-            if self.ad.starting_bid_price and self.bid_price_per_unit < self.ad.starting_bid_price:
+            if self.ad.starting_bid_price and self.bid_price_per_unit < int(float(self.ad.starting_bid_price)):
                 raise ValidationError(
-                    f"Bid price must be at least {self.ad.starting_bid_price} {self.ad.currency}"
+                    f"Bid price must be at least {int(float(self.ad.starting_bid_price))} {self.ad.currency}"
                 )
             
             # Check volume requirements
-            if self.ad.minimum_order_quantity and self.volume_requested < self.ad.minimum_order_quantity:
+            if self.ad.minimum_order_quantity and self.volume_requested < int(float(self.ad.minimum_order_quantity)):
                 raise ValidationError(
-                    f"Volume must be at least {self.ad.minimum_order_quantity} {self.ad.unit_of_measurement}"
+                    f"Volume must be at least {int(float(self.ad.minimum_order_quantity))} {self.ad.unit_of_measurement}"
                 )
             
-            if self.volume_requested > self.ad.available_quantity:
+            if self.volume_requested > int(float(self.ad.available_quantity)):
                 raise ValidationError(
-                    f"Volume cannot exceed available quantity of {self.ad.available_quantity} {self.ad.unit_of_measurement}"
+                    f"Volume cannot exceed available quantity of {int(float(self.ad.available_quantity))} {self.ad.unit_of_measurement}"
                 )
 
     def save(self, *args, **kwargs):
-        # Calculate total bid value
+        # Calculate total bid value from integer fields
         if self.bid_price_per_unit and self.volume_requested:
-            self.total_bid_value = self.bid_price_per_unit * self.volume_requested
+            from decimal import Decimal
+            self.total_bid_value = Decimal(str(self.bid_price_per_unit)) * Decimal(str(self.volume_requested))
         
         # Validate before saving
         self.clean()
@@ -213,10 +208,10 @@ class Bid(models.Model):
 class BidHistory(models.Model):
     """Track all bid changes for auditing"""
     bid = models.ForeignKey(Bid, on_delete=models.CASCADE, related_name="history")
-    previous_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    new_price = models.DecimalField(max_digits=12, decimal_places=2)
-    previous_volume = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    new_volume = models.DecimalField(max_digits=10, decimal_places=2)
+    previous_price = models.IntegerField(null=True, blank=True)
+    new_price = models.IntegerField()
+    previous_volume = models.IntegerField(null=True, blank=True)
+    new_volume = models.IntegerField()
     change_reason = models.CharField(
         max_length=50,
         choices=[
