@@ -89,8 +89,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DEBUG:
-    print("DATABASE_URL", DATABASE_URL)
-    print("production")
+    
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
@@ -99,7 +98,7 @@ if DEBUG:
         )
     }
 else:
-    print("development")
+    
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
