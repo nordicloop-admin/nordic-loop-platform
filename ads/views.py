@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from company.payment_utils import requires_payment_ready_company
 from ads.repository import AdRepository
 from ads.services import AdService
 from ads.models import Ad
@@ -350,6 +351,8 @@ class AdListView(ListAPIView):
 
         if only_complete:
             query &= Q(is_complete=True, is_active=True)
+            # Only show ads from companies with completed payment setup
+            query &= Q(user__company__payment_ready=True)
             
         # Exclude expired auctions from marketplace view
         # Only show auctions that haven't ended yet or don't have an end date set
@@ -491,6 +494,7 @@ class AdActivateView(APIView):
     """Activate an ad for auction/bidding"""
     permission_classes = [IsAuthenticated]
 
+    @requires_payment_ready_company
     def post(self, request, ad_id):
         """Activate/publish an ad to make it visible and available for bidding"""
         try:

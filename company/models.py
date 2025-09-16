@@ -46,5 +46,12 @@ class Company(models.Model):
         verbose_name='Approval Status'
     )
 
+    # Payment setup fields
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True, help_text="Stripe Connect account ID")
+    stripe_capabilities_complete = models.BooleanField(default=False, help_text="Whether Stripe account has required capabilities")
+    stripe_onboarding_complete = models.BooleanField(default=False, help_text="Whether Stripe onboarding is complete")
+    payment_ready = models.BooleanField(default=False, db_index=True, help_text="Whether company can receive payments")
+    last_payment_check = models.DateTimeField(blank=True, null=True, help_text="Last time payment readiness was verified")
+
     def __str__(self):
         return f"{self.official_name} ({self.status})"
