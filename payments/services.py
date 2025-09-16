@@ -178,15 +178,22 @@ class StripeConnectService:
         Create a Stripe Payment Intent for a bid payment
         """
         try:
-            # Get seller's Stripe account
-            seller_stripe_account = StripeAccount.objects.get(user=payment_intent_obj.seller)
+            # Get seller's Stripe account from their company
+            seller = payment_intent_obj.seller
+            if not seller.company or not seller.company.stripe_account_id or not seller.company.payment_ready:
+                return {
+                    'success': False,
+                    'message': 'Seller payment account not set up'
+                }
+            
+            seller_company = seller.company
 
             # Calculate amounts in cents (Stripe uses smallest currency unit)
             total_amount_cents = int(payment_intent_obj.total_amount * 100)
             commission_amount_cents = int(payment_intent_obj.commission_amount * 100)
 
             # Check if this is a test account
-            is_test_account = seller_stripe_account.stripe_account_id.startswith('acct_test_')
+            is_test_account = seller_company.stripe_account_id.startswith('acct_test_')
 
             if is_test_account:
                 # For test accounts, create a simple payment intent without transfers
@@ -199,7 +206,7 @@ class StripeConnectService:
                         'seller_id': payment_intent_obj.seller.id,
                         'commission_rate': str(payment_intent_obj.commission_rate),
                         'test_account': 'true',
-                        'seller_account': seller_stripe_account.stripe_account_id,
+                        'seller_account': seller_company.stripe_account_id,
                     },
                     automatic_payment_methods={
                         'enabled': True,
@@ -212,7 +219,7 @@ class StripeConnectService:
                     currency=payment_intent_obj.currency.lower(),
                     application_fee_amount=commission_amount_cents,
                     transfer_data={
-                        'destination': seller_stripe_account.stripe_account_id,
+                        'destination': seller_company.stripe_account_id,
                     },
                     metadata={
                         'bid_id': payment_intent_obj.bid.id,
@@ -237,12 +244,6 @@ class StripeConnectService:
                 'message': 'Payment intent created successfully'
             }
             
-        except StripeAccount.DoesNotExist:
-            logger.error(f"Stripe account not found for seller {payment_intent_obj.seller.id}")
-            return {
-                'success': False,
-                'message': 'Seller payment account not set up'
-            }
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error creating payment intent: {str(e)}")
             return {

@@ -48,15 +48,15 @@ class PreAuthorizationService:
             Dict with success status and authorization details
         """
         try:
-            # Validate seller has Stripe account
+            # Validate seller has Stripe account through their company
             seller = bid.ad.user
-            if not hasattr(seller, 'stripe_account'):
+            if not seller.company or not seller.company.stripe_account_id or not seller.company.payment_ready:
                 return {
                     'success': False,
                     'message': 'Seller payment account not set up'
                 }
             
-            seller_stripe_account = seller.stripe_account
+            seller_company = seller.company
             
             # Calculate total amount for authorization
             total_amount = bid.bid_price_per_unit * bid.volume_requested
@@ -70,7 +70,7 @@ class PreAuthorizationService:
             commission_amount_cents = int(commission_amount * 100)
             
             # Check if this is a test account
-            is_test_account = seller_stripe_account.stripe_account_id.startswith('acct_test_')
+            is_test_account = seller_company.stripe_account_id.startswith('acct_test_')
             
             # Create payment intent with manual capture (authorization only)
             intent_params = {
@@ -94,11 +94,11 @@ class PreAuthorizationService:
             }
             
             # Add transfer data for non-test accounts
-            if not is_test_account and seller_stripe_account.payouts_enabled:
+            if not is_test_account and seller_company.stripe_capabilities_complete:
                 intent_params.update({
                     'application_fee_amount': commission_amount_cents,
                     'transfer_data': {
-                        'destination': seller_stripe_account.stripe_account_id,
+                        'destination': seller_company.stripe_account_id,
                     },
                 })
             
