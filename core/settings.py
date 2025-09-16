@@ -21,7 +21,11 @@ DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
 # Security settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1','magical-outgoing-grizzly.ngrok-free.app'])
+ALLOWED_HOSTS = [
+    "127.0.0.1", 
+    "localhost",
+    "magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL
+]
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:3000'])
 
 # Application definition
@@ -171,8 +175,9 @@ CORS_ALLOWED_ORIGINS = (
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
     "https://nordicloop.se",
-    "https://hound-generous-personally.ngrok-free.app",
-    "https://hound-generous-personally.ngrok-free.app",
+    # "https://hound-generous-personally.ngrok-free.app",  # Frontend ngrok URL
+    # "https://magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL
+   
 
 )
 CORS_ALLOW_CREDENTIALS = True
@@ -193,6 +198,12 @@ CORS_ALLOW_HEADERS = (
     "x-requested-with",
 )
 
+# Additional CORS settings for debugging
+CORS_ALLOW_ALL_ORIGINS = True  # Only for development - allows any origin
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.ngrok-free\.app$",
+    r"^https://.*\.ngrok\.io$",
+]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
