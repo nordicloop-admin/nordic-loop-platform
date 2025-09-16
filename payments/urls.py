@@ -1,9 +1,16 @@
 from django.urls import path, include
-from . import views, webhooks, admin_views
+from . import views, webhooks, admin_views, subscription_views
 
 app_name = 'payments'
 
 urlpatterns = [
+    # Subscription payment endpoints
+    path('subscriptions/checkout/', subscription_views.create_subscription_checkout, name='subscription_checkout'),
+    path('subscriptions/cancel/', subscription_views.cancel_subscription, name='subscription_cancel'),
+    path('subscriptions/status/', subscription_views.get_subscription_status, name='subscription_status'),
+    path('subscriptions/verify-session/', subscription_views.verify_checkout_session, name='verify_checkout_session'),
+    path('subscriptions/webhook/', subscription_views.subscription_webhook, name='subscription_webhook'),
+    
     # User payment endpoints
     path('bank-account/', views.BankAccountSetupView.as_view(), name='bank_account_setup'),
     path('verification-status/', views.VerificationStatusView.as_view(), name='verification_status'),

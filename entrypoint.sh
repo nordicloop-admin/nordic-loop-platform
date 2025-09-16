@@ -11,7 +11,7 @@ echo "Postgres is ready, running migrations..."
 
 python manage.py migrate
 
-exec gunicorn core.wsgi:application --bind 0.0.0.0:8000
+exec gunicorn core.wsgi:application --bind 0.0.0.0:8001
 
 
 
