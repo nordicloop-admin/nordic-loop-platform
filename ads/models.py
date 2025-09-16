@@ -235,6 +235,45 @@ class Ad(models.Model):
     def __str__(self):
         return f"{self.title}" if self.title else f"Ad #{self.id}"
 
+    def save(self, *args, **kwargs):
+        """Override save to validate payment readiness when making auction active"""
+        # Check if we're trying to make the auction active
+        # We need to check if is_active is being changed to True
+        if self.pk:  # If updating existing ad
+            try:
+                old_instance = Ad.objects.get(pk=self.pk)
+                is_activating = not old_instance.is_active and self.is_active
+            except Ad.DoesNotExist:
+                is_activating = False
+        else:  # New ad
+            is_activating = self.is_active
+            
+        if is_activating and self.is_complete:
+            from company.payment_utils import check_company_payment_readiness
+            
+            if self.user and self.user.company:
+                payment_ready = check_company_payment_readiness(self.user.company)
+                
+                if not payment_ready:
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(
+                        "Cannot publish auction: Company payment setup is incomplete. "
+                        "Please complete Stripe Connect onboarding first."
+                    )
+        
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Validate the model before saving"""
+        from company.payment_utils import validate_auction_publication
+        
+        # Only validate payment setup if auction is being published
+        if self.is_active and self.is_complete:
+            if self.user:
+                validate_auction_publication(self.user)
+        
+        super().clean()
+
     @property
     def total_starting_value(self):
         """Calculate total starting value"""
