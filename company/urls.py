@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .view import CompanyView, ApproveCompanyView, AdminCompanyListView, AdminCompanyDetailView, CompanyFiltersView, AdminCompanyStatsView
 
 urlpatterns = [
@@ -8,6 +8,9 @@ urlpatterns = [
     path("<int:company_id>/", CompanyView.as_view(), name="company-detail"),
     path("vat/<str:vat>/", CompanyView.as_view(), name="company-by-vat"),
     path("<int:company_id>/approve/", ApproveCompanyView.as_view(), name="approve-company"),
+
+    # Stripe Connect payment endpoints
+    path("payments/", include("company.stripe_urls")),
 
     # Admin endpoints
     path("admin/companies/", AdminCompanyListView.as_view(), name="admin-company-list"),
