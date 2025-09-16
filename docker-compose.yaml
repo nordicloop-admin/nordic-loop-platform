@@ -6,7 +6,7 @@ services:
     image: nordicloop-backend:1.0
     container_name: nordicloop-be
     ports:
-      - 8000:8000
+      - 8002:8001
     env_file:
       - .env
     depends_on: 
@@ -20,7 +20,10 @@ services:
     env_file:
       - .env
     ports:
-      - 5434:5432
+      - 5435:5432
+
+    # command: ["postgres","-p","5437"]
+
     networks:
       - nordicloop-network
 

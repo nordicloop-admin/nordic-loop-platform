@@ -21,7 +21,7 @@ DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
 # Security settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1','magical-outgoing-grizzly.ngrok-free.app'])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:3000'])
 
 # Application definition
@@ -171,6 +171,7 @@ CORS_ALLOWED_ORIGINS = (
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
     "https://nordicloop.se",
+    "https://hound-generous-personally.ngrok-free.app",
     "https://hound-generous-personally.ngrok-free.app",
 
 )
