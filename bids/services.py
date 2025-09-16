@@ -296,18 +296,24 @@ class BidService:
     def get_bid_statistics(self, ad_id: int) -> Dict[str, Any]:
         """Get comprehensive statistics for bids on an ad"""
         try:
-            bids = Bid.objects.filter(ad_id=ad_id, status__in=['active', 'winning', 'outbid'])
+            bids = Bid.objects.filter(ad_id=ad_id, status__in=['active', 'winning', 'outbid', 'rejected'])
             
             if not bids.exists():
                 return {
                     "total_bids": 0,
-                    "highest_bid": None,
-                    "lowest_bid": None,
-                    "average_bid": None,
+                    "highest_bid": 0,
+                    "lowest_bid": 0,
+                    "average_bid": 0,
                     "total_volume_requested": 0,
-                    "unique_bidders": 0
+                    "unique_bidders": 0,
+                    "bid_range": 0,
+                    "active_bids": 0,
+                    "winning_bids": 0,
+                    "outbid_bids": 0,
+                    "rejected_bids": 0
                 }
             
+            # Get basic aggregated stats
             stats = bids.aggregate(
                 total_bids=Count('id'),
                 highest_bid=Max('bid_price_per_unit'),
@@ -316,6 +322,36 @@ class BidService:
                 total_volume_requested=Sum('volume_requested'),
                 unique_bidders=Count('user', distinct=True)
             )
+            
+            # Calculate bid range
+            highest = stats['highest_bid'] or 0
+            lowest = stats['lowest_bid'] or 0
+            stats['bid_range'] = highest - lowest
+            
+            # Get status breakdown
+            status_counts = bids.values('status').annotate(count=Count('id'))
+            stats['active_bids'] = 0
+            stats['winning_bids'] = 0
+            stats['outbid_bids'] = 0
+            stats['rejected_bids'] = 0
+            
+            for status_count in status_counts:
+                status_name = status_count['status']
+                count = status_count['count']
+                
+                if status_name == 'active':
+                    stats['active_bids'] = count
+                elif status_name == 'winning':
+                    stats['winning_bids'] = count
+                elif status_name == 'outbid':
+                    stats['outbid_bids'] = count
+                elif status_name == 'rejected':
+                    stats['rejected_bids'] = count
+            
+            # Ensure all values are not None
+            for key in stats:
+                if stats[key] is None:
+                    stats[key] = 0
             
             return stats
             
