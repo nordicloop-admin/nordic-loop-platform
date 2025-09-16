@@ -559,6 +559,8 @@ class AdListSerializer(serializers.ModelSerializer):
     location_summary = serializers.SerializerMethodField()
     total_starting_value = serializers.SerializerMethodField()
     time_remaining = serializers.SerializerMethodField()
+    highest_bid_price = serializers.SerializerMethodField()
+    base_price = serializers.DecimalField(source='starting_bid_price', max_digits=15, decimal_places=2, read_only=True)
 
     class Meta:
         model = Ad
@@ -568,7 +570,7 @@ class AdListSerializer(serializers.ModelSerializer):
             'currency', 'location_summary', 'total_starting_value',
             'material_image', 'created_at', 'is_active', 'is_complete', 'status',
             'suspended_by_admin', 'allow_broker_bids', 'auction_start_date', 
-            'auction_end_date', 'time_remaining'
+            'auction_end_date', 'time_remaining', 'highest_bid_price', 'base_price'
         ]
 
     def get_total_starting_value(self, obj):
@@ -604,6 +606,24 @@ class AdListSerializer(serializers.ModelSerializer):
             return f"{hours} hours, {minutes} minutes"
         else:
             return f"{minutes} minutes"
+    
+    def get_highest_bid_price(self, obj):
+        """Get the highest bid price if any bids exist, otherwise return None"""
+        from bids.models import Bid
+        try:
+            # Check for highest bid first
+            highest_bid = Bid.objects.filter(
+                ad_id=obj.id,
+                status__in=['active', 'winning', 'outbid']
+            ).order_by('-bid_price_per_unit').first()
+            
+            if highest_bid:
+                return float(highest_bid.bid_price_per_unit)
+            else:
+                return None
+                
+        except Exception:
+            return None
 
 
 class AdCreateSerializer(serializers.ModelSerializer):
