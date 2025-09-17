@@ -25,6 +25,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1", 
     "localhost",
     "magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL
+    "nordic-loop-platform.onrender.com"
 ]
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:3000'])
 
