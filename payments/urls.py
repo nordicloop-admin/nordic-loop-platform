@@ -21,6 +21,10 @@ urlpatterns = [
     path('payouts/', views.UserPayoutScheduleView.as_view(), name='user_payouts'),
     path('summary/', views.user_payment_summary, name='payment_summary'),
     
+    # Transfer endpoints (platform hold and transfer model)
+    path('bids/<int:bid_id>/transfer/', views.transfer_to_seller, name='transfer_to_seller'),
+    path('bids/<int:bid_id>/payment-status/', views.payment_status, name='bid_payment_status'),
+    
     # Admin payment endpoints
     path('admin/stats/', views.AdminPaymentStatsView.as_view(), name='admin_payment_stats'),
     path('admin/pending-payouts/', views.AdminPendingPayoutsView.as_view(), name='admin_pending_payouts'),

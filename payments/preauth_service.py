@@ -67,12 +67,9 @@ class PreAuthorizationService:
             commission_amount, seller_amount = self.commission_service.calculate_commission_amounts(
                 total_amount, commission_rate
             )
-            commission_amount_cents = int(commission_amount * 100)
-            
-            # Check if this is a test account
-            is_test_account = seller_company.stripe_account_id.startswith('acct_test_')
             
             # Create payment intent with manual capture (authorization only)
+            # Note: Customer pays the platform directly, then platform transfers to seller later
             intent_params = {
                 'amount': total_amount_cents,
                 'currency': bid.ad.currency.lower(),
@@ -88,19 +85,17 @@ class PreAuthorizationService:
                     'ad_id': bid.ad.id,
                     'buyer_id': bid.user.id,
                     'seller_id': seller.id,
+                    'seller_account_id': seller_company.stripe_account_id,
                     'commission_rate': str(commission_rate),
+                    'commission_amount': str(commission_amount),
+                    'seller_amount': str(seller_amount),
                     'authorization_type': 'bid_preauth',
+                    'payment_flow': 'platform_hold_and_transfer',
                 },
             }
             
-            # Add transfer data for non-test accounts
-            if not is_test_account and seller_company.stripe_capabilities_complete:
-                intent_params.update({
-                    'application_fee_amount': commission_amount_cents,
-                    'transfer_data': {
-                        'destination': seller_company.stripe_account_id,
-                    },
-                })
+            # No transfer_data or application_fee - platform receives full amount initially
+            # Transfer to seller will happen separately when payment is captured/completed
             
             # Create the payment intent
             payment_intent = stripe.PaymentIntent.create(**intent_params)
@@ -197,7 +192,7 @@ class PreAuthorizationService:
                 from .models import PaymentIntent, Transaction
                 from decimal import Decimal
                 
-                payment_intent_record, created = PaymentIntent.objects.get_or_create(
+                payment_intent_record, _ = PaymentIntent.objects.get_or_create(
                     stripe_payment_intent_id=payment_intent.id,
                     defaults={
                         'bid': bid,
@@ -463,4 +458,113 @@ class PreAuthorizationService:
             return {
                 'success': False,
                 'message': f'Error checking authorization status: {str(e)}'
+            }
+    
+    def transfer_to_seller(self, bid, captured_payment_intent_id: str) -> Dict[str, Any]:
+        """
+        Transfer funds to seller after platform has received payment
+        This is called after payment is captured and any holding period is complete
+        
+        Args:
+            bid: The bid object to transfer funds for
+            captured_payment_intent_id: The Stripe payment intent ID that was captured
+            
+        Returns:
+            Dict with success status and transfer details
+        """
+        try:
+            seller = bid.ad.user
+            if not seller.company or not seller.company.stripe_account_id:
+                return {
+                    'success': False,
+                    'message': 'Seller payment account not available'
+                }
+            
+            seller_company = seller.company
+            
+            # Get the original payment intent to verify it was captured
+            try:
+                payment_intent = stripe.PaymentIntent.retrieve(captured_payment_intent_id)
+                if payment_intent.status != 'succeeded':
+                    return {
+                        'success': False,
+                        'message': f'Payment intent not captured yet. Status: {payment_intent.status}'
+                    }
+            except stripe.error.StripeError as e:
+                return {
+                    'success': False,
+                    'message': f'Error retrieving payment intent: {str(e)}'
+                }
+            
+            # Calculate amounts from metadata (stored during authorization)
+            metadata = payment_intent.metadata
+            total_amount = float(metadata.get('seller_amount', '0'))
+            commission_rate = float(metadata.get('commission_rate', '0'))
+            
+            if total_amount <= 0:
+                return {
+                    'success': False,
+                    'message': 'Invalid transfer amount'
+                }
+            
+            # Convert to cents for Stripe
+            transfer_amount_cents = int(total_amount * 100)
+            
+            # Create transfer to seller
+            transfer = stripe.Transfer.create(
+                amount=transfer_amount_cents,
+                currency=bid.ad.currency.lower(),
+                destination=seller_company.stripe_account_id,
+                metadata={
+                    'bid_id': bid.id,
+                    'payment_intent_id': captured_payment_intent_id,
+                    'seller_id': seller.id,
+                    'commission_rate': str(commission_rate),
+                    'transfer_type': 'seller_payout',
+                }
+            )
+            
+            # Update bid with transfer information
+            bid.stripe_transfer_id = transfer.id
+            bid.transfer_status = 'completed'
+            bid.transfer_completed_at = timezone.now()
+            bid.save()
+            
+            # Create transaction record
+            from .models import Transaction
+            Transaction.objects.create(
+                payment_intent_id=payment_intent.id,
+                stripe_transfer_id=transfer.id,
+                bid=bid,
+                buyer=bid.user,
+                seller=seller,
+                total_amount=float(payment_intent.amount) / 100,
+                commission_amount=float(payment_intent.amount) / 100 - total_amount,
+                seller_amount=total_amount,
+                currency=payment_intent.currency.upper(),
+                status='completed',
+                transaction_type='seller_payout'
+            )
+            
+            logger.info(f"Successfully transferred {total_amount} to seller {seller.id} for bid {bid.id}")
+            
+            return {
+                'success': True,
+                'transfer_id': transfer.id,
+                'amount_transferred': total_amount,
+                'currency': bid.ad.currency,
+                'message': 'Transfer completed successfully'
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error during transfer to seller: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Transfer error: {str(e)}'
+            }
+        except Exception as e:
+            logger.error(f"Error transferring to seller: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Error transferring funds: {str(e)}'
             }
