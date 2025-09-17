@@ -121,6 +121,29 @@ class Bid(models.Model):
         null=True,
         help_text="When authorization expires (typically 7 days)"
     )
+    
+    # Transfer/Payout fields (for platform hold and transfer model)
+    stripe_transfer_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Stripe transfer ID when funds are sent to seller"
+    )
+    transfer_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending Transfer'),
+            ('completed', 'Transfer Completed'),
+            ('failed', 'Transfer Failed'),
+        ],
+        default='pending',
+        help_text="Status of transfer to seller"
+    )
+    transfer_completed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When transfer to seller was completed"
+    )
 
     class Meta:
         ordering = ['-created_at']

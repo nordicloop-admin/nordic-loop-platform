@@ -506,3 +506,94 @@ def user_payment_summary(request):
         return Response({
             'message': 'Error getting payment summary'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def transfer_to_seller(request, bid_id):
+    """
+    Transfer funds to seller after platform has received payment.
+    This should be called after any holding period and verification is complete.
+    """
+    try:
+        bid = get_object_or_404(Bid, id=bid_id)
+        
+        # Security check - ensure user has permission to trigger transfer
+        if not (request.user.is_staff or request.user == bid.ad.user):
+            return Response({
+                'error': 'Not authorized to trigger transfer for this bid'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if transfer already completed
+        if bid.transfer_status == 'completed':
+            return Response({
+                'error': 'Transfer already completed for this bid'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if payment was captured
+        if bid.authorization_status != 'captured':
+            return Response({
+                'error': f'Payment not captured yet. Status: {bid.authorization_status}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Perform the transfer
+        from .preauth_service import PreAuthorizationService
+        preauth_service = PreAuthorizationService()
+        result = preauth_service.transfer_to_seller(bid, bid.stripe_payment_intent_id)
+        
+        if result['success']:
+            return Response({
+                'success': True,
+                'transfer_id': result['transfer_id'],
+                'amount_transferred': result['amount_transferred'],
+                'currency': result['currency'],
+                'message': result['message']
+            })
+        else:
+            return Response({
+                'error': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        logger.error(f"Error in transfer_to_seller: {str(e)}")
+        return Response({
+            'error': 'An unexpected error occurred'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def payment_status(request, bid_id):
+    """
+    Get the current payment and transfer status for a bid
+    """
+    try:
+        bid = get_object_or_404(Bid, id=bid_id)
+        
+        # Security check
+        if not (request.user.is_staff or request.user == bid.user or request.user == bid.ad.user):
+            return Response({
+                'error': 'Not authorized to view payment status for this bid'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        return Response({
+            'bid_id': bid.id,
+            'authorization_status': bid.authorization_status,
+            'authorization_amount': bid.authorization_amount,
+            'authorization_created_at': bid.authorization_created_at,
+            'stripe_payment_intent_id': bid.stripe_payment_intent_id,
+            'transfer_status': bid.transfer_status,
+            'transfer_completed_at': bid.transfer_completed_at,
+            'stripe_transfer_id': bid.stripe_transfer_id,
+            'can_trigger_transfer': (
+                bid.authorization_status == 'captured' and 
+                bid.transfer_status == 'pending' and
+                (request.user.is_staff or request.user == bid.ad.user)
+            )
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in payment_status: {str(e)}")
+        return Response({
+            'error': 'An unexpected error occurred'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
