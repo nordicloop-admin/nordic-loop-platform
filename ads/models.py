@@ -360,22 +360,64 @@ class Subscription(models.Model):
         ("active", "Active"),
         ("expired", "Expired"),
         ("payment_failed", "Payment Failed"),
+        ("canceled", "Canceled"),
+        ("past_due", "Past Due"),
+        ("unpaid", "Unpaid"),
+        ("incomplete", "Incomplete"),
+        ("trialing", "Trialing"),
     ]
-    # Payment method choices removed as per request
+    
+    # Core subscription information
     company = models.ForeignKey('company.Company', on_delete=models.CASCADE, related_name='subscriptions')
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     start_date = models.DateField()
     end_date = models.DateField()
     auto_renew = models.BooleanField(default=True)
-    # payment_method field removed as per request
-    last_payment = models.DateField()
+    last_payment = models.DateField(null=True, blank=True)
     amount = models.CharField(max_length=50)
     contact_name = models.CharField(max_length=255)
     contact_email = models.EmailField()
+    
+    # Stripe integration fields - critical for proper subscription management
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True, help_text="Stripe Customer ID")
+    stripe_subscription_id = models.CharField(max_length=255, blank=True, null=True, help_text="Stripe Subscription ID")
+    stripe_price_id = models.CharField(max_length=255, blank=True, null=True, help_text="Stripe Price ID used for this subscription")
+    
+    # Additional tracking fields
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+    next_billing_date = models.DateField(null=True, blank=True, help_text="Next billing date from Stripe")
+    trial_end = models.DateTimeField(null=True, blank=True, help_text="Trial period end date if applicable")
+    
+    # Cancellation tracking
+    canceled_at = models.DateTimeField(null=True, blank=True)
+    cancel_at_period_end = models.BooleanField(default=False, help_text="Cancel subscription at end of current period")
+    
+    class Meta:
+        # Ensure one active subscription per company
+        unique_together = [['company']]
+        indexes = [
+            models.Index(fields=['stripe_customer_id']),
+            models.Index(fields=['stripe_subscription_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['plan']),
+        ]
 
     def __str__(self):
         return f"{self.company.official_name} - {self.plan} ({self.status})"
+    
+    def is_active(self):
+        """Check if subscription is active"""
+        return self.status == 'active'
+    
+    def is_paid_plan(self):
+        """Check if this is a paid plan"""
+        return self.plan in ['standard', 'premium']
+    
+    def can_downgrade_to_free(self):
+        """Check if subscription can be downgraded to free"""
+        return self.plan in ['standard', 'premium'] and self.status == 'active'
 
 class Address(models.Model):
     TYPE_CHOICES = [
