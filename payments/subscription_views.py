@@ -118,6 +118,75 @@ def cancel_subscription(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_subscription_plan(request):
+    """
+    Change user's subscription plan (upgrade/downgrade)
+    """
+    try:
+        user = request.user
+        plan_type = request.data.get('plan_type')
+        
+        if not plan_type:
+            return Response({
+                'success': False,
+                'message': 'Plan type is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if plan_type not in ['free', 'standard', 'premium']:
+            return Response({
+                'success': False,
+                'message': 'Invalid plan type'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get user's company
+        try:
+            company = Company.objects.get(user=user)
+        except Company.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Company profile not found'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Change subscription plan
+        subscription_service = StripeSubscriptionService()
+        result = subscription_service.change_subscription_plan(user, company, plan_type)
+        
+        if result['success']:
+            response_data = {
+                'success': True,
+                'message': result['message']
+            }
+            
+            # Add checkout URL if payment is needed
+            if result.get('checkout_url'):
+                response_data['redirect_url'] = result['checkout_url']
+                response_data['session_id'] = result.get('session_id')
+            
+            # Indicate if it's a free plan
+            if result.get('is_free_plan'):
+                response_data['is_free_plan'] = True
+            
+            # Indicate if change was prorated
+            if result.get('prorated'):
+                response_data['prorated'] = True
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'message': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        logger.error(f"Error changing subscription plan: {str(e)}")
+        return Response({
+            'success': False,
+            'message': f'Error changing subscription plan: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_subscription_status(request):
@@ -151,9 +220,15 @@ def get_subscription_status(request):
                     'end_date': sub.end_date,
                     'auto_renew': sub.auto_renew,
                     'last_payment': sub.last_payment,
+                    'next_billing_date': sub.next_billing_date,
                     'amount': sub.amount,
                     'contact_name': sub.contact_name,
-                    'contact_email': sub.contact_email
+                    'contact_email': sub.contact_email,
+                    'stripe_customer_id': sub.stripe_customer_id,
+                    'stripe_subscription_id': sub.stripe_subscription_id,
+                    'cancel_at_period_end': sub.cancel_at_period_end,
+                    'canceled_at': sub.canceled_at.isoformat() if sub.canceled_at else None,
+                    'trial_end': sub.trial_end.isoformat() if sub.trial_end else None,
                 }
             
             return Response({

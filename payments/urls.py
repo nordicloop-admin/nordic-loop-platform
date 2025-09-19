@@ -6,6 +6,7 @@ app_name = 'payments'
 urlpatterns = [
     # Subscription payment endpoints
     path('subscriptions/checkout/', subscription_views.create_subscription_checkout, name='subscription_checkout'),
+    path('subscriptions/change-plan/', subscription_views.change_subscription_plan, name='change_subscription_plan'),
     path('subscriptions/cancel/', subscription_views.cancel_subscription, name='subscription_cancel'),
     path('subscriptions/status/', subscription_views.get_subscription_status, name='subscription_status'),
     path('subscriptions/verify-session/', subscription_views.verify_checkout_session, name='verify_checkout_session'),
