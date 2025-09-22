@@ -423,9 +423,28 @@ def handle_subscription_updated(stripe_subscription):
                 elif stripe_subscription['status'] == 'past_due':
                     subscription.status = 'payment_failed'
                 
+                # Update subscription details from Stripe data
+                subscription.stripe_subscription_id = stripe_subscription['id']
+                
+                # Extract plan information from subscription
+                if 'items' in stripe_subscription and stripe_subscription['items']['data']:
+                    first_item = stripe_subscription['items']['data'][0]
+                    if 'price' in first_item and 'metadata' in first_item['price']:
+                        plan_metadata = first_item['price']['metadata']
+                        plan_type = plan_metadata.get('plan_type', 'free')
+                        
+                        # Update plan and amount
+                        subscription.plan = plan_type
+                        if first_item['price']['unit_amount']:
+                            amount = first_item['price']['unit_amount'] / 100  # Convert from cents
+                            currency = first_item['price']['currency'].upper()
+                            subscription.amount = f"{amount:.2f} {currency}"
+                        
+                        logger.info(f"Updated subscription plan to {plan_type} for company {company.official_name}")
+                
                 subscription.save()
                 
-                logger.info(f"Updated subscription status for company {company.official_name}")
+                logger.info(f"Updated subscription for company {company.official_name}: {subscription.plan} - {subscription.amount}")
             
             except (Company.DoesNotExist, Subscription.DoesNotExist):
                 logger.error(f"Could not find local subscription for Stripe subscription {stripe_subscription['id']}")

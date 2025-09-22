@@ -50,7 +50,7 @@ class StripeSubscriptionService:
                     try:
                         # Verify customer still exists in Stripe
                         customer = stripe.Customer.retrieve(subscription.stripe_customer_id)
-                        if customer.deleted:
+                        if getattr(customer, 'deleted', False):  # Use getattr with default False
                             # Customer was deleted, create new one
                             logger.info(f"Stored customer {subscription.stripe_customer_id} was deleted, creating new one")
                         else:
@@ -70,28 +70,38 @@ class StripeSubscriptionService:
             # Check if customer already exists by email (fallback)
             existing_customers = stripe.Customer.list(
                 email=user.email,
-                limit=1
+                limit=10  # Get more in case some are deleted
             )
             
-            if existing_customers.data:
-                customer = existing_customers.data[0]
-                logger.info(f"Found existing Stripe customer {customer.id} for {user.email}")
+            # Find the first non-deleted customer
+            active_customer = None
+            for customer in existing_customers.data:
+                if not getattr(customer, 'deleted', False):  # Use getattr with default False
+                    active_customer = customer
+                    break
+            
+            if active_customer:
+                logger.info(f"Found existing active Stripe customer {active_customer.id} for {user.email}")
                 
                 # Store the customer ID in our subscription if we have one
                 try:
                     subscription = Subscription.objects.get(company=company)
-                    subscription.stripe_customer_id = customer.id
+                    subscription.stripe_customer_id = active_customer.id
                     subscription.save()
-                    logger.info(f"Updated local subscription with customer ID {customer.id}")
+                    logger.info(f"Updated local subscription with customer ID {active_customer.id}")
                 except Subscription.DoesNotExist:
                     pass
                 
                 return {
                     'success': True,
-                    'customer_id': customer.id,
-                    'customer': customer,
+                    'customer_id': active_customer.id,
+                    'customer': active_customer,
                     'message': 'Found existing customer'
                 }
+            else:
+                # All customers with this email are deleted, or none exist
+                if existing_customers.data:
+                    logger.info(f"Found {len(existing_customers.data)} deleted customers for {user.email}, creating new one")
             
             # Create new customer
             customer = stripe.Customer.create(
@@ -572,18 +582,48 @@ class StripeSubscriptionService:
             
             new_price_id = price_result['price_id']
             
-            # Get current Stripe subscription
-            stripe_subscription = stripe.Subscription.retrieve(current_subscription.stripe_subscription_id)
+            # Get subscription items using the correct method
+            subscription_items = stripe.SubscriptionItem.list(
+                subscription=current_subscription.stripe_subscription_id
+            )
             
+            if not subscription_items.data:
+                return {
+                    'success': False,
+                    'message': 'No subscription items found'
+                }
+            
+            # Get the user associated with this company
+            # Since User has a company field pointing to Company, we need to find the user
+            try:
+                user_for_company = User.objects.get(company=current_subscription.company)
+            except User.DoesNotExist:
+                logger.error(f"No user found for company {current_subscription.company.id}")
+                return {
+                    'success': False,
+                    'message': 'User not found for this company'
+                }
+            except User.MultipleObjectsReturned:
+                # If multiple users for same company, get the primary contact
+                user_for_company = User.objects.filter(
+                    company=current_subscription.company,
+                    is_primary_contact=True
+                ).first()
+                if not user_for_company:
+                    # Fallback to first user if no primary contact
+                    user_for_company = User.objects.filter(
+                        company=current_subscription.company
+                    ).first()
+
             # Update the subscription with new price
-            updated_subscription = stripe.Subscription.modify(
+            stripe.Subscription.modify(
                 current_subscription.stripe_subscription_id,
                 items=[{
-                    'id': stripe_subscription['items']['data'][0]['id'],
+                    'id': subscription_items.data[0].id,
                     'price': new_price_id,
                 }],
                 metadata={
-                    'user_id': str(current_subscription.company.user.id),
+                    'user_id': str(user_for_company.id),
                     'company_id': str(current_subscription.company.id),
                     'plan_type': new_plan_type,
                     'pricing_plan_id': str(new_pricing_plan.id),
@@ -593,10 +633,14 @@ class StripeSubscriptionService:
                 proration_behavior='create_prorations'  # Prorate the change
             )
             
-            # Update local subscription
-            amount_cents = updated_subscription.items.data[0].price.unit_amount
+            # Update local subscription - get fresh items after modification
+            updated_items = stripe.SubscriptionItem.list(
+                subscription=current_subscription.stripe_subscription_id
+            )
+            
+            amount_cents = updated_items.data[0].price.unit_amount
             amount = Decimal(amount_cents) / 100 if amount_cents else Decimal('0')
-            currency = updated_subscription.items.data[0].price.currency.upper()
+            currency = updated_items.data[0].price.currency.upper()
             
             current_subscription.plan = new_plan_type
             current_subscription.amount = f'{amount} {currency}'
@@ -622,6 +666,83 @@ class StripeSubscriptionService:
             return {
                 'success': False,
                 'message': f'Error modifying subscription: {str(e)}'
+            }
+    
+    def cancel_subscription(self, user: User, company: Company) -> Dict[str, Any]:
+        """
+        Cancel a user's subscription
+        """
+        try:
+            # Get current subscription
+            try:
+                subscription = Subscription.objects.get(company=company)
+            except Subscription.DoesNotExist:
+                return {
+                    'success': False,
+                    'message': 'No active subscription found'
+                }
+            
+            # If it's a free plan, just deactivate it
+            if subscription.plan == 'free':
+                subscription.status = 'expired'
+                subscription.auto_renew = False
+                subscription.save()
+                
+                return {
+                    'success': True,
+                    'message': 'Free subscription canceled'
+                }
+            
+            # For paid plans, cancel the Stripe subscription
+            # First, find the Stripe subscription
+            customer_result = self.create_customer(user, company)
+            if not customer_result['success']:
+                return customer_result
+            
+            customer_id = customer_result['customer_id']
+            
+            # Find active subscriptions for this customer
+            subscriptions = stripe.Subscription.list(
+                customer=customer_id,
+                status='active'
+            )
+            
+            if not subscriptions.data:
+                # Update local subscription status
+                subscription.status = 'expired'
+                subscription.auto_renew = False
+                subscription.save()
+                
+                return {
+                    'success': True,
+                    'message': 'Subscription canceled (no active Stripe subscription found)'
+                }
+            
+            # Cancel the Stripe subscription
+            stripe_subscription = subscriptions.data[0]
+            stripe.Subscription.delete(stripe_subscription.id)
+            
+            # Update local subscription
+            subscription.status = 'expired'
+            subscription.auto_renew = False
+            subscription.save()
+            
+            return {
+                'success': True,
+                'message': 'Subscription canceled successfully'
+            }
+            
+        except stripe.StripeError as e:
+            logger.error(f"Stripe error canceling subscription for {user.email}: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Stripe error: {str(e)}'
+            }
+        except Exception as e:
+            logger.error(f"Error canceling subscription for {user.email}: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Error canceling subscription: {str(e)}'
             }
         """
         Cancel a user's subscription
