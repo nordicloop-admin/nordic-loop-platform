@@ -26,6 +26,7 @@ from .serializer import (
 from users.models import User
 from base.utils.pagination import StandardResultsSetPagination
 from base.services.logging import LoggingService
+from payments.subscription_service import StripeSubscriptionService
 from .utils import (
     parse_multiple_ids, build_subcategory_filter,
     parse_multiple_values, build_multiple_choice_filter
@@ -1024,7 +1025,7 @@ class UserSubscriptionView(APIView):
 
 class UpdateUserSubscriptionView(APIView):
     """
-    Endpoint for updating the logged-in user's subscription
+    Endpoint for updating the logged-in user's subscription with Stripe integration
     PUT /api/ads/user/subscription/update/
     """
     permission_classes = [IsAuthenticated]
@@ -1038,31 +1039,72 @@ class UpdateUserSubscriptionView(APIView):
                     'error': 'User is not associated with any company'
                 }, status=status.HTTP_404_NOT_FOUND)
             
+            company = user.company
+            
             # Get the latest subscription for the company
-            subscription = ad_service.get_company_subscription(user.company.id)
+            subscription = ad_service.get_company_subscription(company.id)
             
             if not subscription:
                 return Response({
                     'error': 'No subscription found for this company',
-                    'company_id': user.company.id,
-                    'company_name': user.company.official_name
+                    'company_id': company.id,
+                    'company_name': company.official_name
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Validate and update the subscription
-            serializer = UpdateUserSubscriptionSerializer(subscription, data=request.data, partial=True)
-            
-            if serializer.is_valid():
-                updated_subscription = serializer.save()
-                response_serializer = UserSubscriptionSerializer(updated_subscription)
-                return Response({
-                    'message': 'Subscription updated successfully',
-                    'subscription': response_serializer.data
-                }, status=status.HTTP_200_OK)
+            # Get the new plan from request data
+            new_plan = request.data.get('plan')
+            if new_plan and new_plan != subscription.plan:
+                # Plan change requested - use Stripe integration
+                subscription_service = StripeSubscriptionService()
+                result = subscription_service.change_subscription_plan(user, company, new_plan)
+                
+                if result['success']:
+                    # Update other subscription fields if provided
+                    update_data = {k: v for k, v in request.data.items() if k != 'plan'}
+                    if update_data:
+                        serializer = UpdateUserSubscriptionSerializer(subscription, data=update_data, partial=True)
+                        if serializer.is_valid():
+                            serializer.save()
+                    
+                    # Get updated subscription
+                    updated_subscription = ad_service.get_company_subscription(company.id)
+                    response_serializer = UserSubscriptionSerializer(updated_subscription)
+                    
+                    response_data = {
+                        'message': 'Subscription updated successfully',
+                        'subscription': response_serializer.data
+                    }
+                    
+                    # Add payment redirect info if needed
+                    if result.get('checkout_url'):
+                        response_data['redirect_url'] = result['checkout_url']
+                        response_data['requires_payment'] = True
+                    
+                    if result.get('prorated'):
+                        response_data['prorated'] = True
+                    
+                    return Response(response_data, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        'error': 'Failed to update subscription plan',
+                        'detail': result['message']
+                    }, status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response({
-                    'error': 'Invalid data provided',
-                    'details': serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST)
+                # No plan change, just update other fields locally
+                serializer = UpdateUserSubscriptionSerializer(subscription, data=request.data, partial=True)
+                
+                if serializer.is_valid():
+                    updated_subscription = serializer.save()
+                    response_serializer = UserSubscriptionSerializer(updated_subscription)
+                    return Response({
+                        'message': 'Subscription updated successfully',
+                        'subscription': response_serializer.data
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        'error': 'Invalid data provided',
+                        'details': serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
             return Response({
