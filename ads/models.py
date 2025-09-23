@@ -226,6 +226,16 @@ class Ad(models.Model):
     # Form step tracking
     current_step = models.IntegerField(default=1)
     is_complete = models.BooleanField(default=False)
+    
+    # Step completion tracking - these are set automatically based on form data
+    step_1_complete = models.BooleanField(default=False, help_text="Material Type step completion")
+    step_2_complete = models.BooleanField(default=False, help_text="Specifications step completion") 
+    step_3_complete = models.BooleanField(default=False, help_text="Material Origin step completion")
+    step_4_complete = models.BooleanField(default=False, help_text="Contamination step completion")
+    step_5_complete = models.BooleanField(default=False, help_text="Processing Method step completion")
+    step_6_complete = models.BooleanField(default=False, help_text="Location & Logistics step completion")
+    step_7_complete = models.BooleanField(default=False, help_text="Quantity & Price step completion")
+    step_8_complete = models.BooleanField(default=False, help_text="Title & Description step completion")
 
     class Meta:
         ordering = ['-created_at']
@@ -236,7 +246,11 @@ class Ad(models.Model):
         return f"{self.title}" if self.title else f"Ad #{self.id}"
 
     def save(self, *args, **kwargs):
-        """Override save to validate payment readiness when making auction active"""
+        """Override save to validate payment readiness when making auction active and update step completion"""
+        
+        # Update step completion flags before saving
+        self.update_step_completion_flags()
+        
         # Check if we're trying to make the auction active
         # We need to check if is_active is being changed to True
         if self.pk:  # If updating existing ad
@@ -297,7 +311,7 @@ class Ad(models.Model):
         return dict(self.AUCTION_DURATION_CHOICES).get(self.auction_duration, f"{self.auction_duration} days")
 
     def get_step_completion_status(self):
-        """Return completion status for each step"""
+        """Return completion status for each step using boolean fields"""
         # Check if this is a plastic material by name (case-insensitive)
         is_plastic = False
         if self.category:
@@ -307,23 +321,86 @@ class Ad(models.Model):
         if is_plastic:
             # Full pathway for plastics (8 steps)
             return {
-                1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
-                2: bool(self.specification or self.additional_specifications),
-                3: bool(self.origin),
-                4: bool(self.contamination and self.additives and self.storage_conditions),
-                5: bool(self.processing_methods),
-                6: bool(self.location and self.delivery_options),
-                7: bool(self.available_quantity and self.starting_bid_price and self.currency),
-                8: bool(self.title and self.description),
+                1: self.step_1_complete,
+                2: self.step_2_complete,
+                3: self.step_3_complete,
+                4: self.step_4_complete,
+                5: self.step_5_complete,
+                6: self.step_6_complete,
+                7: self.step_7_complete,
+                8: self.step_8_complete,
             }
         else:
             # Shortened pathway for other materials (4 steps: 1, 6, 7, 8)
             return {
-                1: bool(self.category and self.subcategory and self.packaging and self.material_frequency),
-                6: bool(self.location and self.delivery_options),  # Location & Logistics
-                7: bool(self.available_quantity and self.starting_bid_price and self.currency),  # Quantity & Price
-                8: bool(self.title and self.description),  # Image & Description
+                1: self.step_1_complete,
+                6: self.step_6_complete,  # Location & Logistics
+                7: self.step_7_complete,  # Quantity & Price
+                8: self.step_8_complete,  # Image & Description
             }
+
+    def update_step_completion_flags(self):
+        """
+        Update step completion boolean fields based on current data.
+        This should be called after any data update to keep flags in sync.
+        """
+        # Step 1: Material Type
+        self.step_1_complete = bool(
+            self.category and self.subcategory and 
+            self.packaging and self.material_frequency
+        )
+        
+        # Step 2: Specifications (optional for non-plastic materials)
+        self.step_2_complete = bool(
+            self.specification or self.additional_specifications
+        )
+        
+        # Step 3: Material Origin
+        self.step_3_complete = bool(self.origin)
+        
+        # Step 4: Contamination
+        self.step_4_complete = bool(
+            self.contamination and self.additives and self.storage_conditions
+        )
+        
+        # Step 5: Processing Methods
+        self.step_5_complete = bool(self.processing_methods)
+        
+        # Step 6: Location & Logistics
+        self.step_6_complete = bool(
+            self.location and self.delivery_options
+        )
+        
+        # Step 7: Quantity & Price
+        self.step_7_complete = bool(
+            self.available_quantity and self.starting_bid_price and self.currency
+        )
+        
+        # Step 8: Title & Description
+        self.step_8_complete = bool(
+            self.title and self.description and 
+            len(self.title.strip()) >= 10 and len(self.description.strip()) >= 30
+        )
+        
+        # Update overall completion status
+        is_plastic = False
+        if self.category:
+            category_name = self.category.name.lower()
+            is_plastic = category_name in ['plastic', 'plastics']
+        
+        if is_plastic:
+            # For plastics, all 8 steps must be complete
+            self.is_complete = all([
+                self.step_1_complete, self.step_2_complete, self.step_3_complete,
+                self.step_4_complete, self.step_5_complete, self.step_6_complete,
+                self.step_7_complete, self.step_8_complete
+            ])
+        else:
+            # For other materials, only steps 1, 6, 7, 8 are required
+            self.is_complete = all([
+                self.step_1_complete, self.step_6_complete, 
+                self.step_7_complete, self.step_8_complete
+            ])
 
     def is_step_complete(self, step_number):
         """Check if a specific step is complete"""
@@ -349,6 +426,34 @@ class Ad(models.Model):
             if not status.get(step, False):
                 return step
         return None
+
+    def update_step_completion_from_instance(self):
+        """
+        Recalculates and updates the step completion status based on the instance's current data.
+        This is useful after a partial update to ensure the completion status is in sync.
+        """
+        # Update all step completion flags
+        self.update_step_completion_flags()
+        
+        # Update current step to next incomplete step
+        next_incomplete_step = self.get_next_incomplete_step()
+        if next_incomplete_step is not None:
+            self.current_step = next_incomplete_step
+        else:
+            # All steps complete, set to final step
+            is_plastic = False
+            if self.category:
+                category_name = self.category.name.lower()
+                is_plastic = category_name in ['plastic', 'plastics']
+            
+            self.current_step = 8 if is_plastic else 4
+        
+        # Save the updated flags and status
+        self.save(update_fields=[
+            'step_1_complete', 'step_2_complete', 'step_3_complete', 'step_4_complete',
+            'step_5_complete', 'step_6_complete', 'step_7_complete', 'step_8_complete',
+            'is_complete', 'current_step'
+        ])
 
 class Subscription(models.Model):
     PLAN_CHOICES = [
