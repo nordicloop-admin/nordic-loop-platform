@@ -547,6 +547,8 @@ class AdRepository:
             serializer = AdUpdateSerializer(ad, data=data, partial=True)  # Partial update
             if serializer.is_valid():
                 updated_ad = serializer.save()
+                # After saving, re-evaluate step completion status
+                updated_ad.update_step_completion_from_instance()
                 return RepositoryResponse(True, "Ad partially updated successfully", updated_ad)
             else:
                 return RepositoryResponse(False, "Validation failed", serializer.errors)
