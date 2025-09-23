@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from rest_framework.exceptions import ValidationError, PermissionDenied as DRFPermissionDenied
 from company.payment_utils import requires_payment_ready_company
 from ads.repository import AdRepository
 from ads.services import AdService
@@ -495,9 +496,23 @@ class AdActivateView(APIView):
     """Activate an ad for auction/bidding"""
     permission_classes = [IsAuthenticated]
 
-    @requires_payment_ready_company
     def post(self, request, ad_id):
         """Activate/publish an ad to make it visible and available for bidding"""
+        
+        # Check payment readiness before proceeding
+        if not hasattr(request.user, 'company') or not request.user.company:
+            return Response(
+                {"detail": "Company association required"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        company = request.user.company
+        if not company.payment_ready:
+            return Response(
+                {"detail": "Your company's payment setup is not complete. Please complete Stripe onboarding before publishing auctions."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         try:
             ad = ad_service.activate_ad(ad_id, request.user)
             
@@ -516,7 +531,7 @@ class AdActivateView(APIView):
 
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
+        except Exception:
             return Response({"error": "Failed to activate ad"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
