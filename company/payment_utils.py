@@ -4,9 +4,10 @@ Payment readiness utilities for marketplace functionality
 import stripe
 from functools import wraps
 from django.conf import settings
-from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
+from rest_framework.exceptions import PermissionDenied
 import logging
 
 logger = logging.getLogger(__name__)
@@ -103,13 +104,20 @@ def requires_payment_ready_company(f):
     """
     @wraps(f)
     def wrapper(request, *args, **kwargs):
+        logger.info(f"🔍 Payment decorator called for user: {getattr(request, 'user', 'No user')}")
+        
         if not hasattr(request, 'user') or not request.user.is_authenticated:
+            logger.warning("❌ User not authenticated")
             raise PermissionDenied("Authentication required")
             
+        logger.info(f"✅ User authenticated: {request.user.email}")
+            
         if not hasattr(request.user, 'company') or not request.user.company:
+            logger.warning("❌ No company association")
             raise PermissionDenied("Company association required")
             
         company = request.user.company
+        logger.info(f"🏢 Company found: {company.official_name}")
         
         # Check if we need to refresh the payment status
         should_refresh = (
@@ -118,14 +126,19 @@ def requires_payment_ready_company(f):
         )
         
         if should_refresh:
+            logger.info("🔄 Refreshing payment status...")
             update_company_payment_status(company)
             
+        logger.info(f"💳 Payment ready status: {company.payment_ready}")
+            
         if not company.payment_ready:
-            raise ValidationError(
+            logger.warning("❌ Payment setup not complete")
+            raise PermissionDenied(
                 "Your company's payment setup is not complete. "
                 "Please complete Stripe onboarding before publishing auctions."
             )
             
+        logger.info("✅ Payment setup complete, proceeding...")
         return f(request, *args, **kwargs)
     
     return wrapper
