@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
-from base.services.firebase_service import firebase_storage_service
+from base.services.hybrid_storage_service import hybrid_storage_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,11 +9,12 @@ logger = logging.getLogger(__name__)
 
 class FirebaseImageField(models.URLField):
     """
-    Custom Django field for storing Firebase Storage image URLs.
-    Handles image uploads to Firebase Storage automatically.
+    Custom Django field for storing image URLs with Firebase/Local hybrid storage.
+    Tries Firebase first, falls back to local storage if Firebase fails.
+    Maintains URL compatibility by using BACKEND_URL for local images.
     """
     
-    description = "A field for storing Firebase Storage image URLs"
+    description = "A field for storing image URLs with Firebase/Local hybrid storage"
     
     def __init__(self, folder="images", max_length=500, **kwargs):
         self.folder = folder
@@ -32,29 +33,29 @@ class FirebaseImageField(models.URLField):
         """
         file = getattr(model_instance, self.attname)
         
-        # If file is a Django uploaded file, upload it to Firebase
+        # If file is a Django uploaded file, upload it using hybrid storage
         if isinstance(file, (InMemoryUploadedFile, TemporaryUploadedFile)):
             try:
                 # Get user ID if available
                 user_id = getattr(model_instance, 'user_id', None) or getattr(model_instance, 'user', {}).get('id', None)
                 
-                # Upload to Firebase
-                success, message, firebase_url = firebase_storage_service.upload_image(
+                # Upload using hybrid storage (Firebase first, local fallback)
+                success, message, image_url = hybrid_storage_service.upload_image(
                     file, 
                     folder=self.folder,
                     user_id=user_id
                 )
                 
-                if success and firebase_url:
-                    # Set the Firebase URL as the field value
-                    setattr(model_instance, self.attname, firebase_url)
-                    return firebase_url
+                if success and image_url:
+                    # Set the image URL as the field value
+                    setattr(model_instance, self.attname, image_url)
+                    return image_url
                 else:
-                    logger.error(f"Failed to upload image to Firebase: {message}")
+                    logger.error(f"Failed to upload image: {message}")
                     raise ValidationError(f"Image upload failed: {message}")
                     
             except Exception as e:
-                logger.error(f"Error uploading image to Firebase: {str(e)}")
+                logger.error(f"Error uploading image: {str(e)}")
                 raise ValidationError(f"Image upload error: {str(e)}")
         
         # If it's already a URL (string), return as is
@@ -87,14 +88,14 @@ class FirebaseImageField(models.URLField):
         
         # Add helper methods to the model
         def get_image_url(instance):
-            """Get the Firebase image URL"""
+            """Get the image URL"""
             return getattr(instance, name)
         
         def delete_image(instance):
-            """Delete the image from Firebase Storage"""
+            """Delete the image from storage (Firebase or local)"""
             image_url = getattr(instance, name)
             if image_url:
-                success, message = firebase_storage_service.delete_image(image_url)
+                success, message = hybrid_storage_service.delete_image(image_url)
                 if success:
                     setattr(instance, name, None)
                     instance.save(update_fields=[name])
@@ -102,11 +103,11 @@ class FirebaseImageField(models.URLField):
             return True, "No image to delete"
         
         def update_image(instance, new_image_file):
-            """Update the image in Firebase Storage"""
+            """Update the image in storage (Firebase or local)"""
             old_url = getattr(instance, name)
             user_id = getattr(instance, 'user_id', None) or getattr(instance, 'user', {}).get('id', None)
             
-            success, message, new_url = firebase_storage_service.update_image(
+            success, message, new_url = hybrid_storage_service.update_image(
                 old_url, 
                 new_image_file, 
                 folder=self.folder,
@@ -119,10 +120,18 @@ class FirebaseImageField(models.URLField):
             
             return success, message, new_url
         
+        def get_storage_type(instance):
+            """Get the storage type for this image (firebase/local/unknown)"""
+            image_url = getattr(instance, name)
+            if image_url:
+                return hybrid_storage_service.get_storage_type(image_url)
+            return None
+        
         # Add methods to model class
         setattr(cls, f'get_{name}_url', get_image_url)
         setattr(cls, f'delete_{name}', delete_image)
         setattr(cls, f'update_{name}', update_image)
+        setattr(cls, f'get_{name}_storage_type', get_storage_type)
     
     def formfield(self, **kwargs):
         """
