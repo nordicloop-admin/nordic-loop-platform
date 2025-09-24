@@ -214,18 +214,37 @@ class UserDashboardStatsView(APIView):
             
             # Add company information if available
             if company:
+                # Get actual subscription information
+                subscription_display = "Free Plan"  # Default fallback
+                try:
+                    from ads.models import Subscription
+                    subscription = Subscription.objects.filter(company=company).first()
+                    if subscription:
+                        # Format the plan name properly
+                        plan_name = subscription.plan.replace('_', ' ').title()
+                        subscription_display = f"{plan_name} Plan"
+                except Exception:
+                    # If there's any error getting subscription, use the default
+                    subscription_display = "Free Plan"
+                
                 response_data.update({
                     "company_id": company.id,
                     "company_name": company.official_name,
-                    "subscription": "Free Plan",  # This should be replaced with actual subscription logic
+                    "subscription": subscription_display,
                     "verification_status": company.status,
                     "is_verified": company.status == "approved",
                     "pending_verification": company.status == "pending"
                 })
                 
-                # Add verification message if pending
+                # Add verification message based on status
                 if company.status == "pending":
                     response_data["verification_message"] = "Your business is under verification"
+                elif company.status == "rejected":
+                    response_data["verification_message"] = "Business verification was rejected. Please contact support."
+                elif company.status == "approved":
+                    response_data["verification_message"] = "Your business is verified"
+                else:
+                    response_data["verification_message"] = f"Business status: {company.status}"
             
             return Response(response_data, status=status.HTTP_200_OK)
         
