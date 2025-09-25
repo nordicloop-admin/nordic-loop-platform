@@ -52,7 +52,7 @@ class AdRepository:
                 user=user,
                 current_step=1,
                 is_complete=False,
-                is_active=False
+                status='draft'
             )
 
             return RepositoryResponse(True, "Ad created successfully", ad)
@@ -72,7 +72,7 @@ class AdRepository:
                 user=user,
                 current_step=2,  # Move to step 2 after completing step 1
                 is_complete=False,
-                is_active=False
+                status='draft'
             )
 
             # Update with step 1 data using the step 1 serializer
@@ -96,7 +96,7 @@ class AdRepository:
             
             # If user is provided, check ownership for non-complete ads
             if user:
-                query = Q(id=ad_id) & (Q(user=user) | Q(is_complete=True, is_active=True))
+                query = Q(id=ad_id) & (Q(user=user) | Q(is_complete=True, status='active'))
             
             ad = Ad.objects.filter(query).first()
             
@@ -134,13 +134,13 @@ class AdRepository:
             # Apply status filter
             if status and status != 'all':
                 if status == 'active':
-                    queryset = queryset.filter(is_active=True, is_complete=True)
+                    queryset = queryset.filter(status='active', is_complete=True)
                 elif status == 'inactive':
-                    queryset = queryset.filter(is_active=False)
+                    queryset = queryset.filter(status__in=['draft', 'suspended', 'completed'])
                 elif status == 'pending':
                     queryset = queryset.filter(is_complete=False)
                 elif status == 'draft':
-                    queryset = queryset.filter(is_complete=False, is_active=False)
+                    queryset = queryset.filter(is_complete=False, status='draft')
             
             # Apply pagination
             paginator = Paginator(queryset, page_size)
@@ -236,7 +236,7 @@ class AdRepository:
             query = Q()
             
             if only_complete:
-                query &= Q(is_complete=True, is_active=True)
+                query &= Q(is_complete=True, status='active')
             
             # Apply filters
             if category_id:
@@ -352,7 +352,7 @@ class AdRepository:
             stats = {
                 'total_ads': Ad.objects.filter(user=user).count(),
                 'complete_ads': Ad.objects.filter(user=user, is_complete=True).count(),
-                'active_ads': Ad.objects.filter(user=user, is_active=True).count(),
+                'active_ads': Ad.objects.filter(user=user, status='active').count(),
                 'draft_ads': Ad.objects.filter(user=user, is_complete=False).count(),
                 'ads_by_step': {}
             }
@@ -386,10 +386,10 @@ class AdRepository:
                 return RepositoryResponse(False, f"Ad must be complete before activation. Next incomplete step: {next_step}", None)
             
             # Check if the ad is suspended by admin
-            if ad.status == 'suspended' and ad.suspended_by_admin:
+            if ad.status == 'suspended':
                 return RepositoryResponse(False, "This ad has been suspended by an administrator and cannot be activated. Please contact support for assistance.", None)
 
-            ad.is_active = True
+            ad.status = 'active'
             ad.auction_start_date = timezone.now()
             
             # Calculate auction end date based on duration
@@ -411,7 +411,7 @@ class AdRepository:
             if not ad:
                 return RepositoryResponse(False, "Ad not found or access denied", None)
 
-            ad.is_active = False
+            ad.status = 'draft'
             ad.save()
 
             return RepositoryResponse(True, "Ad deactivated successfully", ad)
@@ -434,7 +434,6 @@ class AdRepository:
             
             # Update the ad status
             ad.status = 'active'
-            ad.suspended_by_admin = False
             ad.save()
         
             return RepositoryResponse(True, "Ad approved by administrator", ad)
@@ -457,8 +456,6 @@ class AdRepository:
             
             # Update the ad status
             ad.status = 'suspended'
-            ad.suspended_by_admin = True
-            ad.is_active = False  # Also deactivate the ad
             ad.save()
         
             return RepositoryResponse(True, "Ad suspended by administrator", ad)
@@ -473,7 +470,7 @@ class AdRepository:
             ads = Ad.objects.filter(
                 category_id=category_id, 
                 is_complete=True, 
-                is_active=True
+                status='active'
             ).select_related('category', 'subcategory', 'location')
 
             return RepositoryResponse(True, "Category ads retrieved", list(ads))
@@ -485,7 +482,7 @@ class AdRepository:
     def search_ads(self, search_term: str) -> RepositoryResponse:
         """Search ads by title, description, or keywords"""
         try:
-            query = Q(is_complete=True, is_active=True) & (
+            query = Q(is_complete=True, status='active') & (
                 Q(title__icontains=search_term) |
                 Q(description__icontains=search_term) |
                 Q(keywords__icontains=search_term) |
