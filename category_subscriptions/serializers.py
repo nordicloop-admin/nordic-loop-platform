@@ -83,7 +83,7 @@ class CategorySubscriptionSerializer(serializers.ModelSerializer):
 
     def get_related_ads(self, obj):
         # Get ads related to this subscription's category/subcategory
-        ads_query = Ad.objects.filter(category=obj.category, is_active=True)
+        ads_query = Ad.objects.filter(category=obj.category, status='active')
 
         # If subscription is for a specific subcategory, filter by that too
         if obj.subcategory:

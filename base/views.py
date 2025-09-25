@@ -180,7 +180,7 @@ class UserDashboardStatsView(APIView):
                 # Count active ads
                 ads_count = Ad.objects.filter(
                     user=user,
-                    is_active=True
+                    status='active'
                 ).count()
                 
                 # Get recent ads
@@ -189,7 +189,7 @@ class UserDashboardStatsView(APIView):
                     ad_data = {
                         'id': ad.id,
                         'title': ad.title if hasattr(ad, 'title') else 'Ad',
-                        'status': 'active' if ad.is_active else 'inactive',
+                        'status': ad.status,
                         'created_at': ad.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     }
                     # Try to get bids count safely
