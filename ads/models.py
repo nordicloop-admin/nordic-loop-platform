@@ -209,8 +209,10 @@ class Ad(models.Model):
     status = models.CharField(max_length=20, choices=[
         ('active', 'Active'),
         ('suspended', 'Suspended by Admin'),
-        ('completed', 'Completed')
-    ], default='active')
+        ('completed', 'Completed'),
+        ('Draft', 'Draft')
+        
+    ], default='Draft')
     suspended_by_admin = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
