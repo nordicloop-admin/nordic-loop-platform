@@ -131,7 +131,7 @@ class AdAdmin(admin.ModelAdmin):
         'currency',
         'current_step',
         'is_complete',
-        'is_active',
+        'status',
         'user',
     )
     
@@ -156,7 +156,7 @@ class AdAdmin(admin.ModelAdmin):
         'currency',
         'current_step',
         'is_complete',
-        'is_active',
+        'status',
         'created_at'
     )
     
@@ -192,7 +192,7 @@ class AdAdmin(admin.ModelAdmin):
         }),
         ('System Fields', {
             'fields': (
-                'current_step', 'is_complete', 'is_active',
+                'current_step', 'is_complete', 'status',
                 'auction_start_date', 'auction_end_date',
                 'created_at', 'updated_at'
             ),
