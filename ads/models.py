@@ -151,7 +151,6 @@ class Ad(models.Model):
 
     # Step 6: Location & Logistics
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True)
-    pickup_available = models.BooleanField(default=False)
     delivery_options = models.JSONField(default=list, blank=True, help_text="List of available delivery options")
 
     # Step 7: Quantity & Pricing

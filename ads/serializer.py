@@ -239,7 +239,7 @@ class AdStep6Serializer(serializers.ModelSerializer):
     class Meta:
         model = Ad
         fields = [
-            'id', 'location', 'location_data', 'pickup_available', 
+            'id', 'location', 'location_data', 
             'delivery_options', 'current_step'
         ]
 
@@ -451,7 +451,7 @@ class AdCompleteSerializer(serializers.ModelSerializer):
             'processing_methods', 'processing_methods_display',
             
             # Step 6: Location & Logistics
-            'location', 'location_summary', 'pickup_available', 
+            'location', 'location_summary', 
             'delivery_options', 'delivery_options_display',
             
             # Step 7: Quantity & Pricing
@@ -624,7 +624,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
             'id', 'category', 'subcategory', 'specific_material', 'packaging',
             'material_frequency', 'specification', 'additional_specifications',
             'origin', 'contamination', 'additives', 'storage_conditions',
-            'processing_methods', 'location_data', 'pickup_available', 'delivery_options',
+            'processing_methods', 'location_data', 'delivery_options',
             'available_quantity', 'unit_of_measurement', 'minimum_order_quantity',
             'starting_bid_price', 'currency', 'auction_duration', 'custom_auction_duration', 'reserve_price',
             'title', 'description', 'keywords', 'material_image', 'allow_broker_bids'

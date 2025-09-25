@@ -182,7 +182,7 @@ class AdAdmin(admin.ModelAdmin):
             'fields': ('processing_methods',)
         }),
         ('Location & Logistics (Step 6)', {
-            'fields': ('location', 'pickup_available', 'delivery_options')
+            'fields': ('location', 'delivery_options')
         }),
         ('Quantity & Pricing (Step 7)', {
             'fields': (
