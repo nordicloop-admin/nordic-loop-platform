@@ -420,7 +420,6 @@ class AdCompleteSerializer(serializers.ModelSerializer):
     auction_duration_display = serializers.CharField(source='get_auction_duration_display', read_only=True)
     
     # Derived information
-    auction_status = serializers.SerializerMethodField()
     time_remaining = serializers.SerializerMethodField()
     processing_methods_display = serializers.SerializerMethodField()
     delivery_options_display = serializers.SerializerMethodField()
@@ -464,43 +463,17 @@ class AdCompleteSerializer(serializers.ModelSerializer):
             'title', 'description', 'keywords', 'material_image',
             
             # System fields
-            'is_active', 'current_step', 'is_complete', 'status', 'suspended_by_admin',
+            'current_step', 'is_complete', 'status',
             'created_at', 'updated_at', 'auction_start_date', 'auction_end_date', 'allow_broker_bids',
             
             # Derived fields
-            'step_completion_status', 'auction_status', 'time_remaining'
+            'step_completion_status', 'time_remaining'
         ]
 
     def get_step_completion_status(self, obj):
         return obj.get_step_completion_status()
     
-    def get_auction_status(self, obj):
-        """Get current auction status"""
-        from django.utils import timezone
-        now = timezone.now()
-        
-        # First check the actual status field from the model
-        if obj.status == 'completed':
-            return "Completed"
-        elif obj.status == 'suspended':
-            return "Suspended"
-        
-        # For active status, check date-based conditions
-        if obj.status == 'active':
-            if not obj.is_complete:
-                return "Draft"
-            if not obj.auction_start_date:
-                return "Not Started"
-            if obj.auction_start_date > now:
-                return "Scheduled"
-            if obj.auction_end_date and obj.auction_end_date <= now:
-                return "Ended"
-            return "Active"
-        
-        # Fallback to legacy behavior for any other cases
-        if not obj.is_complete:
-            return "Draft"
-        return "Active"
+
     
     def get_time_remaining(self, obj):
         """Get time remaining in auction"""
@@ -568,8 +541,8 @@ class AdListSerializer(serializers.ModelSerializer):
             'id', 'title', 'category_name', 'subcategory_name',
             'available_quantity', 'unit_of_measurement', 'starting_bid_price',
             'currency', 'location_summary', 'total_starting_value',
-            'material_image', 'created_at', 'is_active', 'is_complete', 'status',
-            'suspended_by_admin', 'allow_broker_bids', 'auction_start_date', 
+            'material_image', 'created_at', 'is_complete', 'status',
+            'allow_broker_bids', 'auction_start_date', 
             'auction_end_date', 'time_remaining', 'highest_bid_price', 'base_price'
         ]
 
@@ -839,19 +812,8 @@ class AdminAuctionListSerializer(serializers.ModelSerializer):
         """
         Get status string based on ad state, prioritizing the actual status field
         """
-        # First check if the ad is suspended by admin
-        if obj.status == 'suspended':
-            return "suspended"
-
-        # Then check completion and activity status
-        if obj.is_complete and obj.is_active:
-            return "active"
-        elif obj.is_complete and not obj.is_active:
-            return "inactive"
-        elif not obj.is_complete:
-            return "draft"
-        else:
-            return "pending"
+        # Use the status field directly
+        return obj.status
 
     def get_volume(self, obj):
         """

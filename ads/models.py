@@ -205,15 +205,12 @@ class Ad(models.Model):
     material_image = FirebaseImageField(folder='material_images', blank=True, null=True)
     
     # System fields
-    is_active = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=[
         ('active', 'Active'),
         ('suspended', 'Suspended by Admin'),
         ('completed', 'Completed'),
-        ('Draft', 'Draft')
-        
-    ], default='Draft')
-    suspended_by_admin = models.BooleanField(default=False)
+        ('draft', 'Draft')
+    ], default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     auction_start_date = models.DateTimeField(blank=True, null=True)
@@ -254,15 +251,15 @@ class Ad(models.Model):
         self.update_step_completion_flags()
         
         # Check if we're trying to make the auction active
-        # We need to check if is_active is being changed to True
+        # We need to check if status is being changed to 'active'
         if self.pk:  # If updating existing ad
             try:
                 old_instance = Ad.objects.get(pk=self.pk)
-                is_activating = not old_instance.is_active and self.is_active
+                is_activating = old_instance.status != 'active' and self.status == 'active'
             except Ad.DoesNotExist:
                 is_activating = False
         else:  # New ad
-            is_activating = self.is_active
+            is_activating = self.status == 'active'
             
         if is_activating and self.is_complete:
             from company.payment_utils import check_company_payment_readiness
@@ -284,7 +281,7 @@ class Ad(models.Model):
         from company.payment_utils import validate_auction_publication
         
         # Only validate payment setup if auction is being published
-        if self.is_active and self.is_complete:
+        if self.status == 'active' and self.is_complete:
             if self.user:
                 validate_auction_publication(self.user)
         
@@ -456,6 +453,46 @@ class Ad(models.Model):
             'step_5_complete', 'step_6_complete', 'step_7_complete', 'step_8_complete',
             'is_complete', 'current_step'
         ])
+
+    def is_active(self):
+        """Check if the ad is active"""
+        return self.status == 'active'
+    
+    def is_draft(self):
+        """Check if the ad is in draft status"""
+        return self.status == 'draft'
+    
+    def is_completed(self):
+        """Check if the ad is completed"""
+        return self.status == 'completed'
+    
+    def is_suspended(self):
+        """Check if the ad is suspended"""
+        return self.status == 'suspended'
+    
+    def publish(self):
+        """Publish the ad - set status to active"""
+        if self.is_complete:
+            self.status = 'active'
+            self.save(update_fields=['status'])
+        else:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("Cannot publish incomplete ad")
+    
+    def unpublish(self):
+        """Unpublish the ad - set status to draft"""
+        self.status = 'draft'
+        self.save(update_fields=['status'])
+    
+    def suspend(self):
+        """Suspend the ad"""
+        self.status = 'suspended'
+        self.save(update_fields=['status'])
+    
+    def complete(self):
+        """Mark the ad as completed"""
+        self.status = 'completed'
+        self.save(update_fields=['status'])
 
 class Subscription(models.Model):
     PLAN_CHOICES = [

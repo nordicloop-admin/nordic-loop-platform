@@ -352,7 +352,7 @@ class AdListView(ListAPIView):
         only_brokers = self.request.query_params.get('only_brokers', 'false').lower() == 'true'
 
         if only_complete:
-            query &= Q(is_complete=True, is_active=True)
+            query &= Q(is_complete=True, status='active')
             # Only show ads from companies with completed payment setup
             query &= Q(user__company__payment_ready=True)
             
@@ -439,7 +439,7 @@ class UserAdsCountView(APIView):
             if only_complete:
                 query &= Q(is_complete=True)
             if only_active:
-                query &= Q(is_active=True)
+                query &= Q(status='active')
                 
             # Count the ads
             ads_count = Ad.objects.filter(query).count()
@@ -521,7 +521,7 @@ class AdActivateView(APIView):
                 "ad": {
                     "id": ad.id,
                     "title": ad.title,
-                    "is_active": ad.is_active,
+                    "status": ad.status,
                     "is_complete": ad.is_complete,
                     "auction_start_date": ad.auction_start_date,
                     "auction_end_date": ad.auction_end_date,
@@ -549,7 +549,7 @@ class AdDeactivateView(APIView):
                 "ad": {
                     "id": ad.id,
                     "title": ad.title,
-                    "is_active": ad.is_active,
+                    "status": ad.status,
                     "is_complete": ad.is_complete
                 }
             }, status=status.HTTP_200_OK)
@@ -584,10 +584,8 @@ class AdminAdApproveView(APIView):
                     "error": "Ad not found"
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Update the ad to approved/active status
+            # Update the ad to active status (admin approval means it becomes active)
             ad.status = 'active'
-            ad.suspended_by_admin = False
-            # Note: We don't automatically set is_active=True because the user should control publication
             ad.save()
 
             # Log the admin action (using print since LoggingService doesn't have log_info)
@@ -600,8 +598,6 @@ class AdminAdApproveView(APIView):
                     "id": ad.id,
                     "title": ad.title,
                     "status": ad.status,
-                    "suspended_by_admin": ad.suspended_by_admin,
-                    "is_active": ad.is_active,
                     "is_complete": ad.is_complete
                 }
             }, status=status.HTTP_200_OK)
@@ -638,8 +634,6 @@ class AdminAdSuspendView(APIView):
 
             # Update the ad to suspended status
             ad.status = 'suspended'
-            ad.suspended_by_admin = True
-            ad.is_active = False  # Immediately remove from public view
             ad.save()
 
             # Log the admin action (using print since LoggingService doesn't have log_info)
@@ -652,8 +646,6 @@ class AdminAdSuspendView(APIView):
                     "id": ad.id,
                     "title": ad.title,
                     "status": ad.status,
-                    "suspended_by_admin": ad.suspended_by_admin,
-                    "is_active": ad.is_active,
                     "is_complete": ad.is_complete
                 }
             }, status=status.HTTP_200_OK)
