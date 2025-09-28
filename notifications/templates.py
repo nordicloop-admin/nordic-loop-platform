@@ -92,6 +92,29 @@ class AuctionNotificationTemplates:
         }
 
 
+class SellerNotificationTemplates:
+    """Templates for seller-related notifications"""
+    
+    @staticmethod
+    def auction_won_seller_notification(auction_title: str, winner_email: str, 
+                                       winning_price: Decimal, currency: str, 
+                                       volume: Decimal, unit: str, total_value: Decimal,
+                                       closure_type: str = 'automatic') -> Dict[str, str]:
+        """Template for seller notification when their auction has a winner"""
+        closure_text = "has ended with a winner" if closure_type == 'automatic' else "has been closed with a winner"
+        
+        return {
+            'title': 'Your Auction Has a Winner!',
+            'message': (
+                f"Congratulations! Your auction for {auction_title} {closure_text}. "
+                f"Winner: {winner_email} with a bid of {winning_price:.2f} {currency} per {unit} "
+                f"for {volume:.2f} {unit} (Total: {total_value:.2f} {currency}). "
+                f"The buyer has completed the payment. You will receive another notification "
+                f"when payment payout is ready."
+            )
+        }
+
+
 class BidNotificationTemplates:
     """Templates for bid-related notifications"""
     
@@ -118,6 +141,28 @@ class BidNotificationTemplates:
                 f"Your new bid: {new_bid_price} {currency} per {unit} for {volume} {unit}."
             )
         }
+
+
+def get_seller_notification_metadata(auction_id: int, bid_id: int, 
+                                    winner_id: int, winner_email: str,
+                                    winning_price: Decimal, volume: Decimal, 
+                                    total_value: Decimal, currency: str, 
+                                    unit: str, closure_type: str, 
+                                    action_type: str) -> Dict[str, Any]:
+    """Generate standard metadata for seller notifications"""
+    return {
+        'auction_id': auction_id,
+        'bid_id': bid_id,
+        'winner_id': winner_id,
+        'winner_email': winner_email,
+        'winning_price': str(winning_price),
+        'volume': str(volume),
+        'total_value': str(total_value),
+        'currency': currency,
+        'unit': unit,
+        'closure_type': closure_type,
+        'action_type': action_type
+    }
 
 
 def get_auction_notification_metadata(auction_id: int, bid_id: int, 

@@ -19,7 +19,7 @@ from django.db.models import Q
 from ads.models import Ad
 from bids.models import Bid
 from notifications.models import Notification
-from notifications.templates import AuctionNotificationTemplates, get_auction_notification_metadata
+from notifications.templates import AuctionNotificationTemplates, SellerNotificationTemplates, get_auction_notification_metadata, get_seller_notification_metadata
 from base.services.logging import LoggingService
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,12 @@ class AuctionCompletionService:
                 
                 if success:
                     # Send winner notification
-                    notification_sent = self._send_winner_notification(
+                    winner_notification_sent = self._send_winner_notification(
+                        auction, highest_bid, closure_type='automatic'
+                    )
+                    
+                    # Send seller notification
+                    seller_notification_sent = self._send_seller_notification(
                         auction, highest_bid, closure_type='automatic'
                     )
                     
@@ -123,7 +128,8 @@ class AuctionCompletionService:
                         'winner_email': highest_bid.user.email,
                         'winning_price': highest_bid.bid_price_per_unit,
                         'winning_volume': highest_bid.volume_requested,
-                        'notification_sent': notification_sent
+                        'winner_notification_sent': winner_notification_sent,
+                        'seller_notification_sent': seller_notification_sent
                     })
                 else:
                     result.update({
@@ -160,7 +166,12 @@ class AuctionCompletionService:
                 
                 if success:
                     # Send winner notification for manual closure
-                    notification_sent = self._send_winner_notification(
+                    winner_notification_sent = self._send_winner_notification(
+                        auction, winning_bid, closure_type='manual'
+                    )
+                    
+                    # Send seller notification for manual closure
+                    seller_notification_sent = self._send_seller_notification(
                         auction, winning_bid, closure_type='manual'
                     )
                     
@@ -171,7 +182,8 @@ class AuctionCompletionService:
                         'winner_email': winning_bid.user.email,
                         'winning_price': winning_bid.bid_price_per_unit,
                         'winning_volume': winning_bid.volume_requested,
-                        'notification_sent': notification_sent
+                        'winner_notification_sent': winner_notification_sent,
+                        'seller_notification_sent': seller_notification_sent
                     }
                 else:
                     return {
@@ -351,4 +363,67 @@ class AuctionCompletionService:
         except Exception as e:
             logging_service.log_error(e)
             logger.error(f"Error sending winner notification for auction {auction.id}: {str(e)}")
+            return False
+    
+    def _send_seller_notification(self, auction: Ad, winning_bid: Bid, closure_type: str = 'automatic') -> bool:
+        """Send notification to the seller that their auction has a winner"""
+        try:
+            # Check if notification already exists to avoid duplicates
+            existing_notification = Notification.objects.filter(
+                user=auction.user,
+                type='auction',
+                title__icontains='Your Auction Has a Winner'
+            ).filter(
+                Q(metadata__bid_id=winning_bid.id) | 
+                Q(metadata__auction_id=auction.id)
+            ).first()
+            
+            if existing_notification:
+                logger.info(f"Seller notification already exists for auction {auction.id}, skipping seller notification")
+                return True
+            
+            # Get notification template
+            template = SellerNotificationTemplates.auction_won_seller_notification(
+                auction.title,
+                winning_bid.user.company.official_name,
+                winning_bid.bid_price_per_unit,
+                auction.currency,
+                winning_bid.volume_requested,
+                auction.unit_of_measurement,
+                winning_bid.total_bid_value,
+                closure_type
+            )
+
+            # Generate metadata for seller
+            metadata = get_seller_notification_metadata(
+                auction.id,
+                winning_bid.id,
+                winning_bid.user.id,
+                winning_bid.user.email,
+                winning_bid.bid_price_per_unit,
+                winning_bid.volume_requested,
+                winning_bid.total_bid_value,
+                auction.currency,
+                auction.unit_of_measurement,
+                closure_type,
+                'auction_winner_selected'
+            )
+
+            # Create the notification
+            Notification.objects.create(
+                user=auction.user,  # Send to seller (auction owner)
+                title=template['title'],
+                message=template['message'],
+                type='auction',
+                priority='high',
+                action_url=f'/dashboard/my-auctions?auction_id={auction.id}',
+                metadata=metadata
+            )
+            
+            logger.info(f"Seller notification sent for auction {auction.id} to seller {auction.user.email}")
+            return True
+            
+        except Exception as e:
+            logging_service.log_error(e)
+            logger.error(f"Error sending seller notification for auction {auction.id}: {str(e)}")
             return False
