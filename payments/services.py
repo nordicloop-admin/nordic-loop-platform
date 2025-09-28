@@ -8,7 +8,7 @@ from users.models import User
 from ads.models import Subscription
 from .models import StripeAccount, PaymentIntent, Transaction, PayoutSchedule
 from notifications.models import Notification
-from notifications.templates import SellerNotificationTemplates, get_payout_notification_metadata
+from notifications.templates import SellerNotificationTemplates, AdminNotificationTemplates, get_payout_notification_metadata, get_admin_notification_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -317,6 +317,36 @@ class StripeConnectService:
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error processing payout transfer: {str(e)}")
             
+            # Handle insufficient funds error - CRITICAL ADMIN NOTIFICATION REQUIRED
+            if 'insufficient available funds' in str(e).lower() or 'available balance' in str(e).lower():
+                logger.critical(f"INSUFFICIENT FUNDS: Stripe account has insufficient balance for payout: {str(e)}")
+                
+                # Mark payout as failed due to insufficient funds
+                payout_schedule.status = 'failed'
+                payout_schedule.processed_date = timezone.now().date()
+                payout_schedule.metadata = {
+                    'error': str(e),
+                    'insufficient_funds': True,
+                    'requires_admin_action': True,
+                    'failure_reason': 'Insufficient Stripe account balance'
+                }
+                payout_schedule.stripe_payout_id = f'failed_{payout_schedule.id}'
+                payout_schedule.save()
+                
+                # Send CRITICAL notification to all admin users
+                admin_notification_sent = self._send_admin_insufficient_funds_notification(
+                    payout_schedule, str(e)
+                )
+                
+                return {
+                    'success': False,
+                    'payout_id': f'failed_{payout_schedule.id}',
+                    'message': 'Payout failed due to insufficient Stripe account balance. Admin notification sent.',
+                    'insufficient_funds': True,
+                    'admin_notification_sent': admin_notification_sent,
+                    'requires_admin_action': True
+                }
+            
             # Handle service agreement restrictions for cross-border transfers
             if 'full` service agreement' in str(e) or 'can\'t be sent to accounts located' in str(e):
                 logger.warning(f"Cross-border transfer restriction - marking as completed for admin review: {str(e)}")
@@ -445,6 +475,72 @@ class StripeConnectService:
             
         except Exception as e:
             logger.error(f"Error sending payout notification for payout schedule {payout_schedule.id}: {str(e)}")
+            return False
+    
+    def _send_admin_insufficient_funds_notification(self, payout_schedule: PayoutSchedule, stripe_error: str) -> bool:
+        """Send critical notification to all admin users about insufficient Stripe funds"""
+        try:
+            # Get all admin users
+            admin_users = User.objects.filter(is_staff=True, is_superuser=True, is_active=True)
+            
+            if not admin_users.exists():
+                logger.error("No admin users found to send insufficient funds notification")
+                return False
+            
+            notifications_created = 0
+            
+            for admin_user in admin_users:
+                # Check if notification already exists for this payout to avoid duplicates
+                existing_notification = Notification.objects.filter(
+                    user=admin_user,
+                    type='system',
+                    title__icontains='Insufficient Stripe Balance'
+                ).filter(
+                    metadata__payout_schedule_id=str(payout_schedule.id)
+                ).first()
+                
+                if existing_notification:
+                    logger.info(f"Insufficient funds notification already exists for admin {admin_user.email} and payout {payout_schedule.id}")
+                    continue
+                
+                # Get notification template
+                template = AdminNotificationTemplates.insufficient_funds_notification(
+                    payout_schedule.total_amount,
+                    payout_schedule.currency,
+                    payout_schedule.seller.email,
+                    str(payout_schedule.id),
+                    stripe_error
+                )
+
+                # Generate metadata
+                metadata = get_admin_notification_metadata(
+                    str(payout_schedule.id),
+                    payout_schedule.seller.id,
+                    payout_schedule.seller.email,
+                    payout_schedule.total_amount,
+                    payout_schedule.currency,
+                    stripe_error,
+                    'insufficient_funds_alert'
+                )
+
+                # Create the CRITICAL notification
+                Notification.objects.create(
+                    user=admin_user,
+                    title=template['title'],
+                    message=template['message'],
+                    type='system',
+                    priority='urgent',  # Highest priority for admin alerts
+                    action_url='/admin/payments/payoutschedule/',  # Direct link to admin payout management
+                    metadata=metadata
+                )
+                
+                notifications_created += 1
+            
+            logger.critical(f"CRITICAL: Sent insufficient funds notification to {notifications_created} admin users for payout schedule {payout_schedule.id}")
+            return notifications_created > 0
+            
+        except Exception as e:
+            logger.error(f"Error sending admin insufficient funds notification for payout schedule {payout_schedule.id}: {str(e)}")
             return False
 
 

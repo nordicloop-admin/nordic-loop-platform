@@ -152,6 +152,26 @@ class SellerNotificationTemplates:
         }
 
 
+class AdminNotificationTemplates:
+    """Templates for admin-related notifications"""
+    
+    @staticmethod
+    def insufficient_funds_notification(payout_amount: Decimal, currency: str,
+                                       seller_email: str, payout_schedule_id: str,
+                                       stripe_error: str) -> Dict[str, str]:
+        """Template for admin notification when Stripe has insufficient funds for payout"""
+        return {
+            'title': 'Payout Failed - Insufficient Stripe Balance',
+            'message': (
+                f"URGENT: Payout processing failed due to insufficient funds in Stripe account. "
+                f"Attempted payout: {payout_amount:.2f} {currency} to seller {seller_email}. "
+                f"Payout Schedule ID: {payout_schedule_id}. "
+                f"Action Required: Add funds to Stripe account or process manual transfer. "
+                f"Stripe Error: {stripe_error[:200]}..."
+            )
+        }
+
+
 class BidNotificationTemplates:
     """Templates for bid-related notifications"""
     
@@ -216,6 +236,23 @@ def get_payout_notification_metadata(payout_schedule_id: str, payout_id: str,
         'seller_id': seller_id,
         'requires_manual_processing': requires_manual_processing,
         'action_type': 'payout_processed'
+    }
+
+
+def get_admin_notification_metadata(payout_schedule_id: str, seller_id: int, 
+                                   seller_email: str, payout_amount: Decimal, 
+                                   currency: str, stripe_error: str,
+                                   action_type: str) -> Dict[str, Any]:
+    """Generate standard metadata for admin notifications"""
+    return {
+        'payout_schedule_id': str(payout_schedule_id),
+        'seller_id': seller_id,
+        'seller_email': seller_email,
+        'payout_amount': str(payout_amount),
+        'currency': currency,
+        'stripe_error': stripe_error[:500],  # Truncate long errors
+        'action_type': action_type,
+        'severity': 'critical'
     }
 
 
