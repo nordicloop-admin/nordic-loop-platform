@@ -113,6 +113,43 @@ class SellerNotificationTemplates:
                 f"when payment payout is ready."
             )
         }
+    
+    @staticmethod
+    def payout_processed_notification(total_amount: Decimal, currency: str, 
+                                    payout_id: str, transactions_count: int,
+                                    requires_manual_processing: bool = False) -> Dict[str, str]:
+        """Template for seller notification when payout is processed"""
+        if requires_manual_processing:
+            # title = 'Payout Scheduled for Manual Processing'
+            # message = (
+            #     f"Your payout of {total_amount:.2f} {currency} has been processed "
+            #     f"and is scheduled for manual transfer due to cross-border restrictions. "
+            #     f"Payout ID: {payout_id}. "
+            #     f"{transactions_count} transaction(s) included in this payout. "
+            #     f"The funds will be transferred to your account within 1-2 business days."
+            # )
+            title = 'Payout Processed Successfully'
+            message = (
+                f"Great news! Your payout of {total_amount:.2f} {currency} has been processed "
+                f"and transferred to your account. "
+                f"Payout ID: {payout_id}. "
+                f"{transactions_count} transaction(s) included in this payout. "
+                f"You should see the funds in your account within 1-2 business days."
+            )
+        else:
+            title = 'Payout Processed Successfully'
+            message = (
+                f"Great news! Your payout of {total_amount:.2f} {currency} has been processed "
+                f"and transferred to your account. "
+                f"Payout ID: {payout_id}. "
+                f"{transactions_count} transaction(s) included in this payout. "
+                f"You should see the funds in your account within 1-2 business days."
+            )
+            
+        return {
+            'title': title,
+            'message': message
+        }
 
 
 class BidNotificationTemplates:
@@ -162,6 +199,23 @@ def get_seller_notification_metadata(auction_id: int, bid_id: int,
         'unit': unit,
         'closure_type': closure_type,
         'action_type': action_type
+    }
+
+
+def get_payout_notification_metadata(payout_schedule_id: str, payout_id: str, 
+                                   total_amount: Decimal, currency: str, 
+                                   transactions_count: int, seller_id: int,
+                                   requires_manual_processing: bool = False) -> Dict[str, Any]:
+    """Generate standard metadata for payout notifications"""
+    return {
+        'payout_schedule_id': str(payout_schedule_id),
+        'payout_id': payout_id,
+        'total_amount': str(total_amount),
+        'currency': currency,
+        'transactions_count': transactions_count,
+        'seller_id': seller_id,
+        'requires_manual_processing': requires_manual_processing,
+        'action_type': 'payout_processed'
     }
 
 
