@@ -7,6 +7,8 @@ from django.utils import timezone
 from users.models import User
 from ads.models import Subscription
 from .models import StripeAccount, PaymentIntent, Transaction, PayoutSchedule
+from notifications.models import Notification
+from notifications.templates import SellerNotificationTemplates, get_payout_notification_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -300,10 +302,16 @@ class StripeConnectService:
                     except (PaymentIntent.DoesNotExist, Bid.DoesNotExist):
                         pass
             
+            # Send payout notification to seller
+            notification_sent = self._send_payout_notification(
+                payout_schedule, transfer.id, requires_manual_processing=False
+            )
+
             return {
                 'success': True,
                 'payout_id': transfer.id,
-                'message': 'Payout transferred successfully'
+                'message': 'Payout transferred successfully',
+                'notification_sent': notification_sent
             }
             
         except stripe.error.StripeError as e:
@@ -331,11 +339,17 @@ class StripeConnectService:
                     processed_at=timezone.now()
                 )
                 
+                # Send payout notification to seller for manual processing
+                notification_sent = self._send_payout_notification(
+                    payout_schedule, f'manual_{payout_schedule.id}', requires_manual_processing=True
+                )
+                
                 return {
                     'success': True,  # Mark as success but with manual flag
                     'payout_id': f'manual_{payout_schedule.id}',
                     'message': f'Payout marked for manual processing due to cross-border restrictions. {updated_count} transactions updated.',
-                    'requires_manual_processing': True
+                    'requires_manual_processing': True,
+                    'notification_sent': notification_sent
                 }
             
             # In test/development mode, we can still mark as processed for testing
@@ -354,11 +368,17 @@ class StripeConnectService:
                     processed_at=timezone.now()
                 )
                 
+                # Send payout notification to seller for test mode
+                notification_sent = self._send_payout_notification(
+                    payout_schedule, f'test_failed_{payout_schedule.id}', requires_manual_processing=True
+                )
+                
                 return {
                     'success': True,  # Mark as success for UI purposes
                     'payout_id': f'test_failed_{payout_schedule.id}',
                     'message': f'Payout marked as processed (Stripe test mode limitation). {updated_count} transactions updated.',
-                    'test_mode': True
+                    'test_mode': True,
+                    'notification_sent': notification_sent
                 }
             
             return {
@@ -371,6 +391,61 @@ class StripeConnectService:
                 'success': False,
                 'message': f'Error processing payout: {str(e)}'
             }
+    
+    def _send_payout_notification(self, payout_schedule: PayoutSchedule, payout_id: str, 
+                                 requires_manual_processing: bool = False) -> bool:
+        """Send payout processed notification to the seller"""
+        try:
+            # Check if notification already exists to avoid duplicates
+            existing_notification = Notification.objects.filter(
+                user=payout_schedule.seller,
+                type='payment',
+                title__icontains='Payout'
+            ).filter(
+                metadata__payout_schedule_id=str(payout_schedule.id)
+            ).first()
+            
+            if existing_notification:
+                logger.info(f"Payout notification already exists for payout schedule {payout_schedule.id}")
+                return True
+            
+            # Get notification template
+            template = SellerNotificationTemplates.payout_processed_notification(
+                payout_schedule.total_amount,
+                payout_schedule.currency,
+                payout_id,
+                payout_schedule.transactions.count(),
+                requires_manual_processing
+            )
+
+            # Generate metadata
+            metadata = get_payout_notification_metadata(
+                payout_schedule.id,
+                payout_id,
+                payout_schedule.total_amount,
+                payout_schedule.currency,
+                payout_schedule.transactions.count(),
+                payout_schedule.seller.id,
+                requires_manual_processing
+            )
+
+            # Create the notification
+            Notification.objects.create(
+                user=payout_schedule.seller,
+                title=template['title'],
+                message=template['message'],
+                type='payment',
+                priority='high',
+                action_url='/dashboard/payments',
+                metadata=metadata
+            )
+            
+            logger.info(f"Payout notification sent for payout schedule {payout_schedule.id} to seller {payout_schedule.seller.email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error sending payout notification for payout schedule {payout_schedule.id}: {str(e)}")
+            return False
 
 
 class CommissionCalculatorService:
