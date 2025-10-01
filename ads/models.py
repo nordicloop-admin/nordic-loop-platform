@@ -156,7 +156,7 @@ class Ad(models.Model):
     # Step 7: Quantity & Pricing
     available_quantity = models.DecimalField(
         max_digits=10, 
-        decimal_places=2, 
+        decimal_places=0, 
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
@@ -165,7 +165,7 @@ class Ad(models.Model):
     unit_of_measurement = models.CharField(max_length=15, choices=UNIT_CHOICES, default='tons')
     minimum_order_quantity = models.DecimalField(
         max_digits=10, 
-        decimal_places=2, 
+        decimal_places=0, 
         default=0,
         validators=[MinValueValidator(Decimal('0'))],
         help_text="Minimum quantity buyers must purchase (0 for no minimum)"
@@ -174,7 +174,7 @@ class Ad(models.Model):
     # Auction Pricing
     starting_bid_price = models.DecimalField(
         max_digits=10, 
-        decimal_places=2,
+        decimal_places=0,
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
@@ -190,7 +190,7 @@ class Ad(models.Model):
     )
     reserve_price = models.DecimalField(
         max_digits=10, 
-        decimal_places=2, 
+        decimal_places=0, 
         blank=True, 
         null=True,
         validators=[MinValueValidator(Decimal('0.01'))],
