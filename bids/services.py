@@ -34,6 +34,10 @@ class BidService:
             if not user or not user.is_authenticated:
                 raise ValueError("User authentication required")
 
+            # Block bidding if company not approved
+            if user.company and getattr(user.company, 'status', None) != 'approved':
+                raise ValueError("Your company is under verification (1–2 business days). You can bid once it is approved.")
+
             # Validate ad exists and is active
             try:
                 ad = Ad.objects.get(id=ad_id)
