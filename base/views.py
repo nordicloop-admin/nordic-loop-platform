@@ -235,6 +235,38 @@ class UserDashboardStatsView(APIView):
                     "is_verified": company.status == "approved",
                     "pending_verification": company.status == "pending"
                 })
+
+                # ---------------- Payment State Derivation ----------------
+                # Raw payment/account fields (Stripe Connect onboarding lifecycle)
+                stripe_account_id = getattr(company, 'stripe_account_id', None)
+                onboarding_complete = bool(getattr(company, 'stripe_onboarding_complete', False))
+                capabilities_complete = bool(getattr(company, 'stripe_capabilities_complete', False))
+                payment_ready = bool(getattr(company, 'payment_ready', False))
+                last_payment_check = getattr(company, 'last_payment_check', None)
+
+                # Derive high-level state machine
+                # Enum values: not_started | in_progress | capabilities_pending | finalizing | ready
+                if not stripe_account_id:
+                    payment_state = 'not_started'
+                elif not onboarding_complete:
+                    payment_state = 'in_progress'
+                elif onboarding_complete and not capabilities_complete:
+                    payment_state = 'capabilities_pending'
+                elif capabilities_complete and not payment_ready:
+                    payment_state = 'finalizing'
+                else:
+                    payment_state = 'ready'
+
+                payment_block = {
+                    "account_id": stripe_account_id,
+                    "onboarding_complete": onboarding_complete,
+                    "capabilities_complete": capabilities_complete,
+                    "payment_ready": payment_ready,
+                    "last_payment_check": last_payment_check.isoformat() if last_payment_check else None
+                }
+
+                response_data["payment"] = payment_block
+                response_data["payment_state"] = payment_state
                 
                 # Add verification message based on status
                 if company.status == "pending":
