@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_extensions',
     'base.apps.BaseConfig',
-    'company',
+    'company.apps.CompanyConfig',
     'users',
     'category',
     'ads',
