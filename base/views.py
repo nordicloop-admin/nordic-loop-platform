@@ -238,7 +238,7 @@ class UserDashboardStatsView(APIView):
                 
                 # Add verification message based on status
                 if company.status == "pending":
-                    response_data["verification_message"] = "Your business is under verification"
+                    response_data["verification_message"] = "Your business is under verification. Verification typically takes 1–2 business days."
                 elif company.status == "rejected":
                     response_data["verification_message"] = "Business verification was rejected. Please contact support."
                 elif company.status == "approved":

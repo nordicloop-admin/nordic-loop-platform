@@ -53,6 +53,9 @@ class BidCreateSerializer(serializers.ModelSerializer):
         ad = attrs.get('ad')
 
         if user and ad:
+            # Block bidding if user's company is not approved
+            if user.company and getattr(user.company, 'status', None) != 'approved':
+                raise serializers.ValidationError("Your company is under verification (1–2 business days). You can bid once it is approved.")
             # Check broker bid permissions
             if (user.company and
                 user.company.sector == 'broker' and

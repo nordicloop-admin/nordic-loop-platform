@@ -31,6 +31,12 @@ class BidCreateView(APIView):
     def post(self, request):
         """Place a bid on an ad"""
         try:
+            # Early company verification gate before serializer validation
+            user = request.user
+            if not hasattr(user, 'company') or not user.company:
+                return Response({"error": "You must belong to a company before placing bids."}, status=status.HTTP_403_FORBIDDEN)
+            if getattr(user.company, 'status', None) != 'approved':
+                return Response({"error": "Your company is under verification (1–2 business days). You can bid once it is approved."}, status=status.HTTP_403_FORBIDDEN)
             serializer = BidCreateSerializer(data=request.data, context={'request': request})
             
             if serializer.is_valid():
