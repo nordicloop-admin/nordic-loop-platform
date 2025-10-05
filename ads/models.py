@@ -1,4 +1,6 @@
 from django.db import models
+from datetime import timedelta
+from django.utils import timezone
 from category.models import Category, SubCategory, CategorySpecification
 from company.models import Company
 from users.models import User
@@ -251,10 +253,17 @@ class Ad(models.Model):
         
         # Check if we're trying to make the auction active
         # We need to check if status is being changed to 'active'
+        duration_changed = False
         if self.pk:  # If updating existing ad
             try:
                 old_instance = Ad.objects.get(pk=self.pk)
                 is_activating = old_instance.status != 'active' and self.status == 'active'
+                # Detect any change in auction duration configuration (preset or custom)
+                if (
+                    old_instance.auction_duration != self.auction_duration or
+                    old_instance.custom_auction_duration != self.custom_auction_duration
+                ):
+                    duration_changed = True
             except Ad.DoesNotExist:
                 is_activating = False
         else:  # New ad
@@ -273,6 +282,26 @@ class Ad(models.Model):
                         "Please complete Stripe Connect onboarding first."
                     )
         
+        # Auto-set / recalculate auction timing if active & complete
+        if self.status == 'active' and self.is_complete:
+            # Ensure start date exists (only set once on first activation unless missing)
+            if not self.auction_start_date:
+                self.auction_start_date = timezone.now()
+
+            # Determine current intended duration
+            current_duration_days = self.effective_auction_duration or 7
+            try:
+                current_duration_days = int(current_duration_days)
+            except (TypeError, ValueError):
+                current_duration_days = 7
+
+            # Recalculate end date if:
+            # - it was never set, OR
+            # - the duration settings were changed after activation
+            if not self.auction_end_date or duration_changed:
+                self.auction_end_date = self.auction_start_date + timedelta(days=current_duration_days)
+                # (Optional future enhancement) If new end date is in the past due to reducing duration,
+                # business rules could auto-complete the auction. Left as-is for now per current requirements.
         super().save(*args, **kwargs)
 
     def clean(self):
