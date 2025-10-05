@@ -21,12 +21,19 @@ DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
 # Security settings
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 
-ALLOWED_HOSTS = [
-    "127.0.0.1", 
-    "localhost",
-    "magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL
-    "nordic-loop-platform.onrender.com"
-]
+# Hosts / Domains the Django site can serve.
+# You can override these in your .env file with a comma-separated list, e.g.:
+# DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,nordic-loop-platform.onrender.com,my.custom.domain
+# django-environ's `env.list` will split on commas and (by default) also on spaces.
+ALLOWED_HOSTS = env.list(
+    'DJANGO_ALLOWED_HOSTS',
+    default=[
+        "127.0.0.1",
+        "localhost",
+        "magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL (override/remove in production env var)
+        "nordic-loop-platform.onrender.com",
+    ]
+)
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:3000'])
 
 # Application definition
