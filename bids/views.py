@@ -35,7 +35,10 @@ class BidCreateView(APIView):
             user = request.user
             if not hasattr(user, 'company') or not user.company:
                 return Response({"error": "You must belong to a company before placing bids."}, status=status.HTTP_403_FORBIDDEN)
-            if getattr(user.company, 'status', None) != 'approved':
+            company_status = getattr(user.company, 'status', None)
+            if company_status != 'approved':
+                if company_status == 'rejected':
+                    return Response({"error": "Your company verification was rejected. You cannot place bids. Please contact support for next steps."}, status=status.HTTP_403_FORBIDDEN)
                 return Response({"error": "Your company is under verification (1–2 business days). You can bid once it is approved."}, status=status.HTTP_403_FORBIDDEN)
             serializer = BidCreateSerializer(data=request.data, context={'request': request})
             
