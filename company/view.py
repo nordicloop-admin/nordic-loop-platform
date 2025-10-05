@@ -127,6 +127,37 @@ class ApproveCompanyView(APIView):
             return Response({"error": f"Failed to approve the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class RejectCompanyView(APIView):
+    """Reject a company and revoke user permissions if previously approved.
+
+    POST /api/company/<company_id>/reject/
+    Response: {"message": "Company rejected."}
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, company_id):
+        try:
+            company = service.get_company_by_id(company_id)
+            if not company:
+                return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if company.status == "rejected":
+                return Response({"message": "Company is already rejected."}, status=status.HTTP_200_OK)
+
+            # If it was approved before, remove user permissions
+            was_approved = company.status == 'approved'
+            company.status = "rejected"
+            company.save()
+
+            if was_approved:
+                users = User.objects.filter(company=company)
+                users.update(can_place_ads=False, can_place_bids=False)
+
+            return Response({"message": "Company rejected."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Failed to reject the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class AdminCompanyListView(APIView):
     """
     Admin endpoint for listing companies with filtering and pagination
