@@ -122,7 +122,27 @@ class ApproveCompanyView(APIView):
             users = User.objects.filter(company=company)
             users.update(can_place_ads=True, can_place_bids=True)
 
-            return Response({"message": "Company approved and user permissions updated."}, status=status.HTTP_200_OK)
+            # Create notifications for each user in the company
+            try:
+                from notifications.models import Notification
+                for u in users:
+                    Notification.objects.create(
+                        user=u,
+                        title="Company Approved",
+                        message=f"Your company '{company.official_name}' has been approved. You can now publish ads and place bids.",
+                        type="account",
+                        priority="normal",
+                        metadata={
+                            "company_id": company.id,
+                            "company_name": company.official_name,
+                            "action_type": "company_approved"
+                        }
+                    )
+            except Exception:
+                # Non-fatal: proceed even if notification creation fails
+                pass
+
+            return Response({"message": "Company approved, permissions updated, and notifications sent."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"Failed to approve the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -222,7 +242,7 @@ class AdminCompanyListView(APIView):
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response(
-                {"error": "Failed to retrieve companies"},
+                {"error": f"Failed to retrieve companies: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -282,7 +302,7 @@ class AdminCompanyDetailView(APIView):
 
         except Exception as e:
             return Response(
-                {"error": "Failed to retrieve company"},
+                {"error": f"Failed to retrieve company: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -378,7 +398,7 @@ class AdminCompanyStatsView(APIView):
 
         except Exception as e:
             return Response(
-                {"error": "Failed to retrieve company statistics"},
+                {"error": f"Failed to retrieve company statistics: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -407,7 +427,7 @@ class AdminCompanyStatsView(APIView):
 
         except Exception as e:
             return Response(
-                {"error": "Failed to update company"},
+                {"error": f"Failed to update company: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
