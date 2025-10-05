@@ -161,9 +161,9 @@ Separate model for detailed location information:
 - Reserve price cannot be lower than starting bid price
 
 ### Step 8 - Title, Description & Image
-- Title must be at least 10 characters
-- Description must be at least 50 characters
-- Completing this step marks the ad as complete (`is_complete = True`)
+- Title must be at least 3 characters
+- Description is optional (no minimum length)
+- Completing this step (with a valid title) marks the ad as complete (`is_complete = True`)
 
 ## Progress Tracking
 

@@ -246,24 +246,22 @@ class AdSerializerTest(TestCase):
         self.assertTrue(serializer.is_valid())
 
     def test_step8_serializer_validation(self):
-        """Test step 8 serializer validation"""
+        """Test step 8 serializer validation with new rules (title >=3, description optional)"""
         ad = Ad.objects.create(user=self.user)
-        
+
+        # Valid: title >=3, no description
         valid_data = {
-            'title': 'High-Quality Material',
-            'description': 'This is a detailed description that is definitely longer than fifty characters to pass validation.'
+            'title': 'Mat'
         }
-        
         serializer = AdStep8Serializer(ad, data=valid_data, partial=True)
         self.assertTrue(serializer.is_valid())
-        
-        # Test invalid data
+
+        # Invalid: title too short
         invalid_data = {
-            'title': 'Short',  # Too short
-            'description': 'Too short'  # Too short
+            'title': 'Hi'
         }
-        
         serializer = AdStep8Serializer(ad, data=invalid_data, partial=True)
         self.assertFalse(serializer.is_valid())
         self.assertIn('title', serializer.errors)
-        self.assertIn('description', serializer.errors)
+        # Description should not be required
+        self.assertNotIn('description', serializer.errors)

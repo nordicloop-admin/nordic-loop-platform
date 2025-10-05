@@ -358,13 +358,14 @@ class AdStep8Serializer(serializers.ModelSerializer):
         ]
 
     def validate_title(self, value):
-        if not value or len(value.strip()) < 10:
-            raise serializers.ValidationError("Title must be at least 10 characters long.")
+        if not value or len(value.strip()) < 3:
+            raise serializers.ValidationError("Title must be at least 3 characters long.")
         return value.strip()
 
     def validate_description(self, value):
-        if not value or len(value.strip()) < 30:
-            raise serializers.ValidationError("Description must be at least 30 characters long.")
+        # Description now optional; if provided, just strip whitespace
+        if value is None:
+            return ''
         return value.strip()
     
     def validate_material_image(self, value):
@@ -381,9 +382,13 @@ class AdStep8Serializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
+        # Mark we've reached step 8; actual completion (is_complete) will be
+        # recalculated in model.save() via update_step_completion_flags()
         validated_data['current_step'] = 8
-        validated_data['is_complete'] = True
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+        # Ensure flags are recalculated (especially if prior steps already done)
+        instance.update_step_completion_flags()
+        return instance
 
 
 class AdCompleteSerializer(serializers.ModelSerializer):
@@ -688,7 +693,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
     
     def _calculate_current_step(self, instance):
         """Calculate current step based on completed data"""
-        if instance.title and instance.description:
+        if instance.title:  # description no longer required for step 8 completion
             return 8
         elif instance.available_quantity and instance.starting_bid_price:
             return 7
@@ -723,7 +728,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
                 instance.processing_methods,  # Step 5
                 instance.location, instance.delivery_options,  # Step 6
                 instance.available_quantity, instance.starting_bid_price, instance.currency,  # Step 7
-                instance.title, instance.description  # Step 8
+                instance.title  # Step 8 (description optional)
             ]
         else:
             # Shortened pathway for other materials (4 steps: 1, 6, 7, 8)
@@ -731,7 +736,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
                 instance.category, instance.subcategory, instance.packaging, instance.material_frequency,  # Step 1
                 instance.location, instance.delivery_options,  # Step 6
                 instance.available_quantity, instance.starting_bid_price, instance.currency,  # Step 7
-                instance.title, instance.description  # Step 8
+                instance.title  # Step 8 (description optional)
             ]
 
         return all(field for field in required_fields)

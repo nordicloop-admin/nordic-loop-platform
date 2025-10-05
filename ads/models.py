@@ -374,10 +374,9 @@ class Ad(models.Model):
             self.available_quantity and self.starting_bid_price and self.currency
         )
         
-        # Step 8: Title & Description
+        # Step 8: Title (description now optional)
         self.step_8_complete = bool(
-            self.title and self.description and 
-            len(self.title.strip()) >= 10 and len(self.description.strip()) >= 30
+            self.title and len(self.title.strip()) >= 3
         )
         
         # Update overall completion status
