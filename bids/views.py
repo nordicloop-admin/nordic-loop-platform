@@ -811,3 +811,23 @@ class AdminBidMarkAsWonView(APIView):
                 {"error": "Failed to mark bid as won"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class OwnerBidMarkAsWonView(APIView):
+    """Auction owner endpoint for marking a bid as won"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, bid_id):
+        try:
+            result = bid_service.owner_mark_bid_as_won(bid_id, request.user)
+            if not result["success"]:
+                return Response(
+                    {"error": result["message"]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response({"message": result["message"]}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response(
+                {"error": "Failed to mark bid as won"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

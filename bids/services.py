@@ -571,3 +571,63 @@ class BidService:
                 "success": False,
                 "message": f"Failed to mark bid as won: {str(e)}"
             }
+
+    def owner_mark_bid_as_won(self, bid_id: int, owner_user: User) -> dict:
+        """
+        Ad owner (seller) marks a bid as won and triggers auction completion.
+        Reuses the same auction completion flow as the admin endpoint but with
+        ownership-based authorization instead of admin privileges.
+        """
+        try:
+            # Fetch bid with related ad
+            bid = Bid.objects.select_related('ad', 'user').filter(id=bid_id).first()
+            if not bid:
+                return {"success": False, "message": "Bid not found"}
+
+            ad = bid.ad
+
+            # Authorization: requesting user must be the ad owner
+            if ad.user_id != owner_user.id:
+                return {"success": False, "message": "Only the auction owner can mark a bid as won"}
+
+            # Prevent duplicate closure
+            if bid.status == 'won' or ad.status in ['completed', 'won', 'closed', 'ended']:
+                return {"success": False, "message": "Auction already finalized"}
+
+            # Basic auction state validation (must be active / running)
+            if not ad.is_active:
+                return {"success": False, "message": "Cannot finalize a non-active auction"}
+
+            # Mark this bid as won and others as lost (mirror repository logic without admin check)
+            bid.status = 'won'
+            bid.save()
+            Bid.objects.filter(ad=ad).exclude(id=bid.id).update(status='lost')
+
+            # Trigger auction manual closure & notifications/payment capture
+            try:
+                from ads.auction_services.auction_completion import AuctionCompletionService
+                auction_service = AuctionCompletionService()
+                completion_result = auction_service.close_auction_manually(ad, bid)
+            except Exception as svc_err:
+                logging_service.log_error(f"AuctionCompletionService error: {svc_err}")
+                completion_result = {"success": False, "message": str(svc_err), "notification_sent": False}
+
+            if not completion_result.get('success', False):
+                # Auction completion failed but winning status set; return partial success notice
+                return {
+                    "success": True,
+                    "message": f"Bid marked as won but auction closure had issues: {completion_result.get('message', 'Unknown error')}",
+                    "data": bid,
+                    "notification_sent": completion_result.get('notification_sent', False)
+                }
+
+            return {
+                "success": True,
+                "message": "Bid marked as won successfully and auction finalized",
+                "data": bid,
+                "notification_sent": completion_result.get('notification_sent', False)
+            }
+
+        except Exception as e:
+            logging_service.log_error(e)
+            return {"success": False, "message": f"Failed to mark bid as won: {str(e)}"}
