@@ -507,12 +507,18 @@ class AdActivateView(APIView):
             )
             
         company = request.user.company
-        # Block activation if company not approved
+        # Block activation if company not approved, with distinct messaging
         if company.status != 'approved':
-            return Response(
-                {"detail": "Your company is still under verification (1–2 business days). You cannot publish auctions until it is approved."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            if company.status == 'rejected':
+                return Response(
+                    {"detail": "Your company verification was rejected. You cannot publish auctions. Please contact support to resolve this."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            else:  # pending or any other non-approved state
+                return Response(
+                    {"detail": "Your company is still under verification (1–2 business days). You cannot publish auctions until it is approved."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         if not company.payment_ready:
             return Response(
                 {"detail": "Your company's payment setup is not complete. Please complete Stripe onboarding before publishing auctions."}, 
