@@ -169,12 +169,41 @@ class RejectCompanyView(APIView):
             company.status = "rejected"
             company.save()
 
+            users = User.objects.filter(company=company)
+
             if was_approved:
-                users = User.objects.filter(company=company)
                 users.update(can_place_ads=False, can_place_bids=False)
 
+            # Create notifications for each user in the company (mirrors approval flow)
+            try:
+                from notifications.models import Notification
+                rejection_reason = request.data.get('reason') if hasattr(request, 'data') else None
+                for u in users:
+                    Notification.objects.create(
+                        user=u,
+                        title="Verification Update Needed",
+                        message=(
+                            f"Your company '{company.official_name}' verification was not approved. "
+                            "Please review your submitted details and resubmit the required documents. "
+                            "You can contact support if you need help." +
+                            (f" Reason: {rejection_reason}" if rejection_reason else "")
+                        ),
+                        type="account",
+                        priority="high",
+                        metadata={
+                            "company_id": company.id,
+                            "company_name": company.official_name,
+                            "action_type": "company_rejected",
+                            "support_url": "/contact",
+                            "previous_status": "approved" if was_approved else "pending",
+                        }
+                    )
+            except Exception:
+                # Non-fatal: continue even if notification creation fails
+                pass
+
             return Response({"message": "Company rejected."}, status=status.HTTP_200_OK)
-        except Exception as e:
+        except Exception as e:  # noqa: PIE786 (retain variable for logging if needed later)
             return Response({"error": f"Failed to reject the company: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -421,6 +450,48 @@ class AdminCompanyStatsView(APIView):
                 if new_status == 'approved':
                     users = User.objects.filter(company=company)
                     users.update(can_place_ads=True, can_place_bids=True)
+                    # Send approval notifications (already handled in separate ApproveCompanyView, but keep parity)
+                    try:
+                        from notifications.models import Notification
+                        for u in users:
+                            Notification.objects.create(
+                                user=u,
+                                title="Company Approved",
+                                message=f"Your company '{company.official_name}' has been approved. You can now publish ads and place bids.",
+                                type="account",
+                                priority="normal",
+                                metadata={
+                                    "company_id": company.id,
+                                    "company_name": company.official_name,
+                                    "action_type": "company_approved"
+                                }
+                            )
+                    except Exception:
+                        pass
+                elif new_status == 'rejected':
+                    # Send rejection notifications
+                    try:
+                        from notifications.models import Notification
+                        users = User.objects.filter(company=company)
+                        for u in users:
+                            Notification.objects.create(
+                                user=u,
+                                title="Verification Update Needed",
+                                message=(
+                                    f"Your company '{company.official_name}' verification was not approved. "
+                                    "Please review details and resubmit. Contact support if you need assistance."
+                                ),
+                                type="account",
+                                priority="high",
+                                metadata={
+                                    "company_id": company.id,
+                                    "company_name": company.official_name,
+                                    "action_type": "company_rejected",
+                                    "support_url": "/contact"
+                                }
+                            )
+                    except Exception:
+                        pass
 
             serializer = AdminCompanyDetailSerializer(company)
             return Response(serializer.data, status=status.HTTP_200_OK)
