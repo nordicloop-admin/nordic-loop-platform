@@ -26,19 +26,19 @@ class Location(models.Model):
 class Ad(models.Model):
     UNIT_CHOICES = [
         ('kg', 'Kilogram'),
-        ('tons', 'Tons'),
-        ('tonnes', 'Tonnes'),
-        ('lbs', 'Pounds'),
-        ('pounds', 'Pounds'),
-        ('pieces', 'Pieces'),
-        ('units', 'Units'),
-        ('bales', 'Bales'),
-        ('containers', 'Containers'),
+        ('ton', 'Tons'),
+        ('tonne', 'Tonnes'),
+        ('lb', 'Pounds'),
+        ('pound', 'Pounds'),
+        ('piece', 'Pieces'),
+        ('unit', 'Units'),
+        ('bale', 'Bales'),
+        ('container', 'Containers'),
         ('m³', 'Cubic Meters'),
-        ('cubic_meters', 'Cubic Meters'),
-        ('liters', 'Liters'),
-        ('gallons', 'Gallons'),
-        ('meters', 'Meters'),
+        ('cubic meter', 'Cubic Meters'),
+        ('liter', 'Liters'),
+        ('gallon', 'Gallons'),
+        ('meter', 'Meters'),
     ]
 
     SELLING_TYPE_CHOICES = [
