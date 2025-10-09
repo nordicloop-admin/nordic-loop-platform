@@ -204,6 +204,7 @@ class UserDashboardStatsView(APIView):
             response_data = {
                 "user_id": user.id,
                 "username": user.username,
+                "first_name": getattr(user, 'first_name', '') or '',
                 "active_bids": active_bids_count,
                 "winning_bids": winning_bids_count,
                 "total_bids": total_user_bids,
