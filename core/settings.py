@@ -15,7 +15,6 @@ environ.Env.read_env(BASE_DIR / '.env')
 ENV = env('DJANGO_ENV')
 PRODUCTION = ENV == 'production'
 DEBUG = env.bool('DJANGO_DEBUG', default=not PRODUCTION)
-# DEBUG = True
 
 
 # Security settings
@@ -99,9 +98,9 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://github.com/jazzband/dj-database-url
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+SECONDARY_DATABASE_URL = env('SECONDARY_DATABASE_URL', default=None)
 
 if DEBUG:
-    
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
@@ -110,13 +109,20 @@ if DEBUG:
         )
     }
 else:
-    
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'dbv2.sqlite3',
         }
     }
+
+# Optional secondary database (used for cloning / migration)
+if SECONDARY_DATABASE_URL:
+    DATABASES['secondary'] = dj_database_url.parse(
+        SECONDARY_DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 
 # Authentication
 AUTH_PASSWORD_VALIDATORS = [
@@ -183,7 +189,6 @@ CORS_ALLOWED_ORIGINS = (
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
     "https://nordicloop.se",
-    # "https://hound-generous-personally.ngrok-free.app",  # Frontend ngrok URL
     # "https://magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL
    
 
@@ -223,7 +228,6 @@ SIMPLE_JWT = {
 
 
 
-# WSGI_APPLICATION = "core.wsgi.application"
 ASGI_APPLICATION = "core.asgi.application"
 if PRODUCTION:
     BASE_LINK = "https://nordic-loop-platform.onrender.com/"
