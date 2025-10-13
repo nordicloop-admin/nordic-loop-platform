@@ -20,41 +20,34 @@ class ContactSignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
+        from users.models import PasswordResetOTP
+        from users.services.email_service import email_service
 
-        if not email or not password:
-            return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Find a contact user (primary or secondary) with this email
-            contact_user = User.objects.get(
-                email=email,
-                contact_type__in=['primary', 'secondary']
-            )
+            contact_user = User.objects.get(email=email, contact_type__in=['primary', 'secondary'])
         except User.DoesNotExist:
-            return Response({
-                "error": "No company contact found with this email. Please contact your company administrator."
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "No company contact found with this email."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Check if this contact user already has a password set (already activated)
-        # We check for both has_usable_password and non-empty password field
         if contact_user.has_usable_password() and contact_user.password:
-            return Response({
-                "error": "User account already activated. Please use the login page."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Account already activated. Please log in."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Set the password for the existing contact user
-        contact_user.set_password(password)
-        contact_user.is_active = True
-        contact_user.save()
+        otp_obj = PasswordResetOTP.generate_otp(email, purpose='account_activation')
+        try:
+            recipient_name = contact_user.first_name or contact_user.username or email.split('@')[0]
+            email_service.send_account_activation_otp(email, otp_obj.otp, recipient_name)
+        except Exception as e:
+            print(f"Error sending activation OTP: {e}")
+            return Response({"error": "Failed to send activation code"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
-            "message": "Account activated successfully.",
-            "username": contact_user.username,
-            "email": contact_user.email,
-            "company": str(contact_user.company)
-        }, status=status.HTTP_201_CREATED)
+            "message": "Activation code sent. Verify OTP to proceed to password creation.",
+            "step": "otp_sent",
+            "email": email
+        }, status=status.HTTP_200_OK)
 
 
 class ContactLoginView(APIView):
@@ -123,7 +116,7 @@ class AdminUserListView(APIView):
             if is_active is not None:
                 is_active = is_active.lower() in ['true', '1', 'yes', 'active']
 
-            # Get filtered users
+            # Get filtered users via service
             pagination_data = service.get_admin_users_filtered(
                 search=search,
                 company=company,
@@ -132,10 +125,7 @@ class AdminUserListView(APIView):
                 page_size=page_size
             )
 
-            # Serialize the results
             serializer = AdminUserListSerializer(pagination_data['results'], many=True)
-            
-            # Format response according to specification
             response_data = {
                 "count": pagination_data['count'],
                 "next": pagination_data['next'],
@@ -145,16 +135,11 @@ class AdminUserListView(APIView):
                 "total_pages": pagination_data['total_pages'],
                 "current_page": pagination_data['current_page']
             }
-
             return Response(response_data, status=status.HTTP_200_OK)
-
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response(
-                {"error": "Failed to retrieve users"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        except Exception:
+            return Response({"error": "Failed to retrieve users"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminUserDetailView(APIView):

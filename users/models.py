@@ -47,6 +47,12 @@ class PasswordResetOTP(models.Model):
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
     reset_token = models.CharField(max_length=100, null=True, blank=True)
+    # purpose distinguishes between password resets and account activation
+    purpose = models.CharField(
+        max_length=30,
+        default='password_reset',
+        choices=[('password_reset', 'Password Reset'), ('account_activation', 'Account Activation')]
+    )
     
     def __str__(self):
         return f"{self.email} - {self.otp}"
@@ -56,8 +62,8 @@ class PasswordResetOTP(models.Model):
         return not self.is_used and timezone.now() <= self.expires_at
     
     @classmethod
-    def generate_otp(cls, email, expiry_minutes=30):
-        """Generate a new OTP for the given email"""
+    def generate_otp(cls, email, expiry_minutes=30, purpose: str = 'password_reset'):
+        """Generate a new OTP for the given email and purpose"""
         import random
         import string
         
@@ -68,20 +74,20 @@ class PasswordResetOTP(models.Model):
         expires_at = timezone.now() + datetime.timedelta(minutes=expiry_minutes)
         
         # Create and save the OTP
-        otp_obj = cls(email=email, otp=otp, expires_at=expires_at)
+        otp_obj = cls(email=email, otp=otp, expires_at=expires_at, purpose=purpose)
         otp_obj.save()
-        
         return otp_obj
     
     @classmethod
-    def verify_otp(cls, email, otp):
-        """Verify if the OTP is valid for the given email"""
+    def verify_otp(cls, email, otp, purpose: str = 'password_reset'):
+        """Verify if the OTP is valid for the given email and purpose"""
         try:
             # Get the latest OTP for the email
             otp_obj = cls.objects.filter(
                 email=email,
                 otp=otp,
-                is_used=False
+                is_used=False,
+                purpose=purpose
             ).latest('created_at')
             
             if otp_obj.is_valid():

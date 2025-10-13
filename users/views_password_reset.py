@@ -177,3 +177,77 @@ class ResetPasswordView(APIView):
                 'error': 'Failed to reset password',
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RequestActivationOtpView(APIView):
+    """Send OTP to a primary/secondary contact for account activation before password set"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Ensure user exists and is an un-activated contact (no password yet)
+        try:
+            user = User.objects.get(email=email, contact_type__in=['primary','secondary'])
+        except User.DoesNotExist:
+            return Response({'error': 'Contact not found'}, status=status.HTTP_404_NOT_FOUND)
+        if user.has_usable_password() and user.password:
+            return Response({'error': 'Account already activated'}, status=status.HTTP_400_BAD_REQUEST)
+        # generate activation OTP
+        otp_obj = PasswordResetOTP.generate_otp(email, purpose='account_activation')
+        try:
+            recipient_name = user.first_name or user.username or email.split('@')[0]
+            email_service.send_account_activation_otp(email, otp_obj.otp, recipient_name)
+        except Exception as e:
+            print(f"Activation OTP email error: {e}")
+            return Response({'error': 'Failed to send activation code'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'message': 'Activation code sent', 'success': True}, status=status.HTTP_200_OK)
+
+
+class VerifyActivationOtpView(APIView):
+    """Verify activation OTP and return a short-lived token to allow password creation"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        if not email or not otp:
+            return Response({'error': 'Email and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
+        otp_obj = PasswordResetOTP.verify_otp(email, otp, purpose='account_activation')
+        if not otp_obj:
+            return Response({'error': 'Invalid or expired OTP', 'success': False}, status=status.HTTP_400_BAD_REQUEST)
+        # generate activation token (reuse reset_token field)
+        token = otp_obj.generate_token()
+        return Response({'message': 'OTP verified', 'success': True, 'token': token}, status=status.HTTP_200_OK)
+
+
+class ActivateAccountSetPasswordView(APIView):
+    """Set password after verifying activation token"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        token = request.data.get('token')
+        password = request.data.get('password')
+        confirm = request.data.get('confirm_password')
+        if not all([email, token, password, confirm]):
+            return Response({'error': 'Email, token, password, confirm_password required'}, status=status.HTTP_400_BAD_REQUEST)
+        if password != confirm:
+            return Response({'error': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
+        # locate OTP token
+        try:
+            otp_obj = PasswordResetOTP.objects.get(email=email, reset_token=token, is_used=False, purpose='account_activation', expires_at__gt=timezone.now())
+        except PasswordResetOTP.DoesNotExist:
+            return Response({'error': 'Invalid or expired token'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        if user.has_usable_password() and user.password:
+            return Response({'error': 'Account already has password'}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(password)
+        user.is_active = True
+        user.save()
+        otp_obj.mark_as_used()
+        return Response({'message': 'Account activated and password set', 'success': True}, status=status.HTTP_200_OK)
