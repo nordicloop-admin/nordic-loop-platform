@@ -32,10 +32,29 @@ class CompanyView(APIView):
                     data = json.loads(request.body.decode('utf-8'))
                 except:
                     data = request.POST
+            # Keep a copy of primary contact email before creation
+            primary_email = data.get('primary_email')
 
             company = service.create_company(data)
-            serializer = CompanySerializer(company)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            # After successful company creation, send activation OTP to primary contact if available
+            if primary_email:
+                try:
+                    from users.models import PasswordResetOTP
+                    from users.services.email_service import email_service
+                    otp_obj = PasswordResetOTP.generate_otp(primary_email, purpose='account_activation')
+                    email_service.send_account_activation_otp(primary_email, otp_obj.otp, primary_email.split('@')[0])
+                    return Response({
+                        "message": "Activation code sent to primary contact email",
+                        "primary_email": primary_email
+                    }, status=status.HTTP_201_CREATED)
+                except Exception as e:
+                    print(f"OTP send failed for {primary_email}: {e}")
+            # Fallback if no primary email or sending failed
+            return Response({
+                "message": "Company created. Activation code could not be sent",
+                "primary_email": primary_email
+            }, status=status.HTTP_201_CREATED)
         except ValueError as ve:
             return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:

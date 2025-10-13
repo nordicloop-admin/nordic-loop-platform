@@ -396,6 +396,42 @@ class MailjetEmailService:
             'status': result.status_code
         }
 
+    def send_account_activation_otp(self, email: str, otp: str, recipient_name: Optional[str] = None) -> Dict[str, Any]:
+        """Send account activation OTP email (reuse password reset template style)"""
+        self._check_credentials()
+        if not recipient_name:
+            recipient_name = email.split('@')[0]
+        # Keep it simpler for activation for now
+        html_content = f"""
+        <html><body>
+        <h2>Welcome to Nordic Loop, {recipient_name}</h2>
+        <p>Use the verification code below to activate your account. The code expires in 30 minutes.</p>
+        <div style='font-size:32px;font-weight:bold;letter-spacing:6px;color:#FF8A00'>{otp}</div>
+        <p>If you did not sign up, you can ignore this email.</p>
+        <p>— The Nordic Loop Team</p>
+        </body></html>
+        """
+        text_content = f"Nordic Loop Account Activation\n\nYour verification code is: {otp}\nIt expires in 30 minutes.\nIf you did not request this, ignore this email."
+        data = {
+            'Messages': [
+                {
+                    'From': {"Email": self.sender_email, "Name": self.sender_name},
+                    'To': [{"Email": email, "Name": recipient_name}],
+                    'Subject': 'Nordic Loop - Account Activation Code',
+                    'TextPart': text_content,
+                    'HTMLPart': html_content
+                }
+            ]
+        }
+        result = self.client.send.create(data=data)
+        if result.status_code != 200:
+            raise Exception(f"Failed to send email: {result.status_code} - {result.reason}")
+        return {
+            'success': True,
+            'message_id': result.json().get('Messages', [{}])[0].get('MessageID'),
+            'status': result.status_code
+        }
+
 
 # Singleton instance
 email_service = MailjetEmailService()
