@@ -35,12 +35,15 @@ class  CompanyService:
                     if field not in primary or not primary[field]:
                         raise ValueError(f"Primary contact {field.replace('_', ' ')} is required")
 
-            # Check for duplicates
+            # Check for duplicates (company level)
             if self.repository.get_company_by_vat(clean_company_data['vat_number']).data:
                 raise ValueError(f"Company with VAT number {clean_company_data['vat_number']} already exists")
 
             if self.repository.get_company_by_email(clean_company_data['email']).data:
                 raise ValueError(f"Company with email {clean_company_data['email']} already exists")
+
+            # Cross-entity email uniqueness validation
+            self._validate_unique_emails(clean_company_data, contact_data)
 
             # Set default status
             clean_company_data.setdefault('status', 'pending')
@@ -90,6 +93,43 @@ class  CompanyService:
 
         return contact_data
 
+    def _validate_unique_emails(self, company_data: Dict[str, Any], contact_data: Dict[str, Any]):
+        """Validate that company email, primary, and secondary emails are all globally unique.
+
+        Raises ValueError if any duplication detected across:
+        - company email
+        - primary contact email
+        - secondary contact email
+        - existing User emails
+        - existing Company emails
+        """
+        emails = []
+        company_email = company_data.get('email')
+        if company_email:
+            emails.append(('company', company_email))
+        if contact_data.get('primary') and contact_data['primary'].get('email'):
+            emails.append(('primary', contact_data['primary']['email']))
+        if contact_data.get('secondary') and contact_data['secondary'].get('email'):
+            emails.append(('secondary', contact_data['secondary']['email']))
+
+        # Check duplicates within payload itself
+        seen = {}
+        for role, email in emails:
+            lower = email.lower()
+            if lower in seen:
+                raise ValueError(f"Email {email} provided multiple times ({seen[lower]} & {role})")
+            seen[lower] = role
+
+        # Check against existing companies and users
+        from django.db.models import Q
+        existing_company_emails = Company.objects.filter(email__in=[e for _, e in emails]).values_list('email', flat=True)
+        if existing_company_emails:
+            raise ValueError(f"Email(s) already used by existing company: {', '.join(existing_company_emails)}")
+
+        existing_user_emails = User.objects.filter(email__in=[e for _, e in emails]).values_list('email', flat=True)
+        if existing_user_emails:
+            raise ValueError(f"Email(s) already used by existing user: {', '.join(existing_user_emails)}")
+
     def _create_contact_users(self, company: Company, contact_data: Dict[str, Any]) -> None:
         """Create User records for company contacts"""
 
@@ -100,7 +140,10 @@ class  CompanyService:
                 # Check if user already exists with this email
                 existing_user = User.objects.filter(email=primary['email']).first()
                 if existing_user:
-                    # Update existing user to be primary contact for this company
+                    # If user belongs to different company, disallow reuse
+                    if existing_user.company and existing_user.company != company:
+                        raise ValueError(f"Primary contact email {primary['email']} already belongs to another company")
+                    # Otherwise update fields (same company scenario is unlikely on create, but safe)
                     existing_user.company = company
                     existing_user.first_name = primary['first_name']
                     existing_user.last_name = primary['last_name']
@@ -130,7 +173,8 @@ class  CompanyService:
                 # Check if user already exists with this email
                 existing_user = User.objects.filter(email=secondary['email']).first()
                 if existing_user:
-                    # Update existing user to be secondary contact for this company
+                    if existing_user.company and existing_user.company != company:
+                        raise ValueError(f"Secondary contact email {secondary['email']} already belongs to another company")
                     existing_user.company = company
                     existing_user.first_name = secondary['first_name']
                     existing_user.last_name = secondary['last_name']
