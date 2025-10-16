@@ -183,4 +183,5 @@ firebase-credentials.json
 user_credentials.txt
 
 
-/media
+media/
+staticfiles/
