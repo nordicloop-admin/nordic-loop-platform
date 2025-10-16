@@ -167,8 +167,11 @@ class UserDashboardStatsView(APIView):
                 try:
                     if hasattr(bid, 'ad') and bid.ad:
                         bid_data['ad_id'] = bid.ad.id
+                        # Surface currency (prefer ad currency; fallback to EUR)
+                        bid_data['currency'] = getattr(bid.ad, 'currency', 'EUR') or 'EUR'
                 except:
                     bid_data['ad_id'] = None
+                    bid_data['currency'] = 'EUR'
                 
                 recent_bids_data.append(bid_data)
             
