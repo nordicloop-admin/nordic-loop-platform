@@ -1,6 +1,6 @@
 from django.urls import path
 from ads.views import (
-    AdStepView, AdDetailView, AdListView, 
+    AdStepView, AdDetailView, AdListView, RecentAdListView,
     UserAdsView, UserAdsCountView, AdStepValidationView, AdActivateView, AdDeactivateView,
     AdminAuctionListView, AdminAuctionDetailView,
     AdminAddressListView, AdminAddressDetailView, AdminAddressVerifyView,
@@ -22,6 +22,8 @@ urlpatterns = [
     path("validate/step/<int:step>/", AdStepValidationView.as_view(), name="validate-step"),
     
     # Ad management
+    # Recent ads (top 8 newest active & complete ads)
+    path("recent/", RecentAdListView.as_view(), name="recent-ads"),
     path("<int:ad_id>/", AdDetailView.as_view(), name="ad-detail"),
     
     # Ad activation/deactivation

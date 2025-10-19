@@ -404,6 +404,35 @@ class AdListView(ListAPIView):
         ).order_by('-created_at')
 
 
+class RecentAdListView(ListAPIView):
+    """Return top 12 most recently created active & complete ads (non-expired)."""
+    serializer_class = AdListSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        from django.utils import timezone
+        now = timezone.now()
+        # Active & complete, payment ready company, not expired
+        return (
+            Ad.objects.filter(
+                is_complete=True,
+                status='active',
+                user__company__payment_ready=True
+            )
+            .filter(Q(auction_end_date__isnull=True) | Q(auction_end_date__gt=now))
+            .select_related('category', 'subcategory', 'location', 'user', 'user__company')
+            .order_by('-created_at')[:12]
+        )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'count': len(serializer.data),
+            'results': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
 class UserAdsView(ListAPIView):
     """List current user's ads with pagination"""
     serializer_class = AdListSerializer
