@@ -8,6 +8,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
 from base.services.firebase_service import firebase_storage_service
+from base.services.r2_storage_service import r2_storage_service
+from base.models import ImageMigrationRecord
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,7 +35,7 @@ class HybridImageStorageService:
                     user_id: Optional[int] = None,
                     force_local: bool = False) -> Tuple[bool, str, Optional[str]]:
         """
-        Upload image with Firebase first, local storage as fallback.
+        Upload image with preferred cloud provider (R2 if enabled, else Firebase), local storage as fallback.
         
         Args:
             image_file: Django uploaded file or file-like object
@@ -45,20 +47,56 @@ class HybridImageStorageService:
             Tuple[bool, str, Optional[str]]: (success, message, download_url)
         """
         if not force_local:
-            # Try Firebase first
-            try:
-                success, message, firebase_url = firebase_storage_service.upload_image(
-                    image_file, folder, user_id
-                )
-                
-                if success and firebase_url:
-                    logger.info(f"Successfully uploaded image to Firebase: {firebase_url}")
-                    return True, "Image uploaded to Firebase successfully", firebase_url
-                else:
-                    logger.warning(f"Firebase upload failed: {message}")
-            
-            except Exception as e:
-                logger.warning(f"Firebase upload error: {str(e)}, falling back to local storage")
+            dual_write = getattr(settings, 'DUAL_WRITE_R2', False) and getattr(settings, 'USE_R2', False)
+            r2_enabled = getattr(settings, 'USE_R2', False)
+            r2_result = None
+            firebase_result = None
+
+            # Attempt R2
+            if r2_enabled:
+                try:
+                    r2_success, r2_message, r2_url = r2_storage_service.upload_image(image_file, folder, user_id)
+                    r2_result = (r2_success, r2_message, r2_url)
+                except Exception as e:
+                    r2_result = (False, f"R2 exception: {e}", None)
+                    logger.warning(f"R2 upload error: {e}")
+
+            # If not dual-write and R2 succeeded, short-circuit
+            if r2_result and r2_result[0] and not dual_write:
+                logger.info(f"Successfully uploaded image to R2: {r2_result[2]}")
+                return True, "Image uploaded to R2 successfully", r2_result[2]
+
+            # Attempt Firebase (always if dual-write; else only if R2 disabled or failed)
+            if dual_write or not (r2_result and r2_result[0]):
+                try:
+                    fb_success, fb_message, fb_url = firebase_storage_service.upload_image(image_file, folder, user_id)
+                    firebase_result = (fb_success, fb_message, fb_url)
+                except Exception as e:
+                    firebase_result = (False, f"Firebase exception: {e}", None)
+                    logger.warning(f"Firebase upload error: {e}")
+
+            # Dual-write mapping record
+            if dual_write and firebase_result and firebase_result[0] and r2_result and r2_result[0]:
+                try:
+                    ImageMigrationRecord.objects.get_or_create(
+                        original_firebase_url=firebase_result[2],
+                        object_model='upload',  # will be refined when model context available
+                        object_id=str(user_id) if user_id else 'anonymous',
+                        field_name=folder,
+                        defaults={
+                            'r2_url': r2_result[2],
+                            'status': 'migrated'
+                        }
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to record dual-write mapping: {e}")
+
+            # Return priority: R2 success else Firebase success else local fallback
+            if r2_result and r2_result[0]:
+                return True, "Image uploaded to R2 successfully", r2_result[2]
+            if firebase_result and firebase_result[0]:
+                return True, "Image uploaded to Firebase successfully", firebase_result[2]
+            # else fall through to local
         
         # Fallback to local storage
         try:
@@ -221,12 +259,28 @@ class HybridImageStorageService:
     
     def get_storage_type(self, image_url: str) -> str:
         """Determine storage type from URL"""
+        if self._is_r2_url(image_url):
+            return 'r2'
         if self._is_firebase_url(image_url):
             return 'firebase'
-        elif self._is_local_url(image_url):
+        if self._is_local_url(image_url):
             return 'local'
-        else:
-            return 'unknown'
+        return 'unknown'
+
+    def _is_r2_url(self, url: str) -> bool:
+        """Check if URL is an R2 URL based on configured public base or endpoint."""
+        if not url:
+            return False
+        public_base = getattr(settings, 'R2_PUBLIC_BASE_URL', '').rstrip('/')
+        account_id = getattr(settings, 'CLOUDFLARE_ACCOUNT_ID', '')
+        bucket = getattr(settings, 'CLOUDFLARE_R2_BUCKET', '')
+        # Match custom domain
+        if public_base and url.startswith(public_base):
+            return True
+        # Match direct endpoint style
+        if account_id and bucket and f"{account_id}.r2.cloudflarestorage.com" in url and f"/{bucket}/" in url:
+            return True
+        return False
 
 
 # Singleton instance

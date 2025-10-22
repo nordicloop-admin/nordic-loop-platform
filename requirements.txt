@@ -62,3 +62,6 @@ urllib3==2.4.0
 whitenoise==6.9.0
 mailjet-rest==1.5.1
 stripe==11.1.0
+
+# Cloudflare R2 (S3-compatible) client
+boto3==1.35.27

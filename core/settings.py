@@ -238,6 +238,16 @@ else:
 FIREBASE_STORAGE_BUCKET = env('FIREBASE_STORAGE_BUCKET', default='your-project-id.appspot.com')
 FIREBASE_CREDENTIALS_PATH = env('FIREBASE_CREDENTIALS_PATH', default=None)
 
+# Cloudflare R2 Configuration
+USE_R2 = env.bool('USE_R2', default=False)
+CLOUDFLARE_ACCOUNT_ID = env('CLOUDFLARE_ACCOUNT_ID', default='')
+CLOUDFLARE_R2_BUCKET = env('CLOUDFLARE_R2_BUCKET', default='')
+CLOUDFLARE_R2_ACCESS_KEY_ID = env('CLOUDFLARE_R2_ACCESS_KEY_ID', default='')
+CLOUDFLARE_R2_SECRET_ACCESS_KEY = env('CLOUDFLARE_R2_SECRET_ACCESS_KEY', default='')
+R2_PUBLIC_BASE_URL = env('R2_PUBLIC_BASE_URL', default='')
+R2_SIGNED_URL_TTL = env.int('R2_SIGNED_URL_TTL', default=3600)
+DUAL_WRITE_R2 = env.bool('DUAL_WRITE_R2', default=False)
+
 # Backend URL for local image serving
 BACKEND_URL = env('BACKEND_URL', default='http://127.0.0.1:8000')
 

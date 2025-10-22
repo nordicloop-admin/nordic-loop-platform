@@ -421,7 +421,7 @@ class RecentAdListView(ListAPIView):
             )
             .filter(Q(auction_end_date__isnull=True) | Q(auction_end_date__gt=now))
             .select_related('category', 'subcategory', 'location', 'user', 'user__company')
-            .order_by('-created_at')[:12]
+            .order_by('-created_at')[:8]
         )
 
     def list(self, request, *args, **kwargs):

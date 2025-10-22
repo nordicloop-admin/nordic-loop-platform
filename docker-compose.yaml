@@ -1,32 +1,34 @@
 version: "3.8"
 
 services:
-  web:
-    build: .
-    image: registry.kareralabs.com/nordicloop-backend:1.0
-    container_name: nordicloop-be
+
+  db:
+    image: postgres:17
+    env_file:
+      - .env
     ports:
-      - 8002:8001
+      - 5439:5432
+    networks:
+      - nordicloop-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  app:
+    image: csrolivier/nordicloop-backend:1.0
+    ports:
+      - 8000:8000
     env_file:
       - .env
     depends_on: 
       - db
     networks:
       - nordicloop-network
-
-  db:
-    image: postgres:17
-    container_name: nordicloop-db
-    env_file:
-      - .env
-    ports:
-      - 5435:5432
-
-    # command: ["postgres","-p","5437"]
-
-    networks:
-      - nordicloop-network
+    volumes:
+      - ./media:/media
 
 
 networks:
   nordicloop-network:
+volumes:
+  postgres_data:
