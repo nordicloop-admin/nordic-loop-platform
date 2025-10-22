@@ -126,17 +126,16 @@ class AdStep2Serializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """Ensure at least one specification field is provided"""
+        """Ensure at least one specification field is provided (excluding additional_specifications which is optional)"""
         color = data.get('specification_color')
         grade = data.get('specification_material_grade')
         form = data.get('specification_material_form')
         additional = data.get('specification_additional')
-        existing_additional = data.get('additional_specifications')
 
-        # Check if at least one specification is provided
-        if not any([color, grade, form, additional, existing_additional]):
+        # Check if at least one main specification is provided (additional_specifications is now truly optional)
+        if not any([color, grade, form, additional]):
             raise serializers.ValidationError(
-                "At least one specification field must be provided (color, material grade, material form, or additional specifications)."
+                "At least one specification field must be provided (color, material grade, material form, or specification additional)."
             )
         
         return data
@@ -705,7 +704,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
             return 4
         elif instance.origin:
             return 3
-        elif instance.specification or instance.additional_specifications:
+        elif instance.specification:
             return 2
         else:
             return 1
@@ -722,7 +721,7 @@ class AdUpdateSerializer(serializers.ModelSerializer):
             # Full pathway for plastics (8 steps) - all fields required
             required_fields = [
                 instance.category, instance.subcategory, instance.packaging, instance.material_frequency,  # Step 1
-                (instance.specification or instance.additional_specifications),  # Step 2
+                instance.specification,  # Step 2 (additional_specifications is optional)
                 instance.origin,  # Step 3
                 instance.contamination, instance.additives, instance.storage_conditions,  # Step 4
                 instance.processing_methods,  # Step 5

@@ -378,9 +378,7 @@ class Ad(models.Model):
         )
         
         # Step 2: Specifications (optional for non-plastic materials)
-        self.step_2_complete = bool(
-            self.specification or self.additional_specifications
-        )
+        self.step_2_complete = bool(self.specification)  # additional_specifications is now optional
         
         # Step 3: Material Origin
         self.step_3_complete = bool(self.origin)
