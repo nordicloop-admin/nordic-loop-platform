@@ -187,3 +187,8 @@ user_credentials.txt
 
 media/
 staticfiles/
+
+
+#authentication keys
+jwt_private_key.pem
+jwt_public_key.pem
