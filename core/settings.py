@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',  # Add token blacklist support
     'corsheaders',
     'django_extensions',
     'base.apps.BaseConfig',
@@ -221,9 +222,48 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Helper function to read RSA keys from files
+def read_key_from_file(key_path):
+    """Read RSA key from file"""
+    try:
+        full_path = BASE_DIR / key_path.lstrip('./')
+        with open(full_path, 'r') as key_file:
+            return key_file.read()
+    except FileNotFoundError:
+        if DEBUG:
+            print(f"Warning: JWT key file not found: {key_path}")
+        return None
+
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=90),
+    # Token lifetimes - shorter for better security
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # 15 minutes instead of 1 day
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # 7 days instead of 90
+    
+    # Use RS256 algorithm with RSA key pair
+    "ALGORITHM": "RS256",
+    "SIGNING_KEY": read_key_from_file(env('JWT_PRIVATE_KEY_PATH', default='./jwt_private_key.pem')),
+    "VERIFYING_KEY": read_key_from_file(env('JWT_PUBLIC_KEY_PATH', default='./jwt_public_key.pem')),
+    
+    # Token rotation and blacklist settings
+    "ROTATE_REFRESH_TOKENS": True,          # Generate new refresh token on use
+    "BLACKLIST_AFTER_ROTATION": True,       # Blacklist old refresh tokens
+    "UPDATE_LAST_LOGIN": True,              # Track login times
+    
+    # JWT Claims configuration
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    
+    # Token validation
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+    
+    # Additional claims for security and functionality
+    "JTI_CLAIM": "jti",                     # JWT ID for revocation
+    
     # Use custom token classes that include additional claims
     "TOKEN_OBTAIN_SERIALIZER": "users.serializers.CustomTokenObtainPairSerializer",
 }
