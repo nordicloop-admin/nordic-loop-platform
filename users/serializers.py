@@ -174,3 +174,38 @@ class UserCompanyNameSerializer(serializers.ModelSerializer):
         elif obj.company and obj.company.registration_date:
             return obj.company.registration_date
         return timezone.now()
+
+
+class CustomTokenObtainPairSerializer(serializers.Serializer):
+    """
+    Custom token serializer that uses our CustomRefreshToken
+    This is optional but provides a clean API endpoint for token generation
+    """
+    email = serializers.EmailField()
+    password = serializers.CharField()
+
+    def validate(self, attrs):
+        from .tokens import CustomRefreshToken
+        from django.contrib.auth import authenticate
+        
+        email = attrs.get('email')
+        password = attrs.get('password')
+        
+        user = authenticate(username=email, password=password)
+        if user is None:
+            raise serializers.ValidationError('Invalid credentials')
+            
+        refresh = CustomRefreshToken.for_user(user)
+        
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+            }
+        }

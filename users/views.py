@@ -6,6 +6,7 @@ from company.models import Company
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
+from .tokens import CustomRefreshToken
 from .serializers import UserSerializer, AdminUserListSerializer, AdminUserDetailSerializer, UserProfileSerializer, PasswordChangeSerializer, UserCompanyNameSerializer
 from users.repository.user_repository import UserRepository
 from users.services.user_service import UserService
@@ -75,17 +76,13 @@ class ContactLoginView(APIView):
         if not user.check_password(password):
             return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
 
-        refresh = RefreshToken.for_user(user)
+        # Use custom token that includes additional user claims
+        refresh = CustomRefreshToken.for_user(user)
 
         return Response({
             "message": "Login successful.",
-            "username": user.username,
-            "email": user.email,
-            "firstname": user.first_name,
-            "lastname": user.last_name,
-            "role": user.role,
             "access": str(refresh.access_token),
-            "refresh": str(refresh),
+            "refresh": str(refresh)
         }, status=status.HTTP_200_OK)
 
 
