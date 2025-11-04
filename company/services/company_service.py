@@ -49,7 +49,17 @@ class  CompanyService:
             clean_company_data.setdefault('status', 'pending')
 
             # Create the company
-            company = self.repository.create_company(clean_company_data).data
+            company_response = self.repository.create_company(clean_company_data)
+            company = company_response.data
+            if not company_response.success or company is None:
+                raise ValueError("Failed to create company")
+
+            # Increment metric explicitly (defensive in case signals not loaded in worker)
+            try:
+                from core.metrics import companies_registered_total
+                companies_registered_total.inc()
+            except Exception:
+                pass
 
             # Create contact users
             self._create_contact_users(company, contact_data)

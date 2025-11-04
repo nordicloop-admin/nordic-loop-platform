@@ -1,3 +1,14 @@
+"""Signals for Bid related metrics increments."""
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from bids.models import Bid
+from core.metrics import bids_created_total
+
+
+@receiver(post_save, sender=Bid)
+def bid_post_save(sender, instance: Bid, created, **kwargs):
+    if created:
+        bids_created_total.inc()
 """
 Bid signals for handling auction winner notifications
 

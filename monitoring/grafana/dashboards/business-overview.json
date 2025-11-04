@@ -1,0 +1,52 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Ads Created",
+      "id": 1,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [{"expr": "ads_created_total", "refId": "A"}],
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "reduceOptions": {"calcs": ["last"], "fields": "", "values": false}}
+    },
+    {
+      "type": "stat",
+      "title": "Auctions Activated",
+      "id": 2,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [{"expr": "auctions_activated_total", "refId": "A"}]
+    },
+    {
+      "type": "stat",
+      "title": "Bids Placed",
+      "id": 3,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [{"expr": "bids_created_total", "refId": "A"}]
+    },
+    {
+      "type": "stat",
+      "title": "Companies Registered",
+      "id": 4,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [{"expr": "companies_registered_total", "refId": "A"}]
+    },
+    {
+      "type": "timeSeries",
+      "title": "Bids Rate (5m)",
+      "id": 5,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [{"expr": "rate(bids_created_total[5m])", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["business"],
+  "timezone": "browser",
+  "title": "Business Overview",
+  "version": 1
+}

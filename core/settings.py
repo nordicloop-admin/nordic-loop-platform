@@ -27,6 +27,7 @@ SECRET_KEY = env('DJANGO_SECRET_KEY')
 ALLOWED_HOSTS = env.list(
     'DJANGO_ALLOWED_HOSTS',
     default=[
+        "app",
         "127.0.0.1",
         "localhost",
         "magical-outgoing-grizzly.ngrok-free.app",  # Backend ngrok URL (override/remove in production env var)

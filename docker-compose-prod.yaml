@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+
+  db:
+    image: postgres:17
+    env_file:
+      - .env
+    ports:
+      - 5439:5432
+    networks:
+      - nordicloop-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  app:
+    build:
+      context: .
+      # dockerfile: Dockerfile
+    container_name: nordicloop-be
+    image: csrolivier/nordicloop-backend:1.0
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    networks:
+      - nordicloop-network
+    volumes:
+      - media:/media
+    depends_on: 
+      - db
+    # deploy:
+    #   replicas: 3
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - 9090:9090
+    depends_on:
+      - app
+    networks:
+      - nordicloop-network
+
+  grafana:
+    image: grafana/grafana:10.4.5
+    container_name: grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_LOG_MODE=console
+    volumes:
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - 3009:3000
+    depends_on:
+      - prometheus
+    networks:
+      - nordicloop-network
+
+
+networks:
+  nordicloop-network:
+volumes:
+  postgres_data:
+  media:
+  prometheus_data:
+  grafana_data:

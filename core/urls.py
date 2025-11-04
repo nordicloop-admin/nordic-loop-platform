@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from core.metrics import metrics_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,6 +32,8 @@ urlpatterns = [
     path('api/category-subscriptions/', include('category_subscriptions.urls')),
     path('api/pricing/', include('pricing.urls')),
     path('api/payments/', include('payments.urls')),
+    # Prometheus metrics endpoint (keep unprotected internally; secure via network controls)
+    path('metrics', metrics_view, name='metrics'),
 ]
 
 # Serve media files during development
