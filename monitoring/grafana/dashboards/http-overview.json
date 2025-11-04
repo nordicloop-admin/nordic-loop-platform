@@ -1,0 +1,101 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Request Rate (1m)",
+      "id": 10,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "sum(rate(http_requests_total[1m]))", "refId": "A"},
+        {"expr": "sum(rate(http_requests_total{status_group=\"5xx\"}[1m]))", "refId": "B"}
+      ],
+      "legend": {"show": true},
+      "lines": true
+    },
+    {
+      "type": "stat",
+      "title": "Error Rate % (5m)",
+      "id": 11,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "(sum(rate(http_requests_total{status_group=\"5xx\"}[5m])) / sum(rate(http_requests_total[5m]))) * 100", "refId": "A"}
+      ],
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["last"], "fields": "", "values": false}}
+    },
+    {
+      "type": "stat",
+      "title": "Active Requests", "id": 12,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [{"expr": "sum(active_requests)", "refId": "A"}],
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["last"], "fields": "", "values": false}}
+    },
+    {
+      "type": "graph",
+      "title": "p95 Latency (5m)",
+      "id": 13,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Latency Histogram Buckets (rate)",
+      "id": 14,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "sum(rate(http_request_duration_seconds_bucket[5m])) by (le)", "refId": "A"}
+      ],
+      "legend": {"show": true}
+    },
+    {
+      "type": "graph",
+      "title": "Request Payload Rate (5m)",
+      "id": 15,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "sum(rate(request_payload_bytes_total[5m]))", "refId": "A"}
+      ],
+      "legend": {"show": true}
+    },
+    {
+      "type": "graph",
+      "title": "Response Payload Rate (5m)",
+      "id": 16,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "sum(rate(response_payload_bytes_total[5m]))", "refId": "A"}
+      ],
+      "legend": {"show": true}
+    },
+    {
+      "type": "table",
+      "title": "Top Slow Endpoints (p95)",
+      "id": 17,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "topk(10, histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, path_template)))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Error Rate by Endpoint (5m)",
+      "id": 18,
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "targets": [
+        {"expr": "topk(10, (sum(rate(http_requests_total{status_group=\"5xx\"}[5m])) by (path_template)) / (sum(rate(http_requests_total[5m])) by (path_template)))", "refId": "A"}
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["http", "performance"],
+  "timezone": "browser",
+  "title": "HTTP Overview",
+  "version": 1
+}

@@ -64,6 +64,7 @@ AUTH_USER_MODEL = 'users.User'
 
 
 MIDDLEWARE = [
+    'core.middleware.http_metrics.HttpMetricsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
