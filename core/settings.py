@@ -238,7 +238,7 @@ def read_key_from_file(key_path):
 
 SIMPLE_JWT = {
     # Token lifetimes - shorter for better security
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # 15 minutes instead of 1 day
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),  # 15 minutes instead of 1 day
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),     # 7 days instead of 90
     
     # Use RS256 algorithm with RSA key pair

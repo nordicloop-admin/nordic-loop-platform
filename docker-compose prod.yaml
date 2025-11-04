@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     ports:
-      - 5435:5432
+      - 5439:5432
     networks:
       - nordicloop-network
     volumes:
@@ -16,14 +16,11 @@ services:
 
   app:
     build:
-      context: .
-      # dockerfile: Dockerfile
-    container_name: nordicloop-be
     image: csrolivier/nordicloop-backend:1.0
     env_file:
       - .env
     ports:
-      - 8000
+      - 8000:8000
     networks:
       - nordicloop-network
     volumes:
@@ -52,16 +49,24 @@ services:
   grafana:
     image: grafana/grafana:10.4.5
     container_name: grafana
+    # Use environment variables (sourced from .env) to configure secure access
+    # Add the following to your .env file (DO NOT commit real passwords):
+    # GRAFANA_ADMIN_USER=admin
+    # GRAFANA_ADMIN_PASSWORD=changeMe_Properly123!
+    env_file:
+      - .env
     environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_USERS_ALLOW_SIGN_UP=false
       - GF_LOG_MODE=console
     volumes:
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - 3000:3000
+      - 3009:3000
     depends_on:
       - prometheus
     networks:
