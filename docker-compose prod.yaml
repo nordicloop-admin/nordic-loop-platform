@@ -30,6 +30,19 @@ services:
     # deploy:
     #   replicas: 3
 
+  chat-service:
+    
+    image: csrolivier/chat-service:1.0
+    ports:
+      - "8001:8001"
+    networks:
+      - nordicloop-network
+    env_file:
+      - .env
+    
+    # Restart policy
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v2.55.0
     container_name: prometheus
