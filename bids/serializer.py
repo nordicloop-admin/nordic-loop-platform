@@ -272,12 +272,18 @@ class BidListSerializer(serializers.ModelSerializer):
     bidder_name = serializers.CharField(source='user.username', read_only=True)
     company_name = serializers.CharField(source='user.company.official_name', read_only=True)
 
+    # Seller information (ad owner)
+    seller_id = serializers.IntegerField(source='ad.user.id', read_only=True)
+    seller_company = serializers.CharField(source='ad.user.company.official_name', read_only=True)
+
     class Meta:
         model = Bid
         fields = [
             'id', 'ad_id', 'ad_title', 'bidder_name', 'company_name',
             'bid_price_per_unit', 'volume_requested', 'total_bid_value',
-            'status', 'created_at', 'updated_at'
+            'status', 'created_at', 'updated_at',
+            # Seller information for chat integration
+            'seller_id', 'seller_company'
         ]
 
 
