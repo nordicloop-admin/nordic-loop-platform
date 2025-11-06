@@ -58,12 +58,16 @@ INSTALLED_APPS = [
     'category_subscriptions',
     'pricing.apps.PricingConfig',
     'payments.apps.PaymentsConfig',
+    
+    #External dependencies
+    'django_prometheus',
 
 ]
 AUTH_USER_MODEL = 'users.User'
 
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'core.middleware.http_metrics.HttpMetricsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -74,6 +78,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -189,6 +194,7 @@ if not DEBUG and PRODUCTION:
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = (
     "http://localhost:3000",
+    "http://localhost:3009",
     "https://testingnordicloop.vercel.app",
     "https://nordicloop.onrender.com",
     "https://nordicloop.se",
@@ -316,3 +322,7 @@ EMAIL_USE_TLS = env('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@nordicloop.com')
+
+
+PROMETHEUS_LATENCY_BUCKETS = (0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0, 25.0, 50.0, 75.0, float("inf"),)
+PROMETHEUS_METRIC_NAMESPACE = "project"

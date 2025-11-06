@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/payments/', include('payments.urls')),
     # Prometheus metrics endpoint (keep unprotected internally; secure via network controls)
     path('metrics', metrics_view, name='metrics'),
+    path('', include('django_prometheus.urls')),
 ]
 
 # Serve media files during development
